@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#0b0a12" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
-<title>Luz x Trevas · Prévia 3D</title>
+<title>Luz x Trevas · MOBA bíblico 3D</title>
 <link rel="stylesheet" href="fonts.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2228%22 fill=%22%23f5c85a%22/%3E%3C/svg%3E" />
-  <script type="module" crossorigin src="./assets/index-CqN0cRYR.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-ujKPi5A7.css">
+  <script type="module" crossorigin src="./assets/index-DrHMbgIP.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CA6udR1H.css">
 </head>
 <body>
 <canvas id="cena"></canvas>
@@ -21,21 +21,21 @@
 
   <!-- Placar -->
   <div id="placar">
-    <div class="time luz"><span class="nome">LUZ</span><span class="pts" id="ptsLuz">7</span></div>
-    <div class="centro"><span class="x">x</span><span id="tempo">08:42</span></div>
-    <div class="time trevas"><span class="pts" id="ptsTrevas">4</span><span class="nome">TREVAS</span></div>
+    <div class="time luz"><span class="nome">LUZ</span><span class="pts" id="ptsLuz">0</span></div>
+    <div class="centro"><span class="x">x</span><span id="tempo">00:00</span></div>
+    <div class="time trevas"><span class="pts" id="ptsTrevas">0</span><span class="nome">TREVAS</span></div>
   </div>
 
   <!-- Topo direito -->
   <div id="topoDir">
-    <div class="kda"><small>A/M/A</small><b id="kda">3/0/5</b></div>
-    <div class="kda"><small>TROPAS</small><b id="cs">48</b></div>
+    <div class="kda"><small>A/M/A</small><b id="kda">0/0/0</b></div>
+    <div class="kda"><small>TROPAS</small><b id="cs">0</b></div>
     <div class="rede"><i></i><span id="ping">32 ms</span><span id="fps">60 FPS</span></div>
     <button class="engr" aria-label="Configurações"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.9 4.6-.1-2.2 2-1.6-2-3.4-2.4.8a8 8 0 0 0-1.9-1.1L16 3h-4l-.5 2.6a8 8 0 0 0-1.9 1.1l-2.4-.8-2 3.4 2 1.6a8 8 0 0 0 0 2.2l-2 1.6 2 3.4 2.4-.8a8 8 0 0 0 1.9 1.1L12 21h4l.5-2.6a8 8 0 0 0 1.9-1.1l2.4.8 2-3.4Z" fill="currentColor"/></svg></button>
   </div>
 
   <!-- Loja -->
-  <button id="loja"><span class="moeda"></span><b id="ouro">1.250</b><small>LOJA</small></button>
+  <button id="loja"><span class="moeda"></span><b id="ouro">500</b><small>LOJA</small></button>
 
   <!-- Aviso -->
   <div id="aviso"></div>
@@ -44,7 +44,7 @@
   <div id="painel">
     <div class="retrato"><canvas id="retrato" width="160" height="160"></canvas><span class="nivel" id="nivel">7</span></div>
     <div class="barras">
-      <div class="nomeHeroi">Davi <small>O Pastor Guerreiro</small></div>
+      <div class="nomeHeroi" id="nomeHeroi">Davi <small>O Pastor Guerreiro</small></div>
       <div class="barra vida"><i id="bVida"></i><span id="tVida">1.842 / 2.300</span></div>
       <div class="barra mana"><i id="bMana"></i><span id="tMana">620 / 900</span></div>
       <div class="barra xp"><i id="bXp"></i></div>
@@ -87,15 +87,31 @@
   </div>
 
   <div id="dicas"></div>
+  <div id="abate"></div>
+  <div id="morte"></div>
+  <div id="pontosAviso">Ponto de habilidade disponível: toque em <b>+</b></div>
+  <div id="inimInfo"></div>
 </div>
 
 <!-- Tela de carregamento -->
 <div id="carregando">
   <div class="logo"><span>LUZ</span><i>x</i><span>TREVAS</span></div>
-  <div class="sub">Prévia 3D · Davi, o Pastor Guerreiro</div>
+  <div class="sub">Partida 1x1 · 8 heróis da Luz e das Trevas</div>
   <div class="prog"><i id="progBarra"></i></div>
   <div class="txt" id="progTxt">Carregando modelos 3D…</div>
 </div>
+<!-- Seleção de herói -->
+<div id="selecao">
+  <div class="selTopo"><div class="logo"><span>LUZ</span><i>x</i><span>TREVAS</span></div><div class="passo" id="selPasso">Escolha seu lado</div></div>
+  <div id="selLados"></div>
+  <div id="selHerois" hidden>
+    <div id="selCards"></div>
+    <div id="selDet"></div>
+    <div class="acoes"><span id="selAdv"></span><button id="selVoltar" class="sec">Voltar</button><button id="selOk">Confirmar</button></div>
+  </div>
+</div>
+<div id="lojaPainel"></div>
+<div id="fim"></div>
 <div id="girar">Gire o celular para jogar na horizontal</div>
 
 </body>
