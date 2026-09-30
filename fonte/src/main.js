@@ -1234,7 +1234,8 @@ function atualizarMinion(u, dt) {
   } else if (u.invocado) { u.tocar(u.anim.idle, .2);
   } else {
     const s = u.time === 'luz' ? 1 : -1; const px = u.obj.position.x + s * 3;
-    mover(u, new THREE.Vector3(px, 0, laneZ(px) + u.laneOff), dt); u.tocar(u.anim.correr, .2, false, u.anim.velCorrer || 1);
+    let dv = 0; if (MAPA_WR) for (const e of estruturas) { if (!e.vivo || e.tipo !== 'torre') continue; const ddx = Math.abs(e.obj.position.x - px); if (ddx < 4.5) dv = Math.max(dv, (1 - ddx / 4.5) * 3.4); } // torre em cima da estrada: contorna pelo lado de baixo
+    mover(u, new THREE.Vector3(px, 0, laneZ(px) + u.laneOff + dv), dt); u.tocar(u.anim.correr, .2, false, u.anim.velCorrer || 1);
   }
   if (u.fumaca && Math.random() < dt * 4) { const p = u.obj.position; fxD.emit(p.x + (Math.random() - .5) * .8, .3 + Math.random() * .8, p.z + (Math.random() - .5) * .8, { vel: [0, .8, 0], cor: [.16, .04, .18], vida: 1.1, t0: .5, t1: 1.3, alpha: .55 }); }
 }

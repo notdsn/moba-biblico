@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { SELVA_ON, SELVA_LARG, SELVA_SUL, distTrilha, distCampo, COVAS, naMuralha, bordaCova, MAPA_WR, MAPA_C, MAPA_FOLGA, distLosango, distLateral, TORRES_LATERAIS } from './selva_mapa.js';
+import { SELVA_ON, SELVA_LARG, SELVA_SUL, distTrilha, distCampo, COVAS, naMuralha, bordaCova, MAPA_WR, MAPA_C, MAPA_FOLGA, distLosango, distLateral, TORRES_LATERAIS, ROTA_TOPO, ROTA_BAIXO } from './selva_mapa.js';
 export { MAPA_WR };
 
 // ---------- utilidades ----------
@@ -24,7 +24,7 @@ POS.baseLuz.z = laneZ(POS.baseLuz.x); POS.baseTrevas.z = laneZ(POS.baseTrevas.x)
 POS.torreLuz2 = new THREE.Vector3(-37, 0, laneZ(-37) - 6.2); POS.torreTrevas2 = new THREE.Vector3(39, 0, laneZ(39) - 6.2);
 POS.nucleoLuz = new THREE.Vector3(-47, 0, laneZ(-47)); POS.nucleoTrevas = new THREE.Vector3(49, 0, laneZ(49));
 if (MAPA_WR) { // espaçamento do WR no Meio: externa perto do rio, interna, torre da base (inibidor) e Núcleo
-  const tz = (x) => laneZ(x) - 6.2;
+  const tz = (x) => laneZ(x) - 1.2; // em cima da estrada do Meio (como no WR); as tropas desviam
   POS.torreLuz.set(-13, 0, tz(-13)); POS.torreTrevas.set(15, 0, tz(15)); POS.torreLuz2.set(-25, 0, tz(-25)); POS.torreTrevas2.set(27, 0, tz(27));
   POS.torreLuz3 = new THREE.Vector3(-36, 0, tz(-36)); POS.torreTrevas3 = new THREE.Vector3(38, 0, tz(38));
 }
@@ -176,6 +176,17 @@ function criarCaminho(scene, q) {
       pts.push([x + jx, laneZ(x + jx) + w + jz]);
     }
   }
+  if (MAPA_WR) { const pl = q.mobile ? 1.25 : 1.0; // estradas do topo e de baixo: mesmo estilo, passo um pouco maior no celular
+    for (const rota of [ROTA_TOPO, ROTA_BAIXO]) for (let i = 0; i < rota.length - 1; i++) { const [ax, az] = rota[i], [bx, bz] = rota[i + 1]; const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
+      for (let t = 0; t < L; t += pl) for (let w = -LANE.largura; w <= LANE.largura; w += pl) { const edge = Math.abs(w) / LANE.largura; if (edge > .82 && R() < (edge - .82) * 4) continue; const jx = (R() - .5) * pl * .5, jz = (R() - .5) * pl * .5; pts.push([ax + ux * t - uz * w + jx, az + uz * t + ux * w + jz]); } } }
+  if (MAPA_WR) { // um InstancedMesh por trecho de 24 x 24: o que está fora da câmera nem é desenhado
+    const grupos = new Map(); for (const pt of pts) { const k = Math.floor(pt[0] / 24) + ':' + Math.floor(pt[1] / 24); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(pt); }
+    const m4 = new THREE.Matrix4(), qv = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color();
+    const pedraL = [new THREE.Color('#a8977a'), new THREE.Color('#8f7f64'), new THREE.Color('#b8a888'), new THREE.Color('#7d6e57')], pedraT = [new THREE.Color('#4b4052'), new THREE.Color('#3a3144'), new THREE.Color('#5a4a60'), new THREE.Color('#2e2836')];
+    for (const lista of grupos.values()) { const inst = new THREE.InstancedMesh(base, mat, lista.length); inst.receiveShadow = true;
+      lista.forEach(([x, z], i) => { const sc = passo * (0.78 + R() * .3); e.set((R() - .5) * .08, R() * Math.PI, (R() - .5) * .08); qv.setFromEuler(e); s.set(sc * (0.85 + R() * .3), 0.7 + R() * .6, sc * (0.85 + R() * .3)); p.set(x, -0.04 + R() * 0.03, z); m4.compose(p, qv, s); inst.setMatrixAt(i, m4); const t = lado(x); col.copy(pedraL[(R() * 4) | 0]).lerp(pedraT[(R() * 4) | 0], t); col.multiplyScalar(0.72 + R() * .22); inst.setColorAt(i, col); });
+      inst.computeBoundingSphere(); scene.add(inst); }
+    return null; }
   const inst = new THREE.InstancedMesh(base, mat, pts.length); inst.receiveShadow = true;
   const m4 = new THREE.Matrix4(), qv = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color();
   const pedraL = [new THREE.Color('#a8977a'), new THREE.Color('#8f7f64'), new THREE.Color('#b8a888'), new THREE.Color('#7d6e57')];
