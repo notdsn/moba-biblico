@@ -1,0 +1,3 @@
+import {NodeIO} from '@gltf-transform/core';
+const io=new NodeIO(); const d=await io.read('/workspace/moba-biblico/grok-build/davi.glb'); const r=d.getRoot();
+for (const a of r.listAnimations()) { if (!['attack','cast'].includes(a.getName())) continue; for (const c of a.listChannels()) { if (!['UpperArm_R','LowerArm_R','Sling'].includes(c.getTargetNode().getName())) continue; const s=c.getSampler(); const t=s.getInput(), o=s.getOutput(); const q=[],p=[]; let line=[]; for (let i=0;i<t.getCount();i++){ o.getElement(i,q); if(i){ const dot=Math.abs(q.reduce((x,y,k)=>x+y*p[k],0)); line.push(t.getScalar(i).toFixed(2)+':'+(2*Math.acos(Math.min(1,dot))*57.3).toFixed(0)); } p.splice(0,4,...q);} console.log(a.getName(), c.getTargetNode().getName(), line.join(' ')); } }

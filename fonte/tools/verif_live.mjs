@@ -1,0 +1,16 @@
+import puppeteer from 'puppeteer-core';
+const [,, url, out] = process.argv;
+const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--use-gl=angle'] });
+const p = await b.newPage(); const errs = []; const warns = [];
+p.on('console', m => { if (m.type()==='error') errs.push(m.text()); if (m.type()==='warning' && !/Clock/.test(m.text())) warns.push(m.text()); });
+p.on('pageerror', e => errs.push('PAGEERR ' + e.message));
+p.on('requestfailed', r => errs.push('REQFAIL ' + r.url()));
+p.on('response', r => { if (r.status() >= 400) errs.push('HTTP ' + r.status() + ' ' + r.url()); });
+await p.setViewport({ width: 1280, height: 600 });
+await p.goto(url, { waitUntil: 'load', timeout: 120000 });
+await p.waitForFunction('window.__pronto === true', { timeout: 240000 });
+await new Promise(r => setTimeout(r, 6000));
+const info = await p.evaluate(() => ({ heroi: __jogo.jogador && __jogo.jogador.def.nome, vs: __jogo.bot && __jogo.bot.def.nome, t: Math.round(__jogo.estado.tempo) }));
+await p.screenshot({ path: out });
+console.log(url, JSON.stringify(info), 'ERROS:', errs.length ? errs.join(' | ') : 'nenhum', 'AVISOS:', warns.join(' | ') || 'nenhum');
+await b.close();

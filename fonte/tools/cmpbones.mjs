@@ -1,0 +1,12 @@
+import {NodeIO} from '@gltf-transform/core';
+import {ALL_EXTENSIONS} from '@gltf-transform/extensions';
+const io=new NodeIO().registerExtensions(ALL_EXTENSIONS);
+const Q='/tmp/rts/assets/quaternius/';
+const a=await io.read(Q+'Universal Animation Library[Standard]/Unreal-Godot/UAL1_Standard.glb');
+const b=await io.read(Q+'Universal Base Characters[Standard]/Base Characters/Godot - UE/Superhero_Male_FullBody.gltf').catch(e=>{console.log('ERR',e.message);});
+const f=(d)=>Object.fromEntries(d.getRoot().listNodes().map(n=>[n.getName(),{t:n.getTranslation().map(x=>+x.toFixed(3)),r:n.getRotation().map(x=>+x.toFixed(3)),s:n.getScale().map(x=>+x.toFixed(2))}]));
+const A=f(a),B=b?f(b):{};
+for(const k of ['Armature','root','pelvis','spine_01','spine_02','spine_03','neck_01','Head','clavicle_l','upperarm_l','lowerarm_l','hand_l','thigh_l','calf_l','foot_l','ball_l'])console.log(k.padEnd(12),JSON.stringify(A[k]),'|',JSON.stringify(B[k]));
+const an=a.getRoot().listAnimations().find(x=>x.getName()=='Jog_Fwd_Loop');
+console.log(an.listChannels().map(c=>c.getTargetNode().getName()+':'+c.getTargetPath()).filter(s=>!s.includes('rotation')).join(' '));
+console.log('extras', JSON.stringify(Object.keys(A)).slice(0,1500));

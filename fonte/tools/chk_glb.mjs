@@ -1,0 +1,3 @@
+import { NodeIO } from '@gltf-transform/core'; import { ALL_EXTENSIONS } from '@gltf-transform/extensions'; import { MeshoptDecoder } from 'meshoptimizer';
+await MeshoptDecoder.ready; const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
+for (const f of process.argv.slice(2)) { const r = (await io.read(f)).getRoot(); console.log(f, 'skins', r.listSkins().length, 'joints', r.listSkins()[0]?.listJoints().length, 'anims', r.listAnimations().map(a=>a.getName()).join(','), 'nodes w/ skin', r.listNodes().filter(n=>n.getSkin()).length); }

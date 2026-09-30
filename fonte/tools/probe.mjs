@@ -1,0 +1,12 @@
+import puppeteer from 'puppeteer-core';
+const [,, url, out, w = 1200, h = 900] = process.argv;
+const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--use-gl=angle'] });
+const page = await browser.newPage();
+page.on('console', m => { if (!/Clock|deprecated/.test(m.text())) console.log(m.text()); });
+page.on('pageerror', e => console.log('[err]', e.message));
+await page.setViewport({ width: +w, height: +h });
+await page.goto(url, { waitUntil: 'load', timeout: 120000 });
+await page.waitForFunction('window.__pronto === true', { timeout: 180000 });
+await new Promise(r => setTimeout(r, 300));
+if (out) await page.screenshot({ path: out });
+await browser.close();

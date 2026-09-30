@@ -1,0 +1,247 @@
+// Dados do jogo: heróis (Luz e Trevas), habilidades, itens (receitas estilo Wild Rift) e builds recomendadas
+// Escalas: esc 'ad' (dano de ataque total), 'adb' (dano de ataque bônus), 'ap' (poder de habilidade)
+
+// ---------- ícones (SVG 64x64) ----------
+const L = (d, c = '#ffe2a0', w = 4) => `<path d="${d}" stroke="${c}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+const F = (d, c = '#ffd66b') => `<path d="${d}" fill="${c}"/>`;
+const Ci = (x, y, r, c = '#ffd66b') => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`;
+export const ICONES = {
+  ataqueFunda: L('M10 44c8-2 14-8 18-16') + L('M10 44c4 6 12 8 20 4') + Ci(40, 24, 11, '#e8dcc0') + L('M50 14l8-6M52 22l9-2M46 8l3-7', '#ffe7a6', 3),
+  ataqueEspada: L('M14 50 46 18', '#e8ecf2', 6) + L('M40 12l12 12', '#ffd66b', 5) + L('M10 54l8-8', '#b08050', 6),
+  ataqueLanca: L('M8 56 50 14', '#c8a070', 5) + F('M44 8l14-2-2 14-8 2z', '#e8ecf2'),
+  ataqueMagia: Ci(32, 32, 12, '#bfe8ff') + L('M32 6v10M32 48v10M6 32h10M48 32h10', '#fff', 3),
+  ataqueMagiaT: Ci(32, 32, 12, '#7aff9a') + L('M32 6v10M32 48v10M6 32h10M48 32h10', '#d0ffd8', 3),
+  ataqueAdaga: L('M18 46 44 20', '#e8ecf2', 5) + L('M14 42l8 8', '#ffd66b', 5) + L('M40 44 54 30', '#c080ff', 3),
+  funda: L('M8 50C22 44 30 34 34 20', '#f6dc9a') + Ci(40, 18, 9) + L('M40 4v6M40 26v6M26 18h6M48 18h6', '#fff4c4', 3),
+  salmo: L('M18 54h28M22 54c-6-14-6-32 6-44 2 10 6 16 14 18 6 2 8 10 4 26') + L('M28 16v36M34 24v28M40 28v24', '#fff3cf', 2.5),
+  passo: L('M40 58V20a10 10 0 1 1 14-4', '#f0d6a0', 5) + L('M6 30h20M10 40h18M6 50h16', '#bfe6ff', 3.5),
+  fe: `<circle cx="32" cy="32" r="26" fill="#ffd66b" opacity=".35"/>` + L('M32 4v14M32 46v14M4 32h14M46 32h14M12 12l10 10M52 12 42 22M12 52l10-10M52 52 42 42', '#fff6d6', 3) + Ci(32, 32, 7, '#fff'),
+  queixada: L('M14 50C20 30 34 18 52 14', '#f2e8d0', 8) + L('M24 38l4 4M30 30l4 4M38 24l3 5', '#8a6a44', 3),
+  bracoForte: L('M14 50c6-10 12-14 20-14h10', '#f0c890', 7) + L('M44 36l6-14', '#f0c890', 6) + L('M20 20l6-8M32 14l2-9M44 12l6-6', '#ffe0a0', 3),
+  pisao: F('M18 40h24c6 0 10 4 10 8v4H14v-4c0-4 2-8 4-8z', '#c9955a') + L('M8 60l10-6M30 60l2-6M54 60l-8-6M20 58l-6 4', '#ffd08a', 3),
+  olhos: F('M6 32c10-12 42-12 52 0-10 12-42 12-52 0z', '#ffd0f0') + Ci(32, 32, 8, '#c02a90') + Ci(32, 32, 3, '#2a0620') + L('M10 22l6 4M54 22l-6 4M32 14v6', '#ff7ad0', 3),
+  guarda: F('M20 22h24v10c0 12-6 20-12 24-6-4-12-12-12-24z', '#e0a83a') + L('M32 8v14M24 12h16', '#ffe7a0', 4) + F('M8 30h8v14H8zM48 30h8v14h-8z', '#b07a2a'),
+  leao: F('M32 8c10 0 20 8 20 20 0 14-10 26-20 28C22 54 12 42 12 28 12 16 22 8 32 8z', '#d8a24a') + Ci(25, 26, 3, '#3a2210') + Ci(39, 26, 3, '#3a2210') + L('M26 40q6 5 12 0', '#3a2210', 3),
+  investida: L('M8 22h28M8 32h36M8 42h28', '#bfe6ff', 4) + F('M40 14l18 18-18 18z', '#ffd66b'),
+  colunas: L('M14 58V18M30 58V22M46 58V14', '#e8dcc0', 7) + L('M8 16h14M26 20h10M40 12h14', '#ffd66b', 4) + L('M50 30 58 40', '#ff9a50', 3),
+  lanca: L('M10 54 48 16', '#c8a070', 5) + F('M42 10l16-4-4 16-6-6z', '#e8ecf2') + L('M20 44l6 6', '#ffd66b', 4),
+  palmeira: L('M32 58V26', '#a0703a', 5) + L('M32 26C24 14 14 14 8 18M32 26c8-12 18-12 24-8M32 26C28 12 32 6 34 4M32 26c-10-2-18 4-20 10M32 26c10-2 18 4 20 10', '#7ad060', 4),
+  cantico: L('M24 46V14l24-6v32', '#ffe2a0', 4) + Ci(20, 46, 7) + Ci(44, 40, 7),
+  estrelas: F('M20 6l4 10 10 1-8 7 3 10-9-6-9 6 3-10-8-7 10-1z', '#fff6c8') + F('M46 26l3 7 7 1-5 5 2 7-7-4-6 4 2-7-5-5 7-1z', '#ffd66b') + L('M14 58l10-16M40 60l6-10', '#ffe2a0', 3),
+  trombeta: L('M10 40C24 38 36 30 46 16', '#e8d0a0', 6) + F('M44 10c8 0 14 6 14 12l-12 0z', '#e8d0a0') + L('M14 22l-6-4M16 14l-2-7', '#bfe6ff', 3),
+  cantaro: F('M20 30c0-6 24-6 24 0l-4 24H24z', '#c86a3a') + F('M32 26c-6-6-4-14 0-20 4 6 6 14 0 20z', '#ffb040'),
+  velo: F('M12 30c0-10 40-10 40 0 0 12-40 12-40 0z', '#f4ecd6') + F('M32 40c-5 8-5 12 0 14 5-2 5-6 0-14z', '#8ad0ff'),
+  espada: L('M16 48 50 14', '#e8ecf2', 6) + L('M12 36l16 16', '#ffd66b', 5) + L('M8 56l6-6', '#8a5a2a', 6) + L('M46 8l6 6', '#fff', 2),
+  desafio: F('M28 8h8l-2 32h-4z', '#ff6a5a') + Ci(32, 50, 5, '#ff6a5a') + L('M12 18l-6-4M52 18l6-4M10 32H4M54 32h6', '#ffd0a0', 3),
+  terremoto: L('M4 44h56', '#c8a070', 4) + L('M32 44l-6 8 6 4-4 6M20 44l-4 6M44 44l4 8', '#ff8a4a', 3) + F('M26 8h12l-2 26H28z', '#b08040'),
+  serpente: L('M44 10c-10 0-10 12 0 14s10 14 0 16-12 10-4 16', '#6ad06a', 6) + Ci(44, 10, 5, '#3a9a4a') + Ci(45, 9, 1.6, '#ffd040'),
+  gafanhotos: F('M18 20l8 4-8 4z', '#a0c060') + F('M40 12l8 4-8 4z', '#a0c060') + F('M30 34l8 4-8 4z', '#a0c060') + F('M44 44l8 4-8 4z', '#a0c060') + F('M14 44l8 4-8 4z', '#a0c060'),
+  trevasE: F('M32 10a22 22 0 1 0 0 44 16 16 0 1 1 0-44z', '#8a5ad0') + Ci(40, 24, 3, '#ff4a6a'),
+  pragas: F('M32 6c-8 12-12 18-12 24a12 12 0 0 0 24 0c0-6-4-12-12-24z', '#c0303a') + Ci(16, 48, 4, '#d0e0ff') + Ci(48, 50, 4, '#d0e0ff') + Ci(30, 56, 3, '#d0e0ff'),
+  adaga: L('M16 48 46 18', '#e8ecf2', 5) + L('M12 40l12 12', '#ffd66b', 4) + L('M46 18l6-6', '#6aff4a', 3) + Ci(50, 46, 4, '#6aff4a'),
+  veu: F('M12 14c12 8 28 8 40 0-2 20-4 34-20 40C16 48 14 34 12 14z', '#a04ad0') + Ci(26, 28, 2.5, '#fff') + Ci(38, 28, 2.5, '#fff'),
+  passoSombrio: F('M36 8a12 12 0 1 1 0 24 12 12 0 1 1 0-24z', '#5a2a7a') + L('M8 40h22M4 50h26M12 58h14', '#c080ff', 3),
+  decreto: F('M14 10h32v40H14z', '#e8dcc0') + L('M20 20h20M20 28h20M20 36h14', '#8a6a44', 3) + Ci(42, 48, 8, '#c0303a'),
+  golpeReal: L('M12 52 48 16', '#e8ecf2', 6) + L('M10 18a30 30 0 0 1 36 36', '#ffd66b', 3) + F('M22 4l4 6 6-6 4 6 6-6v10H22z', '#ffd66b'),
+  estatua: F('M26 6h12v8H26zM24 14h16l-2 34H26zM18 48h28v8H18z', '#e6b85a'),
+  carga: L('M8 20h30M8 32h38M8 44h30', '#ffb080', 4) + F('M42 12l18 20-18 20z', '#e6b85a'),
+  fornalha: F('M32 4c-4 12-16 16-16 32a16 16 0 0 0 32 0c0-16-12-20-16-32z', '#ff7a2a') + F('M32 26c-2 6-8 8-8 16a8 8 0 0 0 16 0c0-8-6-10-8-16z', '#ffe07a'),
+  // itens
+  iEspada: L('M18 46 48 16', '#e8ecf2', 6) + L('M14 36l14 14', '#c8903a', 5) + L('M10 54l6-6', '#6a4424', 6),
+  iAljava: F('M22 14h14l4 40H26z', '#8a5a2a') + L('M26 14 22 4M31 14V2M36 14l4-10', '#e8dcc0', 3),
+  iLuvas: F('M18 26c0-8 4-12 8-12h4v-6h6v6h4c6 0 8 6 8 12v22H18z', '#a07040'),
+  iCota: F('M16 12h32l4 18-6 26H18l-6-26z', '#b08040') + L('M20 24h24M18 34h28M20 44h24', '#6a4a20', 2.5),
+  iManto: F('M20 8h24l10 48H10z', '#e8e0d0') + L('M32 12v40', '#c0b8a8', 2),
+  iCinto: F('M6 26h52v12H6z', '#6a4424') + F('M26 22h12v20H26z', '#ffd66b') + F('M30 28h4v8h-4z', '#6a4424'),
+  iRolo: F('M14 14h36v36H14z', '#f0e0b8') + Ci(14, 32, 6, '#c8a070') + Ci(50, 32, 6, '#c8a070') + L('M22 24h20M22 32h20M22 40h14', '#8a6a44', 2.5),
+  iOleo: F('M24 20h16l6 10-4 24H22l-4-24z', '#c8a040') + F('M28 8h8v12h-8z', '#8a5a2a') + F('M32 34c-4 6-4 10 0 12 4-2 4-6 0-12z', '#fff3b0'),
+  iSalmo: F('M16 10h28c4 0 4 44 0 44H16z', '#6a4a8a') + L('M24 20h14M24 28h14M24 36h10', '#ffe2a0', 2.5),
+  iEspadaG: L('M14 50 52 12', '#e8ecf2', 8) + L('M10 34l20 20', '#ffd66b', 5) + L('M6 58l6-6', '#4a2c16', 7),
+  iArco: L('M16 8c24 8 24 40 0 48', '#c8903a', 5) + L('M16 8v48', '#f0e8d0', 2) + L('M16 32h38', '#e8ecf2', 3) + F('M54 28l6 4-6 4z', '#e8ecf2'),
+  iLamina: L('M16 48 40 24', '#e8ecf2', 6) + L('M40 24l8-8 2 2-8 8', '#fff', 3) + L('M12 40l12 12', '#ff5a5a', 4),
+  iArmadura: F('M14 10h36l2 20-8 26H20l-8-26z', '#d0a050') + F('M26 10h12v44H26z', '#b08030') + F('M8 12h10v10H8zM46 12h10v10H46z', '#d0a050'),
+  iEscudo: F('M32 6 54 14v16c0 14-10 22-22 28C20 52 10 44 10 30V14z', '#3a6ad0') + F('M28 18h8v28h-8zM20 26h24v8H20z', '#ffd66b'),
+  iCouraca: F('M16 10h32v22c0 12-8 20-16 24-8-4-16-12-16-24z', '#c0c8d8') + F('M28 18h8v22h-8z', '#ffd66b'),
+  iCajado: L('M20 58 40 10', '#8a5a2a', 5) + F('M36 6c6-2 12 2 10 8-4-2-8-2-10-8z', '#7ad060') + F('M42 14c6 0 10 4 8 10-4-2-8-4-8-10z', '#7ad060'),
+  iCetro: L('M18 56 42 20', '#ffd66b', 6) + Ci(46, 16, 9, '#ffd66b') + Ci(46, 16, 4, '#c0303a'),
+  iHarpa: L('M18 56V12c14 0 30 10 30 44z', '#e6b85a', 4) + L('M24 20v34M30 22v32M36 28v26M42 38v16', '#fff3cf', 2),
+  iSandalia: F('M16 44c0-14 8-28 18-28s14 10 14 20-8 16-18 16c-8 0-14-2-14-8z', '#a07040') + L('M22 34h22M26 26l14 14', '#6a4424', 3),
+};
+export const svg = (k) => `<svg viewBox="0 0 64 64">${ICONES[k] || ''}</svg>`;
+
+// ---------- funções (papéis) estilo Wild Rift ----------
+// Atributos base e crescimento de cada herói vêm de um campeão parecido do Wild Rift (refWR; Module:ChampionDataWR da LoL Wiki).
+// O crescimento por nível usa a curva do LoL/WR: base + cresc × (n-1) × (0,7025 + 0,0175 × (n-1)).
+// Vida e dano de ataque seguem o WR ao pé da letra; a função só ajusta armadura/RM por nível (tanques mais) e a velocidade de ataque (atiradores mais).
+export const FUNCOES = {
+  tanque: { nome: 'Tanque', hp: 1, arm: 1.2, rm: 1.2, ad: 1, as: .015 },
+  lutador: { nome: 'Lutador', hp: 1, arm: 1.05, rm: 1.05, ad: 1, as: .02 },
+  assassino: { nome: 'Assassino', hp: 1, arm: .95, rm: .95, ad: 1, as: .02 },
+  mago: { nome: 'Mago', hp: 1, arm: .9, rm: 1, ad: 1, as: .01 },
+  suporte: { nome: 'Suporte', hp: 1, arm: 1, rm: 1, ad: 1, as: .01 },
+  atirador: { nome: 'Atirador', hp: 1, arm: .9, rm: .95, ad: 1, as: .03 },
+};
+export const crescimento = (n) => (n - 1) * (.7025 + .0175 * (n - 1));
+
+// ---------- heróis ----------
+// cd/mana/dano por nível da habilidade (1..5; ult 1..3)
+export const HEROIS = {
+  davi: {
+    nome: 'Davi', titulo: 'O Pastor Guerreiro', time: 'luz', papel: 'Atirador', corpo: 'm', esc: 1, distancia: true, projetil: 'pedra', cor: [1, .85, .5],
+    funcao: 'atirador', refWR: 'Caitlyn',
+    base: { hp: 600, hpN: 128, mana: 345, manaN: 41, ad: 54, adN: 4.5, ap: 0, arm: 35, armN: 4.5, rm: 30, rmN: 1.4, cad: .78, alcance: 6.5, vel: 6.0 },
+    anim: { idle: 'Idle_Loop', correr: 'Jog_Fwd_Loop', velCorrer: 1.25, ataque: 'OverhandThrow', velAtaque: 2.2, morte: 'Death01', atrasoAtaque: .24 },
+    icone: 'ataqueFunda',
+    passiva: { nome: 'Pastor Valente', desc: 'A cada 4º ataque, a pedra causa acerto crítico (×1,8) e deixa o alvo lento.' },
+    hab: {
+      q: { atordoaLonge: [.8, .6], nome: 'Funda Certeira', icone: 'funda', desc: 'Tiro de habilidade: pedra dourada em linha reta que para no primeiro inimigo. Se acertar de longe (mais de 60% do alcance), atordoa por 0,8 s.', tipo: 'proj', cd: [7, 6.5, 6, 5.5, 5], mana: [50, 55, 60, 65, 70], dano: [72, 112, 153, 194, 234], k: .85, esc: 'ad', alc: 15, vel: 38, perfura: false, empurra: 1.2, tam: 2.2, cor: [1, .8, .3], anim: 'OverhandThrow', velAnim: 1.7, atraso: .3 },
+      w: { visual: 'harpa', nome: 'Salmo de Coragem', icone: 'salmo', desc: 'Cura, escudo por 3 s e +35% de velocidade de ataque por 4 s.', tipo: 'buff', cd: [14, 13, 12, 11, 10], mana: [70, 75, 80, 85, 90], cura: [70, 100, 130, 160, 190], kCura: .3, escudo: [60, 90, 120, 150, 180], dur: 3, as: .25, asDur: 4, anim: 'Spell_Simple_Shoot', velAnim: .7 },
+      e: { nome: 'Passo do Pastor', icone: 'passo', desc: 'Rolamento rápido; o próximo ataque causa +50% de dano.', tipo: 'dash', cd: [10, 9.5, 9, 8.5, 8], mana: [40, 40, 40, 40, 40], dist: 5.5, vel: 22, proxAtaque: .5, anim: 'Roll', velAnim: 2.4 },
+      r: { nome: 'Fé que Derruba Gigantes', icone: 'fe', desc: 'Coluna de luz no inimigo: grande dano em área e atordoamento. +50% de dano em alvos com mais vida máxima que Davi.', tipo: 'area', centro: 'alvo', alc: 14, raio: 4.6, atraso: .8, cd: [60, 50, 40], mana: [100, 100, 100], dano: [280, 420, 560], k: 1, esc: 'adb', atordoa: 1, antiGigante: .5, visual: 'coluna', anim: 'Sword_Attack', velAnim: 1.3 },
+    },
+    build: ['sandalias', 'arcoJonatas', 'laminaEude', 'espadaGolias', 'armaduraSaul'],
+  },
+  sansao: {
+    nome: 'Sansão', titulo: 'O Nazireu Invencível', time: 'luz', papel: 'Lutador · Tanque', corpo: 'm', esc: 1.04, distancia: false, cor: [1, .75, .4],
+    funcao: 'lutador', refWR: 'Olaf',
+    base: { hp: 690, hpN: 112, mana: 340, manaN: 33, ad: 64, adN: 4.55, ap: 0, arm: 40, armN: 3.9, rm: 38, rmN: 2, cad: .86, alcance: 2.5, vel: 6.2 },
+    anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Sword_Regular_A', velAtaque: 1.3, morte: 'Death01', atrasoAtaque: .28 },
+    icone: 'queixada',
+    passiva: { nome: 'Voto de Nazireu', desc: 'Quanto menos vida, mais forte: até +40% de dano nos ataques.' },
+    hab: {
+      q: { nome: 'Queixada de Jumento', icone: 'queixada', desc: 'Golpe em arco com a queixada (Jz 15:15): dano e EMPURRA os inimigos para trás, deixando-os lentos.', tipo: 'area', centro: 'frente', dist: 2, raio: 3.2, atraso: .25, cd: [7, 6.5, 6, 5.5, 5], mana: [40, 45, 50, 55, 60], dano: [70, 115, 160, 205, 250], k: 1, esc: 'ad', lento: [.3, 1.5], empurraHab: 2.8, cor: [1, .92, .75], visual: 'queixada', anim: 'Sword_Regular_B', velAnim: 1.2 },
+      w: { visual: 'leao', nome: 'Força do Leão', icone: 'leao', desc: 'Rugido: escudo (8% da vida máx.) e +40% de velocidade de ataque por 4 s.', tipo: 'buff', cd: [16, 15, 14, 13, 12], mana: [50, 50, 50, 50, 50], escudo: [110, 145, 180, 215, 250], kEscudoHp: .1, dur: 3, as: .4, asDur: 4, anim: 'Spell_Simple_Shoot', velAnim: .8 },
+      e: { nome: 'Braço Forte', icone: 'bracoForte', desc: 'Salta até o inimigo e o LANÇA PARA O ALTO por 1 s junto com quem estiver perto do ponto de chegada.', tipo: 'dash', cd: [10, 9.5, 9, 8.5, 8], mana: [50, 50, 50, 50, 50], dist: 6, vel: 20, paraAlvo: true, danoFim: [60, 95, 130, 165, 200], k: .6, esc: 'adb', raioFim: 2.2, arremessa: 1, visualFim: 'poeira', cor: [1, .7, .35], anim: 'Shield_Dash', velAnim: 1.4 },
+      r: { nome: 'Derrubar as Colunas', icone: 'colunas', desc: 'Sansão derruba as colunas do templo (Jz 16:30): após 0,8 s, colunas de pedra desabam numa faixa longa à frente, lançando os inimigos para o alto por 1,3 s.', tipo: 'linha', comp: 10, larg: 3.6, atraso: .8, cd: [70, 60, 50], mana: [100, 100, 100], dano: [260, 410, 560], k: 1.2, esc: 'adb', arremessa: 1.3, cor: [1, .8, .5], visual: 'colunas', anim: 'Sword_Heavy_Combo', velAnim: 1.1 },
+    },
+    build: ['sandalias', 'espadaGolias', 'armaduraSaul', 'escudoFe', 'couracaJustica'],
+  },
+  debora: {
+    nome: 'Débora', titulo: 'A Juíza Profetisa', time: 'luz', papel: 'Maga · Suporte', corpo: 'f', esc: 1.04, distancia: true, projetil: 'luz', cor: [.7, .9, 1],
+    funcao: 'suporte', refWR: 'Seraphine',
+    base: { hp: 600, hpN: 112, mana: 435, manaN: 49, ad: 52, adN: 3.6, ap: 0, arm: 34, armN: 4.7, rm: 36, rmN: 1.2, cad: .8, alcance: 7, vel: 5.9 },
+    anim: { idle: 'Idle_Loop', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Spell_Simple_Shoot', velAtaque: 1.6, morte: 'Death01', atrasoAtaque: .2 },
+    icone: 'ataqueMagia',
+    passiva: { nome: 'Juíza de Israel', desc: 'Ao acertar um herói com habilidade, recebe um escudo (60 + 4 por nível). Recarga de 8 s.' },
+    hab: {
+      q: { perfura: true, nome: 'Lança Profética', icone: 'lanca', desc: 'Tiro de habilidade: lança de luz que atravessa todos os inimigos em linha, com dano mágico e lentidão.', tipo: 'proj', cd: [6, 5.5, 5, 4.5, 4], mana: [55, 60, 65, 70, 75], dano: [80, 125, 170, 215, 260], k: .75, esc: 'ap', mag: true, alc: 13, vel: 30, lento: [.25, 1.5], tam: 1.8, cor: [.6, .85, 1], anim: 'OverhandThrow', velAnim: 1.6, atraso: .28 },
+      w: { curaAliados: true, nome: 'Palmeira da Justiça', icone: 'palmeira', desc: 'Planta uma palmeira por 4 s (Jz 4:5): cura Débora e as tropas aliadas na área e causa dano mágico contínuo aos inimigos.', tipo: 'zona', centro: 'alvo', alc: 9, raio: 3.4, dur: 4, dps: [30, 45, 60, 75, 90], k: .2, esc: 'ap', mag: true, curaSeg: [20, 28, 36, 44, 52], cd: [15, 14, 13, 12, 11], mana: [80, 85, 90, 95, 100], visual: 'palmeira', anim: 'Spell_Simple_Shoot', velAnim: .9 },
+      e: { aliados: 7, nome: 'Cântico de Vitória', icone: 'cantico', desc: 'Cântico de Débora (Jz 5): cura e acelera Débora e dá escudo às tropas aliadas próximas.', tipo: 'buff', cd: [12, 11, 10, 9, 8], mana: [60, 60, 60, 60, 60], cura: [60, 90, 120, 150, 180], kCura: .35, ms: .35, msDur: 2.5, anim: 'Spell_Simple_Shoot', velAnim: 1 },
+      r: { nome: 'As Estrelas Pelejaram', icone: 'estrelas', desc: '“Desde os céus pelejaram as estrelas” (Jz 5:20): três impactos estelares em área; o primeiro atordoa.', tipo: 'area', centro: 'alvo', alc: 12, raio: 4.8, atraso: 1, impactos: 3, intervalo: .35, cd: [65, 55, 45], mana: [100, 100, 100], dano: [120, 180, 240], k: .4, esc: 'ap', mag: true, atordoa: .6, visual: 'estrelas', anim: 'Spell_Simple_Shoot', velAnim: .6 },
+    },
+    build: ['sandalias', 'cetroEster', 'harpaDavi', 'cajadoArao', 'escudoFe'],
+  },
+  gideao: {
+    nome: 'Gideão', titulo: 'O Valente dos Trezentos', time: 'luz', papel: 'Assassino · Lutador', corpo: 'm', esc: 1, distancia: false, cor: [1, .7, .35],
+    funcao: 'assassino', refWR: 'Zed',
+    base: { hp: 690, hpN: 120, mana: 280, manaN: 36, ad: 68, adN: 4.55, ap: 0, arm: 46, armN: 5, rm: 40, rmN: 2, cad: .78, alcance: 2.4, vel: 6.4 },
+    anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.25, ataque: 'Sword_Regular_A', velAtaque: 1.4, morte: 'Death01', atrasoAtaque: .26 },
+    icone: 'ataqueEspada',
+    passiva: { nome: 'Valente Guerreiro', desc: 'Depois de usar uma habilidade, o próximo ataque causa 55 + 60% do dano de ataque adicional.' },
+    hab: {
+      q: { nome: 'Trombeta de Guerra', icone: 'trombeta', desc: 'Toque do shofar (Jz 7:20): ondas sonoras ao redor causam dano e AMEDRONTAM os inimigos, que fogem por 1 s.', tipo: 'area', centro: 'self', raio: 4.6, atraso: .2, cd: [8, 7.5, 7, 6.5, 6], mana: [50, 55, 60, 65, 70], dano: [70, 110, 150, 190, 230], k: .7, esc: 'ad', medo: 1, cor: [1, .9, .4], visual: 'trombeta', anim: 'Spell_Simple_Shoot', velAnim: 1.1 },
+      w: { nome: 'Cântaro Quebrado', icone: 'cantaro', desc: 'Quebra o cântaro e revela a tocha (Jz 7:20): explosão de fogo no alvo que QUEIMA os inimigos por 3 s.', tipo: 'area', centro: 'alvo', alc: 9, raio: 2.8, atraso: .45, cd: [11, 10, 9, 8, 7], mana: [55, 60, 65, 70, 75], dano: [60, 95, 130, 165, 200], k: .6, esc: 'ad', queima: [.6, 3], cor: [1, .55, .15], visual: 'fogo', anim: 'OverhandThrow', velAnim: 1.5 },
+      e: { visual: 'velo', nome: 'Velo de Orvalho', icone: 'velo', desc: 'Sinal do velo (Jz 6:37): escudo e +25% de velocidade de movimento por 2 s.', tipo: 'buff', cd: [14, 13, 12, 11, 10], mana: [50, 50, 50, 50, 50], escudo: [120, 160, 200, 240, 280], dur: 3, ms: .25, msDur: 2, anim: 'Idle_Shield_Loop', velAnim: 1.5 },
+      r: { medo: 1.4, nome: 'Espada do Senhor e de Gideão', icone: 'espada', desc: 'O grito dos trezentos (Jz 7:20): salta sobre o herói inimigo mais próximo, causa grande dano em área e AMEDRONTA todos ao redor por 1,4 s.', tipo: 'salto', alc: 10, raio: 3.2, cd: [60, 50, 40], mana: [100, 100, 100], dano: [220, 340, 460], k: 1.1, esc: 'adb', lento: [.3, 2.4], visual: 'trombeta', anim: 'Sword_Attack', velAnim: 1.3 },
+    },
+    build: ['sandalias', 'laminaEude', 'espadaGolias', 'arcoJonatas', 'armaduraSaul'],
+  },
+  golias: {
+    nome: 'Golias', titulo: 'O Gigante de Gate', time: 'trevas', papel: 'Tanque', corpo: 'm', esc: 1.3, distancia: false, cor: [1, .6, .3],
+    funcao: 'tanque', refWR: 'Malphite',
+    base: { hp: 690, hpN: 120, mana: 345, manaN: 41, ad: 58, adN: 3.6, ap: 0, arm: 49, armN: 4.3, rm: 38, rmN: 2, cad: .95, alcance: 3.2, vel: 5.8 },
+    anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.05, ataque: 'Sword_Regular_A', velAtaque: 1.0, morte: 'Death01', atrasoAtaque: .34 },
+    icone: 'ataqueLanca',
+    passiva: { nome: 'Gigante de Gate', desc: 'Recebe 15% menos dano de todas as fontes.' },
+    hab: {
+      q: { nome: 'Lança de Tecelão', icone: 'lanca', desc: 'Estocada longa com a lança enorme (1Sm 17:7): acerta todos em uma linha comprida e deixa lentos.', tipo: 'linha', comp: 8, larg: 1.8, atraso: .3, cd: [7, 6.5, 6, 5.5, 5], mana: [40, 45, 50, 55, 60], dano: [80, 120, 160, 200, 240], k: 1, esc: 'ad', lento: [.35, 1.5], cor: [.95, .65, .3], visual: 'estocada', anim: 'Sword_Regular_B', velAnim: 1.1 },
+      w: { cor: [1, .35, .2], nome: 'Desafio do Filisteu', icone: 'desafio', desc: '“Dai-me um homem para que lutemos” (1Sm 17:10): provoca inimigos próximos, deixando-os lentos, e ganha +30 de armadura por 4 s.', tipo: 'area', centro: 'self', raio: 5, atraso: .15, cd: [15, 14, 13, 12, 11], mana: [60, 60, 60, 60, 60], dano: [40, 60, 80, 100, 120], k: .3, esc: 'ad', lento: [.35, 1.6], provoca: 1.6, armBuff: [30, 4], visual: 'desafio', anim: 'Spell_Simple_Shoot', velAnim: .9 },
+      e: { nome: 'Pisão do Gigante', icone: 'pisao', desc: 'Golias pisa com força à frente: o chão racha, causa dano e ARREMESSA os inimigos para longe.', tipo: 'area', centro: 'frente', dist: 2.4, raio: 3.4, atraso: .35, cd: [12, 11, 10, 9, 8], mana: [50, 50, 50, 50, 50], dano: [70, 105, 140, 175, 210], k: .5, esc: 'ad', kHp: .02, empurraHab: 4, lento: [.3, 1], cor: [.8, .6, .35], visual: 'pisao', anim: 'Sword_Heavy_Combo', velAnim: 1.4 },
+      r: { cor: [.9, .6, .3], nome: 'Terremoto de Gate', icone: 'terremoto', desc: 'Golias golpeia o chão: tremor gigante ao redor que atordoa por 1,5 s.', tipo: 'area', centro: 'self', raio: 6.4, atraso: .7, cd: [75, 65, 55], mana: [100, 100, 100], dano: [200, 300, 400], k: .6, esc: 'ad', kHp: .04, atordoa: 1.5, visual: 'terremoto', anim: 'Sword_Heavy_Combo', velAnim: 1 },
+    },
+    build: ['sandalias', 'armaduraSaul', 'couracaJustica', 'escudoFe', 'espadaGolias'],
+  },
+  farao: {
+    nome: 'Faraó', titulo: 'O Rei do Egito', time: 'trevas', papel: 'Mago · Controlador', corpo: 'm', esc: 1.02, distancia: true, projetil: 'serpente', cor: [.5, 1, .55],
+    funcao: 'mago', refWR: 'Morgana',
+    base: { hp: 630, hpN: 120, mana: 435, manaN: 49, ad: 58, adN: 2.65, ap: 0, arm: 37, armN: 4.5, rm: 36, rmN: 1.2, cad: .82, alcance: 7, vel: 5.9 },
+    anim: { idle: 'Idle_Loop', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Spell_Simple_Shoot', velAtaque: 1.6, morte: 'Death01', atrasoAtaque: .2 },
+    icone: 'ataqueMagiaT',
+    passiva: { nome: 'Coração Endurecido', desc: 'Ao cair abaixo de 40% de vida, ganha um escudo de 150 + 15 por nível (recarga de 40 s).' },
+    hab: {
+      q: { visual: 'serpente', nome: 'Cajado-Serpente', icone: 'serpente', desc: 'Lança uma serpente (Êx 7:10) que causa dano mágico e envenena por 3 s.', tipo: 'proj', cd: [6, 5.5, 5, 4.5, 4], mana: [50, 55, 60, 65, 70], dano: [85, 130, 175, 220, 265], k: .75, esc: 'ap', mag: true, alc: 12, vel: 24, veneno: [.3, 3], tam: 1.6, cor: [.4, 1, .45], anim: 'Spell_Simple_Shoot', velAnim: 1.2, atraso: .22 },
+      w: { nome: 'Praga de Gafanhotos', icone: 'gafanhotos', desc: 'Nuvem de gafanhotos (Êx 10) por 4 s: dano mágico contínuo e lentidão.', tipo: 'zona', centro: 'alvo', alc: 10, raio: 3.4, dur: 4, dps: [35, 50, 65, 80, 95], k: .2, esc: 'ap', mag: true, lento: [.3, .6], cd: [13, 12, 11, 10, 9], mana: [80, 85, 90, 95, 100], visual: 'gafanhotos', anim: 'Spell_Simple_Shoot', velAnim: .9 },
+      e: { nome: 'Trevas Espessas', icone: 'trevasE', desc: '“Trevas que se possam apalpar” (Êx 10:21): nuvem de escuridão que ENRAÍZA por 1,4 s — os inimigos não conseguem andar, mas ainda atacam.', tipo: 'area', centro: 'alvo', alc: 9, raio: 3.4, atraso: .5, cd: [13, 12, 11, 10, 9], mana: [70, 75, 80, 85, 90], dano: [50, 80, 110, 140, 170], k: .4, esc: 'ap', mag: true, raiz: 1.4, cor: [.55, .25, .85], visual: 'trevas', anim: 'Spell_Simple_Shoot', velAnim: 1 },
+      r: { veneno: [.3, 2], nome: 'As Dez Pragas', icone: 'pragas', desc: 'Dez pragas caem sobre a área ao longo de 3 s, com dano mágico e lentidão.', tipo: 'area', centro: 'alvo', alc: 11, raio: 5.6, atraso: .5, impactos: 10, intervalo: .3, cd: [70, 60, 50], mana: [100, 100, 100], dano: [45, 65, 85], k: .12, esc: 'ap', mag: true, lento: [.3, .6], visual: 'pragas', anim: 'Spell_Simple_Shoot', velAnim: .6 },
+    },
+    build: ['sandalias', 'cajadoArao', 'cetroEster', 'harpaDavi', 'escudoFe'],
+  },
+  jezabel: {
+    nome: 'Jezabel', titulo: 'A Rainha Ímpia', time: 'trevas', papel: 'Assassina · Maga', corpo: 'f', esc: 1.04, distancia: false, cor: [.95, .4, .9],
+    funcao: 'assassino', refWR: 'Evelynn',
+    base: { hp: 600, hpN: 128, mana: 345, manaN: 49, ad: 64, adN: 3.6, ap: 0, arm: 45, armN: 5, rm: 38, rmN: 2, cad: .72, alcance: 2.4, vel: 6.4 },
+    anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.25, ataque: 'Sword_Regular_B', velAtaque: 1.5, morte: 'Death01', atrasoAtaque: .24 },
+    icone: 'ataqueAdaga',
+    passiva: { nome: 'Coroa Pintada', desc: 'Habilidades causam +25% de dano em alvos com menos de 50% de vida.' },
+    hab: {
+      q: { nome: 'Adaga Envenenada', icone: 'adaga', desc: 'Arremessa uma adaga que causa dano mágico e envenena.', tipo: 'proj', cd: [6, 5.5, 5, 4.5, 4], mana: [45, 50, 55, 60, 65], dano: [75, 115, 155, 195, 235], k: .7, esc: 'ap', kAd: .4, mag: true, alc: 10, vel: 32, veneno: [.35, 3], tam: 1.2, cor: [.6, 1, .3], anim: 'OverhandThrow', velAnim: 1.7, atraso: .25 },
+      w: { nome: 'Olhos Pintados', icone: 'olhos', desc: 'Pintou os olhos e enfeitou a cabeça (2Rs 9:30): um olhar sedutor em linha reta. O primeiro inimigo atingido fica ENCANTADO e caminha até Jezabel por 1,3 s.', tipo: 'proj', cd: [13, 12.5, 12, 11.5, 11], mana: [60, 65, 70, 75, 80], dano: [50, 75, 100, 125, 150], k: .4, esc: 'ap', mag: true, alc: 9.5, vel: 20, encanta: 1.3, tam: 1.4, cor: [1, .35, .8], visual: 'encanto', anim: 'Spell_Simple_Shoot', velAnim: 1.3, atraso: .2 },
+      e: { cor: [.75, .3, 1], nome: 'Passo Sombrio', icone: 'passoSombrio', desc: 'Surge atrás do inimigo mais próximo, causando dano mágico.', tipo: 'dash', blink: true, paraAlvo: true, dist: 6, cd: [11, 10, 9, 8, 7], mana: [50, 50, 50, 50, 50], danoFim: [60, 95, 130, 165, 200], k: .5, esc: 'ap', mag: true, raioFim: 2, anim: 'Roll', velAnim: 2.2 },
+      r: { nome: 'Decreto de Jezreel', icone: 'decreto', desc: 'Sela o destino do herói inimigo mais próximo (1Rs 21): após 1,5 s, explosão que causa dano mágico ampliado pela vida perdida.', tipo: 'marca', alc: 10, atraso: 1.5, cd: [60, 50, 40], mana: [100, 100, 100], dano: [250, 375, 500], k: .9, esc: 'ap', mag: true, kPerdida: .2, anim: 'Spell_Simple_Shoot', velAnim: .8 },
+    },
+    build: ['sandalias', 'cetroEster', 'cajadoArao', 'harpaDavi', 'couracaJustica'],
+  },
+  nabuco: {
+    nome: 'Nabucodonosor', titulo: 'O Rei de Babilônia', time: 'trevas', papel: 'Lutador', corpo: 'm', esc: 1.06, distancia: false, cor: [1, .5, .2],
+    funcao: 'lutador', refWR: 'Darius',
+    base: { hp: 650, hpN: 144, mana: 345, manaN: 41, ad: 70, adN: 5.5, ap: 0, arm: 52, armN: 5.1, rm: 38, rmN: 2, cad: .86, alcance: 2.6, vel: 6.1 },
+    anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Sword_Regular_B', velAtaque: 1.2, morte: 'Death01', atrasoAtaque: .3 },
+    icone: 'golpeReal',
+    passiva: { nome: 'Rei de Babilônia', desc: 'Ao abater qualquer unidade, recebe escudo de 40 + 8 por nível por 4 s.' },
+    hab: {
+      q: { cor: [1, .8, .3], nome: 'Golpe Real', icone: 'golpeReal', desc: 'Golpe amplo à frente; cura 25% do dano causado.', tipo: 'area', centro: 'frente', dist: 1.8, raio: 3, atraso: .3, cd: [7, 6.5, 6, 5.5, 5], mana: [40, 45, 50, 55, 60], dano: [75, 120, 165, 210, 255], k: 1, esc: 'ad', rouba: .25, visual: 'golpeReal', anim: 'Sword_Heavy_Combo', velAnim: 1.5 },
+      w: { nome: 'Guarda da Babilônia', icone: 'guarda', desc: 'Convoca dois guardas da Babilônia por 10 s (Dn 3:20), que lutam ao lado do rei e ficam mais fortes com o nível.', tipo: 'invocar', n: 2, dur: 10, hp: [420, 520, 620, 720, 820], danoInv: [24, 30, 36, 42, 48], cd: [18, 17, 16, 15, 14], mana: [70, 70, 70, 70, 70], cor: [1, .7, .25], anim: 'Spell_Simple_Shoot', velAnim: 1 },
+      e: { nome: 'Carga Imperial', icone: 'carga', desc: 'Carga em linha reta que atordoa no ponto de chegada.', tipo: 'dash', cd: [12, 11, 10, 9, 8], mana: [50, 50, 50, 50, 50], dist: 6.5, vel: 21, paraAlvo: true, danoFim: [60, 95, 130, 165, 200], k: .6, esc: 'adb', raioFim: 2.4, atordoa: .5, anim: 'Shield_Dash', velAnim: 1.4 },
+      r: { queima: [.25, 2], nome: 'Fornalha Ardente', icone: 'fornalha', desc: 'A fornalha sete vezes mais quente (Dn 3:19): anel de fogo ao redor por 4 s, dano contínuo e +25% de velocidade.', tipo: 'zona', centro: 'self', segue: true, raio: 4.6, dur: 4, dps: [70, 105, 140], k: .35, esc: 'adb', ms: .25, msDur: 4, cd: [65, 55, 45], mana: [100, 100, 100], visual: 'fornalha', anim: 'Sword_Attack', velAnim: 1.2 },
+    },
+    build: ['sandalias', 'espadaGolias', 'laminaEude', 'armaduraSaul', 'escudoFe'],
+  },
+};
+export const LUZ = ['davi', 'sansao', 'debora', 'gideao'];
+export const TREVAS = ['golias', 'farao', 'jezabel', 'nabuco'];
+
+// ---------- itens ----------
+// stats: ad, ap, hp, mana, arm, rm, as (vel. ataque, fração), ms (vel. mov., fração), ah (aceleração de habilidade), crit (fração), ls (roubo de vida)
+export const ITENS = {
+  // componentes
+  espadaCurta: { nome: 'Espada Curta de Bronze', cat: 'ataque', custo: 400, st: { ad: 15 }, icone: 'iEspada' },
+  aljava: { nome: 'Aljava de Benjamim', cat: 'ataque', custo: 450, st: { as: .2 }, icone: 'iAljava', lore: 'Os benjamitas atiravam com precisão (Jz 20:16).' },
+  luvas: { nome: 'Luvas de Couro de Cabra', cat: 'ataque', custo: 450, st: { crit: .15 }, icone: 'iLuvas', lore: 'Como as peles de cabrito nas mãos de Jacó (Gn 27:16).' },
+  cota: { nome: 'Cota de Escamas', cat: 'defesa', custo: 450, st: { arm: 30 }, icone: 'iCota' },
+  manto: { nome: 'Manto de Lã', cat: 'defesa', custo: 450, st: { rm: 30 }, icone: 'iManto' },
+  cinto: { nome: 'Cinto de Couro', cat: 'defesa', custo: 400, st: { hp: 250 }, icone: 'iCinto', lore: 'Como o cinto de couro de Elias (2Rs 1:8).' },
+  rolo: { nome: 'Rolo de Pergaminho', cat: 'habilidade', custo: 400, st: { ap: 25 }, icone: 'iRolo' },
+  oleo: { nome: 'Óleo da Unção', cat: 'habilidade', custo: 450, st: { mana: 300, ah: 5 }, icone: 'iOleo' },
+  salmo: { nome: 'Salmo Escrito', cat: 'habilidade', custo: 400, st: { ah: 15 }, icone: 'iSalmo' },
+  sandalias: { nome: 'Sandálias do Peregrino', cat: 'defesa', custo: 500, st: { ms: .1 }, icone: 'iSandalia', lore: 'As sandálias não se gastaram em quarenta anos (Dt 29:5).' },
+  // completos
+  espadaGolias: { nome: 'Espada de Golias', cat: 'ataque', custo: 2700, receita: ['espadaCurta', 'espadaCurta', 'cinto'], st: { ad: 65, hp: 300, penA: .25 }, icone: 'iEspadaG', passiva: 'Não há outra semelhante (1Sm 21:9): +8% de dano contra alvos com mais vida máxima.' },
+  arcoJonatas: { nome: 'Arco de Jônatas', cat: 'ataque', custo: 2500, receita: ['aljava', 'espadaCurta'], st: { ad: 40, as: .4 }, icone: 'iArco', passiva: 'O arco de Jônatas nunca voltava atrás (2Sm 1:22): ataques causam 15 de dano mágico extra.' },
+  laminaEude: { nome: 'Lâmina de Eúde', cat: 'ataque', custo: 2600, receita: ['espadaCurta', 'luvas'], st: { ad: 55, crit: .25, ls: .1, let: 12 }, icone: 'iLamina', passiva: 'Espada de dois gumes (Jz 3:16): 10% de roubo de vida.' },
+  armaduraSaul: { nome: 'Armadura de Saul', cat: 'defesa', custo: 2500, receita: ['cota', 'cinto'], st: { arm: 60, hp: 400 }, icone: 'iArmadura', passiva: 'Pesada (1Sm 17:39): reflete 10% do dano de ataques recebidos.' },
+  escudoFe: { nome: 'Escudo da Fé', cat: 'defesa', custo: 2500, receita: ['manto', 'cinto'], st: { rm: 55, hp: 350 }, icone: 'iEscudo', passiva: 'Apaga os dardos inflamados (Ef 6:16): escudo de 200 ao cair abaixo de 30% de vida (recarga de 60 s).' },
+  couracaJustica: { nome: 'Couraça da Justiça', cat: 'defesa', custo: 2900, receita: ['cota', 'manto', 'cinto'], st: { arm: 40, rm: 40, hp: 300 }, icone: 'iCouraca', passiva: 'Firmes, vestidos da couraça da justiça (Ef 6:14): +2% de vida regenerada por 5 s após receber dano de herói.' },
+  cajadoArao: { nome: 'Cajado de Arão', cat: 'habilidade', custo: 2800, receita: ['rolo', 'rolo', 'oleo'], st: { ap: 110, mana: 300, ah: 5, penMp: .3 }, icone: 'iCajado', passiva: 'O cajado floresceu (Nm 17:8): +15% de poder de habilidade.' },
+  cetroEster: { nome: 'Cetro de Ester', cat: 'habilidade', custo: 2500, receita: ['rolo', 'salmo'], st: { ap: 75, ah: 20, penM: 12 }, icone: 'iCetro', passiva: 'O rei estendeu o cetro de ouro (Et 5:2): habilidades deixam o alvo 10% mais lento.' },
+  harpaDavi: { nome: 'Harpa de Davi', cat: 'habilidade', custo: 2600, receita: ['oleo', 'salmo', 'cinto'], st: { ap: 65, hp: 250, mana: 300, ah: 15 }, icone: 'iHarpa', passiva: 'Acalmava o espírito de Saul (1Sm 16:23): regenera 1% da vida máxima por segundo fora de combate.' },
+};
+export const CATS = { ataque: 'Ataque', defesa: 'Defesa', habilidade: 'Habilidade' };
+export const NOMES_ST = { let: 'Letalidade', penA: 'Penetração de armadura', penM: 'Penetração mágica', penMp: 'Penetração mágica', ad: 'Dano de ataque', ap: 'Poder de habilidade', hp: 'Vida', mana: 'Mana', arm: 'Armadura', rm: 'Resistência mágica', as: 'Vel. de ataque', ms: 'Vel. de movimento', ah: 'Aceleração de habilidade', crit: 'Chance de crítico', ls: 'Roubo de vida' };
+export const fmtSt = (k, v) => (['as', 'ms', 'crit', 'ls', 'penA', 'penMp'].includes(k) ? '+' + Math.round(v * 100) + '%' : '+' + v) + ' ' + NOMES_ST[k];
+// custo efetivo considerando componentes que o herói já tem
+export function custoEfetivo(id, inv) {
+  const it = ITENS[id]; if (!it.receita) return { custo: it.custo, usa: [] };
+  const sobra = [...inv]; const usa = []; let custo = it.custo;
+  for (const c of it.receita) { const i = sobra.indexOf(c); if (i >= 0) { sobra.splice(i, 1); usa.push(c); custo -= ITENS[c].custo; } }
+  return { custo, usa };
+}

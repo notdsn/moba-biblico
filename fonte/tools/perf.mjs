@@ -1,0 +1,12 @@
+import puppeteer from 'puppeteer-core';
+const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--use-gl=angle', '--window-size=800,400'] });
+const page = await browser.newPage(); await page.setViewport({ width: 800, height: 400 });
+page.on('pageerror', e => console.log('ERR', e.message));
+await page.goto(process.argv[2], { waitUntil: 'load' }); await page.waitForFunction('window.__pronto === true', { timeout: 180000 });
+await page.evaluate(()=>{const R=__jogo.renderer;window.__rc=0;const o=R.render.bind(R);R.render=(a,b)=>{window.__rc++;const t=performance.now();o(a,b);const d=performance.now()-t;if(d>100)console.log('slow render',a.type,d.toFixed(0),new Error().stack.split('\n').slice(2,5).join('|'))};});
+page.on('console',m=>console.log('[pg]',m.text().slice(0,400)));
+for (let k = 0; k < 6; k++) console.log(await page.evaluate(() => { const t = performance.now(); window.__tick(15, 1/15); const a = performance.now() - t; const t2 = performance.now(); window.__tick(1, 1/15); return `rc ${window.__rc} 15 ticks ${a.toFixed(0)}ms, render ${(performance.now() - t2).toFixed(0)}ms un ${__jogo.unidades.length}`; }));
+await page.tracing.start({ path: '/tmp/trace.json', categories: ['devtools.timeline', 'disabled-by-default-v8.cpu_profiler'] });
+for (let k=0;k<4;k++) await page.evaluate(() => window.__tick(15, 1/15));
+await page.tracing.stop();
+await browser.close();

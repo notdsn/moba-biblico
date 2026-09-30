@@ -1,0 +1,5 @@
+import { NodeIO } from '@gltf-transform/core'; import { ALL_EXTENSIONS } from '@gltf-transform/extensions'; import { getBounds } from '@gltf-transform/core';
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+for (const f of process.argv.slice(2)) { const d = await io.read(f), r = d.getRoot(); let tri=0; for (const m of r.listMeshes()) for (const p of m.listPrimitives()) tri += p.getIndices().getCount()/3;
+ const b = getBounds(r.listScenes()[0]); const an = r.listAnimations().map(a => { let mx=0; for (const s of a.listSamplers()) { const i=s.getInput(); mx=Math.max(mx,i.getElement(i.getCount()-1,[])[0]); } return a.getName()+':'+mx.toFixed(2); });
+ console.log(f.split('/').pop(), 'tri', tri, 'mats', r.listMaterials().length, 'tex', r.listTextures().map(t=>t.getSize()?.join('x')+t.getMimeType().slice(6)).join(','), 'bbox', b.min.map(v=>v.toFixed(2)).join(','), '/', b.max.map(v=>v.toFixed(2)).join(','), an.join(' '), 'metal', r.listMaterials()[0].getMetallicFactor(), 'ds', r.listMaterials()[0].getDoubleSided()); }
