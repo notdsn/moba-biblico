@@ -21,14 +21,14 @@ Desenvolvimento: `npx vite --host`.
 - **Fim**: quando um Núcleo cai, aparece **Vitória** ou **Derrota** com placar, tempo, níveis, A/M/A, tropas, ouro e itens.
 
 ## Heróis
-- **Davi** (Luz · Atirador) — passiva *Pastor Valente*; Funda Certeira, Salmo de Coragem, Passo do Pastor; ult *Fé que Derruba Gigantes*. Build: Sandálias do Peregrino → Arco de Jônatas → Lâmina de Eúde → Espada de Golias → Armadura de Saul.
-- **Sansão** (Luz · Lutador · Tanque) — passiva *Voto de Nazireu*; Queixada de Jumento, Força do Leão, Investida; ult *Derrubar as Colunas*. Build: Sandálias do Peregrino → Espada de Golias → Armadura de Saul → Escudo da Fé → Couraça da Justiça.
-- **Débora** (Luz · Maga · Suporte) — passiva *Juíza de Israel*; Lança Profética, Palmeira da Justiça, Cântico de Vitória; ult *As Estrelas Pelejaram*. Build: Sandálias do Peregrino → Cetro de Ester → Harpa de Davi → Cajado de Arão → Escudo da Fé.
-- **Gideão** (Luz · Assassino · Lutador) — passiva *Valente Guerreiro*; Trombeta de Guerra, Cântaro Quebrado, Velo de Orvalho; ult *Espada do Senhor e de Gideão*. Build: Sandálias do Peregrino → Lâmina de Eúde → Espada de Golias → Arco de Jônatas → Armadura de Saul.
-- **Golias** (Trevas · Tanque) — passiva *Gigante de Gate*; Lança de Tecelão, Desafio do Filisteu, Investida do Gigante; ult *Terremoto de Gate*. Build: Sandálias do Peregrino → Armadura de Saul → Couraça da Justiça → Escudo da Fé → Espada de Golias.
-- **Faraó** (Trevas · Mago · Controlador) — passiva *Coração Endurecido*; Cajado-Serpente, Praga de Gafanhotos, Trevas Espessas; ult *As Dez Pragas*. Build: Sandálias do Peregrino → Cajado de Arão → Cetro de Ester → Harpa de Davi → Escudo da Fé.
-- **Jezabel** (Trevas · Assassina · Maga) — passiva *Coroa Pintada*; Adaga Envenenada, Véu de Sedução, Passo Sombrio; ult *Decreto de Jezreel*. Build: Sandálias do Peregrino → Cetro de Ester → Cajado de Arão → Harpa de Davi → Couraça da Justiça.
-- **Nabucodonosor** (Trevas · Lutador) — passiva *Rei de Babilônia*; Golpe Real, Estátua de Ouro, Carga Imperial; ult *Fornalha Ardente*. Build: Sandálias do Peregrino → Espada de Golias → Lâmina de Eúde → Armadura de Saul → Escudo da Fé.
+- **Davi** (Luz · Atirador) — passiva *Pastor Valente*; Funda Certeira (tiro longo que para no 1º inimigo e atordoa se acertar de longe), Salmo de Coragem, Passo do Pastor; ult *Fé que Derruba Gigantes*. Build: Sandálias do Peregrino → Arco de Jônatas → Lâmina de Eúde → Espada de Golias → Armadura de Saul.
+- **Sansão** (Luz · Lutador · Tanque) — passiva *Voto de Nazireu*; Queixada de Jumento (arco que empurra), Força do Leão, Braço Forte (avanço que arremessa para o alto); ult *Derrubar as Colunas* (faixa longa com aviso no chão e arremesso). Build: Sandálias do Peregrino → Espada de Golias → Armadura de Saul → Escudo da Fé → Couraça da Justiça.
+- **Débora** (Luz · Maga · Suporte) — passiva *Juíza de Israel*; Lança Profética (atravessa a fila), Palmeira da Justiça (cura tropas aliadas), Cântico de Vitória (escudo nos aliados); ult *As Estrelas Pelejaram*. Build: Sandálias do Peregrino → Cetro de Ester → Harpa de Davi → Cajado de Arão → Escudo da Fé.
+- **Gideão** (Luz · Assassino · Lutador) — passiva *Valente Guerreiro*; Trombeta de Guerra (medo em área), Cântaro Quebrado (fogo que queima), Velo de Orvalho; ult *Espada do Senhor e de Gideão* (salto com medo). Build: Sandálias do Peregrino → Lâmina de Eúde → Espada de Golias → Arco de Jônatas → Armadura de Saul.
+- **Golias** (Trevas · Tanque) — passiva *Gigante de Gate*; Lança de Tecelão (estocada em linha), Desafio do Filisteu (provoca), Pisão do Gigante (racha o chão e arremessa para longe); ult *Terremoto de Gate*. Build: Sandálias do Peregrino → Armadura de Saul → Couraça da Justiça → Escudo da Fé → Espada de Golias.
+- **Faraó** (Trevas · Mago · Controlador) — passiva *Coração Endurecido*; Cajado-Serpente (veneno), Praga de Gafanhotos, Trevas Espessas (raiz); ult *As Dez Pragas* (chuva de pragas + veneno). Build: Sandálias do Peregrino → Cajado de Arão → Cetro de Ester → Harpa de Davi → Escudo da Fé.
+- **Jezabel** (Trevas · Assassina · Maga) — passiva *Coroa Pintada*; Adaga Envenenada, Olhos Pintados (encanto: o alvo anda até ela), Passo Sombrio; ult *Decreto de Jezreel*. Build: Sandálias do Peregrino → Cetro de Ester → Cajado de Arão → Harpa de Davi → Couraça da Justiça.
+- **Nabucodonosor** (Trevas · Lutador) — passiva *Rei de Babilônia*; Golpe Real, Guarda da Babilônia (invoca 2 guardas), Carga Imperial (avanço que atordoa); ult *Fornalha Ardente* (zona que queima). Build: Sandálias do Peregrino → Espada de Golias → Lâmina de Eúde → Armadura de Saul → Escudo da Fé.
 
 ## LOJA
 - Aberta pelo botão de ouro. **Compra só na base (perto da fonte) ou enquanto estiver morto**; fora disso ela abre só para consulta.
@@ -45,7 +45,13 @@ Segue a rota com as tropas, farma, luta quando está em vantagem, usa as habilid
 
 ## Parâmetros de URL (para testes)
 - `?heroi=davi&vs=golias` — começa direto a partida com esses heróis (ids: davi, sansao, debora, gideao, golias, farao, jezabel, nabuco).
-- `?q=baixa` — qualidade reduzida para celulares fracos.
+- `?q=baixa` — qualidade reduzida para celulares fracos (sem MSAA/SMAA, sem mapas de relevo, sombras menores).
+
+## Gráficos
+- Antisserrilhado: MSAA (4× no PC, 2× no celular) + SMAA no PC; nada disso no `?q=baixa`.
+- Texturas CC0 do ambientCG (grama, terra, pedra da rota, mármore, obsidiana) usadas como **mapas de detalhe** sobre a paleta do jogo, com mapas de relevo (normal maps).
+- Sombras suaves (PCF com raio), luz hemisférica quente/roxa para sombreamento mais macio, câmera 10% mais aberta.
+- Estudo de referência: `ESTUDO-WILDRIFT.md`.
 - `?auto` — o computador controla também o seu herói (demonstração).
 - `?cap&cena=sel|luta|loja|vitoria` — modo de captura determinística usado nos prints e no vídeo.
 

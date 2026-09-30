@@ -41,6 +41,20 @@ Autor: **Kay Lousberg — KayKit** (www.kaylousberg.com).
 
 (Os personagens KayKit “chibi” da versão anterior — Rogue_Hooded, Knight, Skeleton_Minion, Skeleton_Warrior — **não são mais usados**.)
 
+## Texturas do cenário (CC0 1.0)
+
+Fonte: **ambientCG** (https://ambientcg.com), por Lennart Demes. Todas CC0 (domínio público). O crédito não é obrigatório, mas fica registrado.
+Os arquivos foram reduzidos (512–1024 px, JPG) e os mapas de cor foram "neutralizados" (sem tom próprio, brilho médio ~0,55) para servir de **mapa de detalhe**: a cor final continua vindo da paleta do jogo.
+
+| Arquivo no jogo (`public/tex/`) | Uso | Asset original no ambientCG |
+|---|---|---|
+| `grama_d.jpg`, `grama_n.jpg` | chão de grama (detalhe + relevo) | **Grass004** — https://ambientcg.com/view?id=Grass004 |
+| `terra_d.jpg`, `terra_n.jpg` | terra batida nas bordas da rota e nas bases | **Ground054** — https://ambientcg.com/view?id=Ground054 |
+| `pedra_d.jpg`, `pedra_n.jpg` | pedras do caminho (rota) | **Rock030** — https://ambientcg.com/view?id=Rock030 |
+| `marmore_d.jpg`, `marmore_n.jpg` | mármore das torres, Núcleo e base da Luz | **Marble012** — https://ambientcg.com/view?id=Marble012 |
+| `obsidiana_d.jpg` | veios da obsidiana das torres, Núcleo e base das Trevas | **Marble006** — https://ambientcg.com/view?id=Marble006 |
+| `rocha_n.jpg` | relevo da obsidiana | **Rock035** — https://ambientcg.com/view?id=Rock035 |
+
 ## Feito do zero neste projeto (sem licença de terceiros)
 - Torre da Luz (mármore, ouro, chama azul em shader), Torre das Trevas (obsidiana com veios vermelhos e cristal vermelho flutuante), **Núcleos** e fontes das duas bases.
 - Chão, caminho de pedras, tufos de grama com vento, névoa, partículas, projéteis, coluna de luz da ultimate, círculos de runas.
