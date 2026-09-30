@@ -206,7 +206,7 @@ body[data-time=trevas] .hab.ult{background:radial-gradient(circle at 50% 30%,#8a
 #abate .al{color:#9fe0ff}#abate .in{color:#ff9aa6}
 #morte{position:absolute;top:36%;left:50%;transform:translateX(-50%);text-align:center;font-family:'Cinzel';font-weight:900;font-size:calc(3.6*var(--u));color:#ffd0d6;text-shadow:0 2px 6px #000;display:none}
 #morte.on{display:block}#morte b{font-size:1.6em;color:#fff}#morte small{display:block;font-family:'Nunito';font-size:calc(1.9*var(--u));color:#ffe7a8}
-body:has(#morte.on) #cena{filter:grayscale(.85) brightness(.8)}
+/* tela de morte em cinza: feita no shader (grade.uCinza); filtro CSS no canvas WebGL deixa a cena preta no Safari */
 #pontosAviso{position:absolute;right:calc(3*var(--u) + var(--sr));bottom:calc(47*var(--u) + var(--sb));font-size:calc(1.7*var(--u));font-weight:900;color:#ffe7a8;background:rgba(20,14,4,.75);border:1px solid #b8862b;padding:calc(.5*var(--u)) calc(1.2*var(--u));border-radius:calc(.8*var(--u));display:none}
 #pontosAviso.on{display:block}
 #inimInfo{position:absolute;right:calc(1.6*var(--u) + var(--sr));top:calc(8*var(--u) + var(--st));display:flex;align-items:center;gap:calc(.8*var(--u));background:var(--vidro);border:1px solid rgba(255,120,140,.4);border-radius:calc(4*var(--u));padding:calc(.4*var(--u)) calc(1.6*var(--u)) calc(.4*var(--u)) calc(.4*var(--u))}

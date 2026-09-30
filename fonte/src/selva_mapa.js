@@ -1,9 +1,12 @@
 // Selva (estilo Wild Rift): dados do mapa, sem three.js (usado por world.js e selva.js)
-const laneZ = (x) => 2.2 * Math.sin(x * 0.045) - 0.6 * Math.sin(x * 0.11 + 1); // igual a world.js
 const qs = new URLSearchParams(location.search);
 export const SELVA_ON = qs.get('selva') !== '0';
 // ?mapa=antigo: selva da versão anterior (uma rota só, faixa de 33 de cada lado). Padrão: mapa completo estilo Wild Rift.
 export const MAPA_WR = SELVA_ON && qs.get('mapa') !== 'antigo';
+// escala do mapa WR: rotas 1,5x mais longas (torres a ~18 m uma da outra com alcance 10,5, como a proporção do WR); acampamentos e poços acompanham
+export const MAPA_K = MAPA_WR ? 1.5 : 1;
+const K = MAPA_K, KP = (p) => [p[0] * K, p[1] * K];
+export const laneZ = (x) => 2.2 * Math.sin(x / K * 0.045) - 0.6 * Math.sin(x / K * 0.11 + 1); // usado também por world.js
 // Rotas laterais (topo e baixo/Dragão): desenhadas, andáveis e com torres, mas DESLIGADAS por enquanto
 // (sem ondas de tropas, torres só decorativas, sem IA). Ligar no futuro: ROTAS_LATERAIS = true (falta a lógica de tropas por rota).
 export const ROTAS_LATERAIS = false;
@@ -11,10 +14,10 @@ export const SELVA_LARG = 33; // (mapa antigo) meia-largura andável (|z - rota|
 export const SELVA_SUL = 33;
 // Mapa WR: o Meio é o eixo x (Luz em x<0, Trevas em x>0); o mapa é um losango |x-1|+|z| <= MAPA_C + MAPA_FOLGA.
 // A câmera gira 45°: na tela a base da Luz fica embaixo à esquerda, a das Trevas em cima à direita; z<0 = topo/esquerda (rio de cima).
-export const MAPA_C = 64, MAPA_FOLGA = 4.5;
+export const MAPA_C = 64 * K, MAPA_FOLGA = 4.5;
 export const distLosango = (x, z) => Math.abs(x - 1) + Math.abs(z);
 // rotas laterais (polilinhas): saem da base, seguem a borda do losango e dobram no canto (1, ∓61)
-export const ROTA_TOPO = [[-50, -4], [-44, -19], [-6, -57], [1, -61], [8, -57], [46, -19], [52, -4]];
+export const ROTA_TOPO = [[-50, -4], [-44, -19], [-6, -57], [1, -61], [8, -57], [46, -19], [52, -4]].map(([x, z]) => [(x - 1) * K + 1, z * K]);
 export const ROTA_BAIXO = ROTA_TOPO.map(([x, z]) => [x, -z]);
 function distPoli(pl, x, z) { let m = 1e9; for (let i = 0; i < pl.length - 1; i++) { const [ax, az] = pl[i], [bx, bz] = pl[i + 1]; const vx = bx - ax, vz = bz - az; const t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz))); const dx = x - ax - vx * t, dz = z - az - vz * t; m = Math.min(m, dx * dx + dz * dz); } return Math.sqrt(m); }
 export const distLateral = (x, z) => MAPA_WR ? Math.min(distPoli(ROTA_TOPO, x, z), distPoli(ROTA_BAIXO, x, z)) : 1e9;
@@ -26,12 +29,12 @@ if (MAPA_WR) for (const pl of [ROTA_TOPO, ROTA_BAIXO]) for (const [ti, a, b] of 
 // Sarça (vermelho) + Gigantes entre o Meio e a rota de baixo. Trevas: o mesmo girado. Acampamentos a >= 15 das torres ativas.
 const ROT = (s, p) => s < 0 ? p : [2 - p[0], -p[1]];
 export const CAMPOS = [];
-const LUZ_CAMPOS = MAPA_WR ? { rocha: [-19, -20], lobos: [-13, -27], gigantes: [-12, 24], sarca: [-19, 15] } : { rocha: [-26, -12], lobos: [-20, -23], gigantes: [-31, 11], sarca: [-27, 22] };
+const LUZ_CAMPOS = MAPA_WR ? { rocha: KP([-19, -20]), lobos: KP([-13, -27]), gigantes: KP([-12, 24]), sarca: KP([-19, 15]) } : { rocha: [-26, -12], lobos: [-20, -23], gigantes: [-31, 11], sarca: [-27, 22] };
 for (const s of [-1, 1]) {
   const t = s < 0 ? 'luz' : 'trevas';
   for (const [tipo, p] of Object.entries(LUZ_CAMPOS)) { const [x, z] = ROT(s, p); CAMPOS.push({ id: tipo + '_' + t, tipo, lado: t, x, z }); }
 }
-export const POCO_XZ = MAPA_WR ? [0, -30] : [7, -24], DRAG_XZ = MAPA_WR ? [2, 30] : [-5, 24];
+export const POCO_XZ = MAPA_WR ? [0, -30 * K] : [7, -24], DRAG_XZ = MAPA_WR ? [2, 30 * K] : [-5, 24];
 CAMPOS.push({ id: 'dragao', tipo: 'dragao', lado: null, x: DRAG_XZ[0], z: DRAG_XZ[1] });
 CAMPOS.push({ id: 'poco', tipo: 'poco', lado: null, x: POCO_XZ[0], z: POCO_XZ[1] }); // Beemote e depois Leviatã
 // trilhas (segmentos) ligando rotas, acampamentos e as entradas diagonais dos dois poços do rio
@@ -44,9 +47,9 @@ export const TRILHAS = [];
     const seg = (a, b) => TRILHAS.push([...a, ...b]);
     const { rocha, lobos, gigantes, sarca } = LUZ_CAMPOS;
     if (MAPA_WR) {
-      seg(L(-21), R(rocha)); seg(R(rocha), R(lobos)); seg(R(lobos), s < 0 ? pN1 : dS2); seg(R(rocha), R([-31, -32])); seg(R(lobos), R([-24, -39]));
-      seg(L(-21), R(sarca)); seg(R(sarca), R(gigantes)); seg(R(gigantes), s < 0 ? dS1 : pN2); seg(R(sarca), R([-33, 29])); seg(R(gigantes), R([-25, 38]));
-      seg(L(-6), R([-6, -14])); seg(R([-6, -14]), R(lobos)); seg(L(-6), R([-6, 14])); seg(R([-6, 14]), R(gigantes));
+      seg(L(-21 * K), R(rocha)); seg(R(rocha), R(lobos)); seg(R(lobos), s < 0 ? pN1 : dS2); seg(R(rocha), R(KP([-31, -32]))); seg(R(lobos), R(KP([-24, -39])));
+      seg(L(-21 * K), R(sarca)); seg(R(sarca), R(gigantes)); seg(R(gigantes), s < 0 ? dS1 : pN2); seg(R(sarca), R(KP([-33, 29]))); seg(R(gigantes), R(KP([-25, 38])));
+      seg(L(-6 * K), R(KP([-6, -14]))); seg(R(KP([-6, -14])), R(lobos)); seg(L(-6 * K), R(KP([-6, 14]))); seg(R(KP([-6, 14])), R(gigantes));
     } else {
       seg(L(-17), R(rocha)); seg(R(rocha), R(lobos)); seg(R(lobos), R([-8, -21])); seg(R([-8, -21]), s < 0 ? pN1 : dS2);
       seg(L(-17), R(gigantes)); seg(R(gigantes), R(sarca)); seg(R(sarca), R([-14, 24])); seg(R([-14, 24]), s < 0 ? dS1 : pN2);
@@ -54,7 +57,7 @@ export const TRILHAS = [];
     }
   }
   seg0([1, laneZ(1)], pN1); seg0([1, laneZ(1)], pN2); seg0([1, laneZ(1)], dS1); seg0([1, laneZ(1)], dS2);
-  if (MAPA_WR) { seg0(pN1, [-14, -50]); seg0(pN2, [16, -50]); seg0(dS1, [-14, 50]); seg0(dS2, [16, 50]); } } // rio até as rotas laterais
+  if (MAPA_WR) { seg0(pN1, KP([-14, -50])); seg0(pN2, KP([16, -50])); seg0(dS1, KP([-14, 50])); seg0(dS2, KP([16, 50])); } } // rio até as rotas laterais
 export function distTrilha(x, z) {
   let m = 1e9;
   for (const [ax, az, bx, bz] of TRILHAS) { const vx = bx - ax, vz = bz - az; const t = Math.max(0, Math.min(1, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz))); const dx = x - ax - vx * t, dz = z - az - vz * t; const d = dx * dx + dz * dz; if (d < m) m = d; }

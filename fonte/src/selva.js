@@ -1,6 +1,7 @@
 // Selva estilo Wild Rift: acampamentos, objetivos, bônus, IA de caçador e pings.
 // Modelos Tripo sem esqueleto: animação por código (respiração, virar, investida, morte com encolher/sumir).
 import * as THREE from 'three';
+import { clone as clonarEsq } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { SELVA_ON, CAMPOS } from './selva_mapa.js';
 export { SELVA_ON, CAMPOS };
 
@@ -34,12 +35,14 @@ let geoSombra, matSombra, geoAnel, matAnel = {};
 async function carregarMolde(n) {
   if (moldes[n]) return moldes[n];
   const lo = await D.carregar('selva/' + n + '_lod1').catch(() => null);
-  const hi = D.Q.baixa ? null : await D.carregar('selva/' + n).catch(() => null);
+  const hi = D.Q.baixa ? null : await D.carregar('selva/' + (RIG[n] ? n + '_rig' : n)).catch(() => null); // Dragão: modelo com esqueleto (Blender) e clipes
   const base = (hi || lo).scene; const bb = new THREE.Box3().setFromObject(base); const sz = bb.getSize(new THREE.Vector3());
   const prep = (g) => { if (!g) return null; const s = g.scene; s.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; if (o.geometry.attributes.color && !o.material.map) o.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .8, metalness: .05 }); } }); return s; };
-  moldes[n] = { hi: prep(hi), lo: prep(lo), dim: Math.max(sz.x, sz.y, sz.z), alt: sz.y, cx: (bb.min.x + bb.max.x) / 2, cz: (bb.min.z + bb.max.z) / 2, y0: bb.min.y };
+  moldes[n] = { clipes: hi && hi.animations && hi.animations.length ? hi.animations : null, hi: prep(hi), lo: prep(lo), dim: Math.max(sz.x, sz.y, sz.z), alt: sz.y, cx: (bb.min.x + bb.max.x) / 2, cz: (bb.min.z + bb.max.z) / 2, y0: bb.min.y };
   return moldes[n];
 }
+const RIG = { dragao: true, leviata: true, beemote: true, gigante_pedra: true, lobo: true }; // modelos com esqueleto (tools/rig_*_blender.py)
+const GIRO = { lobo: Math.PI / 2, leviata: Math.PI / 2 }; // modelos Tripo de lado (cabeça em -X): o rig já vem girado; o LOD simples gira aqui
 function clonarMats(root, mats) { root.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); } }); }
 // ---- deformação por vértice (sem esqueleto): as partes saem da posição do vértice no modelo normalizado
 // (cabeça = frente +z, cauda = trás, asas = |x| grande, pernas = y baixo); parâmetros por espécie
@@ -94,14 +97,16 @@ function criarMonstro(tipo, campo, dx = 0, dz = 0, time = 'neutro') {
   const k = T.tam / M.dim; const mats = [];
   const lod = new THREE.LOD(); const dist = D.Q.mobile ? (T.peq ? 0 : T.obj ? 30 : 25) : (T.peq ? 23 : 34);
   const U = { uT: { value: 0 }, uAtk: { value: 0 }, uMove: { value: 0 }, uHit: { value: 0 }, uPasso: { value: 0 } };
-  const montar = (src) => { const g = src.clone(); g.scale.setScalar(k); g.position.set(-M.cx * k, -M.y0 * k, -M.cz * k); clonarMats(g, mats); aplicarDeform(g, T.mod, U); if (!D.Q.mobile && src === M.hi) g.traverse(o => { if (o.isMesh) o.castShadow = true; }); const w = new THREE.Group(); w.add(g); return w; };
+  let rig = null;
+  const montar = (src) => { const esq = src === M.hi && M.clipes; const g = esq ? clonarEsq(src) : src.clone(); g.scale.setScalar(k); g.position.set(-M.cx * k, -M.y0 * k, -M.cz * k); clonarMats(g, mats);
+    if (esq) { g.traverse(o => { if (o.isSkinnedMesh) o.frustumCulled = false; }); rig = criarRig(g, M.clipes); } else aplicarDeform(g, T.mod, U); if (!D.Q.mobile && src === M.hi) g.traverse(o => { if (o.isMesh) o.castShadow = true; }); const w = new THREE.Group(); w.add(g); if (!esq && GIRO[T.mod] && M.clipes) w.rotation.y = GIRO[T.mod]; return w; };
   if (M.hi && dist > 0) { lod.addLevel(montar(M.hi), 0); if (M.lo) lod.addLevel(montar(M.lo), dist); } else lod.addLevel(montar(M.lo || M.hi), 0);
   corpo.add(lod);
   const sh = new THREE.Mesh(geoSombra, matSombra); sh.rotation.x = -Math.PI / 2; sh.position.y = .04; sh.scale.setScalar(T.raio * 2.4); obj.add(sh);
   const hx = campo.x + dx, hz = campo.z + dz;
   const m = { tipo: 'monstro', sub: tipo, T, time, nome: T.nome, campo, casa: new THREE.Vector3(hx, 0, hz), obj, corpo, modelo: obj, mats, vivo: false, hp: 1, maxHp: 1, raio: T.raio, st: { arm: T.arm, rm: T.rm },
     alturaBarra: T.alt || Math.min(6.5, T.tam * (T.mod === 'leviata' ? .62 : T.mod === 'dragao' ? .7 : .9)) + .4, flash: 0, estadoM: 'espera', fase: Math.random() * 6, atkCd: 0, investida: 0, morteT: 0, surgeT: 0, alvo: null,
-    U, passo: 0, hitT: 0, mixer: { update() {} }, anim: {}, tocar() {}, atualizarFlash() {}, id: 'monstro_' + tipo };
+    U, rig, lod, passo: 0, hitT: 0, mixer: { update() {} }, anim: {}, tocar() {}, atualizarFlash() {}, id: 'monstro_' + tipo };
   D.iniciarStatus(m);
   obj.position.copy(m.casa); obj.rotation.y = Math.atan2(-hx + 1, -hz) + (Math.random() - .5) * .6; obj.visible = false;
   D.scene.add(obj); D.unidades.push(m); D.criarBarra(m); m.barra.classList.add('neutro'); if (T.obj) m.barra.classList.add('grande'); if (T.peq) m.barra.classList.add('peq');
@@ -218,6 +223,7 @@ function atualizarMonstro(m, dt, t, camAlvo) {
   const o = m.obj, p = o.position;
   if (m.estadoM === 'espera') { if (m.nasceEm != null && t >= m.nasceEm && !(m.sub === 'beemote' && t >= T_LEV) && !(m.sub === 'leviata' && t < T_LEV)) nascer(m); else if (m.sub === 'beemote' && t >= T_LEV) m.nasceEm = null; return; }
   if (m.estadoM === 'morrendo') {
+    if (m.rig) { m.morteT += dt; rigTocar(m.rig, 'Death', .15); m.rig.mixer.update(dt); const k = Math.min(1, m.morteT / 2.4), f = Math.max(0, (k - .75) / .25); for (const mt of m.mats) { mt.transparent = f > 0; mt.opacity = 1 - f; } if (k >= 1) { o.visible = false; m.estadoM = 'espera'; for (const mt of m.mats) { mt.opacity = 1; mt.transparent = false; } } return; }
     m.morteT += dt; const k0 = Math.min(1, m.morteT / 1.1), k = k0 * k0 * (3 - 2 * k0), ke = 1 - Math.pow(1 - k0, 3);
     m.corpo.scale.setScalar(1 - k * .7); m.corpo.position.y = (m.corpo.position.y || 0) * (1 - ke) - k * .4; m.corpo.rotation.z = ke * .5; m.corpo.rotation.x *= 1 - ke; for (const mt of m.mats) mt.opacity = 1 - k * k;
     if (k >= 1) { o.visible = false; m.corpo.rotation.z = 0; m.corpo.position.y = 0; m.estadoM = 'espera'; if (m.modo === 'arauto') m.remover = true; }
@@ -248,7 +254,7 @@ function atualizarMonstro(m, dt, t, camAlvo) {
     else { const a = m.alvo, ap = a.obj.position; const d = ap.distanceTo(p) - a.raio; virar(m, ap, dt);
       if (d > m.T.alc) mv = mover(m, ap, (m.T.obj ? 3.2 : 3.9) * (1 - m.lento), dt);
       else if (m.atkCd <= 0 && !(m.atord > 0)) { m.atkCd = m.T.cad; m.investida = .55; const dano = m.dano; setTimeout(() => { if (!m.vivo || !a.vivo) return;
-        if (m.T.area) { for (const h of D.herois) if (h.vivo && h.obj.position.distanceTo(ap) < m.T.area) D.danificar(m, h, dano); } else D.danificar(m, a, dano); }, 260); }
+        if (m.T.area) { for (const h of D.herois) if (h.vivo && h.obj.position.distanceTo(ap) < m.T.area) D.danificar(m, h, dano); } else D.danificar(m, a, dano); }, m.rig && m.T.mod === 'leviata' ? 650 : 260); }
       if (m.lutaT && a.agrediuMonstroT > m.lutaT) m.lutaT = a.agrediuMonstroT; }
   } else if (m.estadoM === 'volta') {
     m.hp = Math.min(m.maxHp, m.hp + m.maxHp * .25 * dt); virar(m, m.casa, dt);
@@ -262,7 +268,24 @@ function atualizarMonstro(m, dt, t, camAlvo) {
 const AN2 = { lobo: { bob: .12, bank: 1 }, beemote: { bob: .09, bank: .8, roll: .02 }, gigante_pedra: { bob: .15, stomp: 1, roll: .06, bank: .4 }, rocha: { bob: .04, pulse: 1, bank: .2 }, sarca: { bob: .03, flick: 1, bank: .3 }, dragao: { fly: 1, bank: 1.4 }, leviata: { fly: .6, bank: 1.1 } };
 const mola = (s, alvo, k, c, dt) => { s.v += ((alvo - s.x) * k - s.v * c) * dt; s.x += s.v * dt; return s.x; };
 const aprox = (a, b, r, dt) => a + (b - a) * (1 - Math.exp(-r * dt));
+// ---- esqueleto: AnimationMixer com crossfade (Idle em loop; Attack/Hit/Spawn uma vez e voltam ao Idle; Death trava no fim) ----
+function criarRig(g, clipes) { const mixer = new THREE.AnimationMixer(g), acts = {};
+  for (const c of clipes) { const a = mixer.clipAction(c); if (c.name !== 'Idle' && c.name !== 'Walk') { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } acts[c.name] = a; }
+  const r = { mixer, acts, atual: null, fimT: 0 }; rigTocar(r, 'Idle', 0); return r; }
+function rigTocar(r, nome, fade, inicio = 0, vel = 1) { const a = r.acts[nome]; if (!a || (r.atual === a && nome !== 'Attack' && nome !== 'Hit')) return; a.reset(); a.time = inicio; a.timeScale = vel; a.setEffectiveWeight(1); a.play();
+  if (r.atual && r.atual !== a) r.atual.crossFadeTo(a, fade, false); else if (!r.atual) a.fadeIn(fade); r.atual = a; r.nome = nome; r.fimT = nome === 'Idle' || nome === 'Walk' ? 1e9 : (a.getClip().duration - inicio) / vel; }
+function animarRig(m, dt, mv) { const r = m.rig, c = m.corpo; c.scale.setScalar(1); c.position.set(0, 0, 0); c.rotation.x = 0;
+  if (m.surgeT > 0) { if (m.surgeT >= .69) rigTocar(r, 'Spawn', .1); m.surgeT -= dt; }
+  m.movK = aprox(m.movK || 0, mv ? 1 : 0, 5, dt);
+  if (r.acts.Walk) { if (m.movK > .35 && r.nome === 'Idle') rigTocar(r, 'Walk', .25); else if (m.movK < .2 && r.nome === 'Walk') rigTocar(r, 'Idle', .3); if (r.nome === 'Walk') r.atual.timeScale = .6 + .6 * m.movK * (m.estadoM === 'volta' ? 1.4 : 1); }
+  if (m.investida > 0) { if (!m._atkOn) { if (m.T.mod === 'leviata') rigTocar(r, 'Attack', .15, 0, 1.3); else rigTocar(r, 'Attack', .12, .1, 1.6); m._atkOn = true; } m.investida -= dt; } else m._atkOn = false; // bote cai em ~.28 s = quando o dano entra
+  if (m.flash > .1 && !m._golpe) { m._golpe = true; if (r.nome === 'Idle' || r.nome === 'Walk') rigTocar(r, 'Hit', .08); } else if (m.flash <= .1) m._golpe = false;
+  r.fimT -= dt; if (r.fimT <= .2 && r.nome !== 'Idle' && r.nome !== 'Walk' && r.nome !== 'Death') rigTocar(r, r.acts.Walk && m.movK > .35 ? 'Walk' : 'Idle', .35);
+  // curva: continua com a suavização procedural (inclina com a velocidade angular)
+  m.rotV = (m.rotV || 0) * Math.exp(-dt * 2); const sp = m.sp || (m.sp = { bank: 0 }); sp.bank = aprox(sp.bank, Math.max(-.25, Math.min(.25, -m.rotV * .12)), 6, dt); c.rotation.z = sp.bank;
+  r.mixer.update(dt); }
 function animarCorpo(m, dt, mv) {
+  if (m.rig && m.lod.getCurrentLevel() === 0) return animarRig(m, dt, mv);
   const c = m.corpo, U = m.U, A = AN2[m.T.mod] || AN2.lobo, d = Math.min(dt, 1 / 20);
   const sp = m.sp || (m.sp = { atk: { x: 0, v: 0 }, hit: { x: 0, v: 0 }, bank: 0 });
   let sc = 1; if (m.surgeT > 0) { m.surgeT -= dt; const k = Math.min(1, 1 - Math.max(0, m.surgeT) / .7); sc = 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2); } // surge com leve passada (easeOutBack)

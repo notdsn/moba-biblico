@@ -26,7 +26,7 @@ import { configurarKTX2, reduzirTexturas, juntarLOD, ativarCulling, atualizarFru
 // ================= parâmetros =================
 const P = new URLSearchParams(location.search);
 const MODO2 = SELVA_ON && P.get('modo') !== '1v1'; // 2v2 com selva: partidas de ~15 min (torres e XP em proporção WR)
-const HPE = MODO2 ? 2.6 : 1, OURO_K = MODO2 ? .85 : 1;
+const HPE = MODO2 ? 2.9 : 1, OURO_K = MODO2 ? .85 : 1;
 const CAPTURA = P.has('cap');            // modo de captura determinística (headless)
 const CENA = P.get('cena') || '';        // cenários prontos para prints: sel, luta, loja, vitoria, video
 const AUTO = P.has('auto');                // piloto automático (o seu herói também joga sozinho)
@@ -77,11 +77,12 @@ scene.fog = new THREE.Fog('#3b3346', 34, 78);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.45;
 
-const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.5, 160);
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.8, 190);
 const ESC_HEROI = 1.55, ESC_TROPA = 1.26;
 // câmera estilo Wild Rift: mais de cima (57°) e um pouco mais longe (vê mais da rota), herói no centro; ?camera=antiga volta à de 48°
 const CAM_ANTIGA = P.get('camera') === 'antiga';
-const CAM_ANG = 57, CAM_DIST = 19.6, CAM_DZ = .8; // WR: sem números oficiais; calibrado por proporção (alcance do Blitz ≈ 85% da meia-tela; herói ≈ 12% da altura da tela, um pouco abaixo do centro)
+const CAM_ANG = 57, CAM_DIST = 26, CAM_DZ = 1.1; // Edson: +33% de distância (enquadramento WR/LoL: vê mais da rota)
+// antes: CAM_DIST = 19.6; // WR: sem números oficiais; calibrado por proporção (alcance do Blitz ≈ 85% da meia-tela; herói ≈ 12% da altura da tela, um pouco abaixo do centro)
 const CAM_OFF = CAM_ANTIGA ? new THREE.Vector3(0, 12.8, 11.4) : new THREE.Vector3(0, CAM_DIST * Math.sin(CAM_ANG * Math.PI / 180), CAM_DIST * Math.cos(CAM_ANG * Math.PI / 180));
 // mapa WR: câmera girada -45° em y — na tela o Meio vira a diagonal (Luz embaixo/esquerda, Trevas em cima/direita), o rio a outra diagonal
 const CAM_GIRO = MAPA_WR ? -Math.PI / 4 : 0, EIXO_Y = new THREE.Vector3(0, 1, 0); CAM_OFF.applyAxisAngle(EIXO_Y, CAM_GIRO);
@@ -105,13 +106,15 @@ const rt = new THREE.WebGLRenderTarget(1, 1, { type: RT_FLOAT ? THREE.HalfFloatT
 const composer = new EffectComposer(renderer, rt);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), Q.pintado ? 0.55 : 0.7, Q.pintado ? 0.45 : 0.5, 2.0);
+// NaN/infinito num pixel (sombra, normal degenerada) vira a TELA INTEIRA preta quando o bloom espalha o borrão: limpa na entrada do bloom
+bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragmentShader.replace('vec4 texel = texture2D( tDiffuse, vUv );', 'vec4 texel = texture2D( tDiffuse, vUv ); if (any(isnan(texel)) || any(isinf(texel))) texel = vec4(0.); texel = clamp(texel, 0., 64.);'); bloom.materialHighPassFilter.needsUpdate = true;
 composer.addPass(bloom); if (Q.mobile) bloom.enabled = false; // celular: sem bloom (o pós mais caro); os brilhos já são aditivos
 composer.addPass(new OutputPass());
-const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, uSat: { value: Q.pintado ? 1.1 : 1.18 }, uVig: { value: .38 } },
+const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, uCinza: { value: 0 }, uSat: { value: Q.pintado ? 1.1 : 1.18 }, uVig: { value: .38 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float uSat; uniform float uVig; varying vec2 vUv;
-    void main(){ vec4 c=texture2D(tDiffuse,vUv); float l=dot(c.rgb,vec3(.299,.587,.114)); c.rgb=mix(vec3(l),c.rgb,uSat);
-      c.rgb = (c.rgb-.5)*1.06+.5; vec2 d=vUv-.5; d.x*=1.6; float v=1.-uVig*smoothstep(.25,.95,length(d)); c.rgb*=v; gl_FragColor=c; }` });
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uCinza; uniform float uSat; uniform float uVig; varying vec2 vUv;
+    void main(){ vec4 c=texture2D(tDiffuse,vUv); if (any(isnan(c)) || any(isinf(c))) c = vec4(0., 0., 0., 1.); c.rgb = clamp(c.rgb, 0., 64.); float l=dot(c.rgb,vec3(.299,.587,.114)); c.rgb=mix(vec3(l),c.rgb,uSat);
+      c.rgb = (c.rgb-.5)*1.06+.5; vec2 d=vUv-.5; d.x*=1.6; float v=1.-uVig*smoothstep(.25,.95,length(d)); c.rgb*=v; c.rgb = mix(c.rgb, vec3(dot(c.rgb, vec3(.299,.587,.114))) * .8, uCinza); gl_FragColor=c; }` });
 composer.addPass(grade);
 // antisserrilhado extra (bordas de grama, partículas e shaders) — desligado no modo ?q=baixa
 const smaa = Q.baixa || Q.mobile ? null : new SMAAPass(); if (smaa) composer.addPass(smaa);
@@ -247,7 +250,7 @@ function criarEstruturas() {
   const tt3 = mundo.torreTrevas3 ? add('trevas', 'torre', mundo.torreTrevas3, { hp: 2900 * HPE, nome: 'Torre da Base das Trevas', ordem: 3, requer: [tt2] }) : null;
   const nt = add('trevas', 'nucleo', mundo.nucleoTrevas, { hp: 3000 * HPE, nome: 'Núcleo das Trevas', alcance: 0, requer: [tt1, tt2, tt3].filter(Boolean) });
   nl.obj.userData.raio = 3.2; nt.obj.userData.raio = 3.2;
-  for (const e of estruturas) if (e.tipo === 'torre') criarAnelTorre(e);
+  for (const e of estruturas) if (e.tipo === 'torre') criarAnelTorre(e); prepararRuinas();
 }
 // círculo de alcance da torre (como no WR): aparece quando o seu herói chega perto; fica mais forte dentro do alcance
 // e pulsa quando a torre está mirando em você
@@ -588,6 +591,10 @@ function morrer(u, fonte) {
   }
   if (heroiFonte && heroiFonte.id === 'nabuco') darEscudo(heroiFonte, 40 + 8 * heroiFonte.nivel, 4);
 }
+// material escurecido da ruína: um por material original (cache), criado no carregamento em prepararRuinas()
+const RUINA = new Map();
+function matRuina(m, k, ke = 1) { const ch = m.uuid + k; let r = RUINA.get(ch); if (!r) { r = m.clone(); r.color.multiplyScalar(k); if (r.emissive) r.emissive.multiplyScalar(ke); RUINA.set(ch, r); } return r; }
+function prepararRuinas() { for (const e of estruturas) e.obj.traverse(o => { if (!o.isMesh || !o.material || !o.material.color) return; matRuina(o.material, .5); matRuina(o.material, .45, .2); }); }
 function destruirEstrutura(e, fonte) {
   e.vivo = false; tremer(.6);
   const p = e.obj.position; const cor = e.time === 'luz' ? [.6, .85, 1] : [1, .25, .35];
@@ -596,8 +603,10 @@ function destruirEstrutura(e, fonte) {
   for (let i = 0; i < 3; i++) agendar(i * .15, () => aneis.add(p, new THREE.Color(...cor), 1, 9 + i * 2, .9));
   // ruína: esconde partes altas e luzes
   // Tripo: a peça é uma malha só; em ruína ela é achatada e escurecida
-  e.obj.traverse(o => { if (o.userData.ruina) { o.scale.y *= .36; o.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.color.multiplyScalar(.5); } }); } });
-  e.obj.traverse(o => { if (o === e.obj) return; if (o.isPointLight) o.visible = false; else if (o.parent === e.obj && o.position.y > (e.tipo === 'nucleo' ? 1.5 : 2.2)) o.visible = false; if (o.isMesh && o.material && o.material.color && o.visible && o.parent === e.obj) { o.material = o.material.clone(); o.material.color.multiplyScalar(.45); if (o.material.emissive) o.material.emissive.multiplyScalar(.2); } });
+  // sem compilar nada na hora: os materiais de ruína já existem (criados/compilados no carregamento) e as luzes só apagam
+  // (esconder uma PointLight muda a contagem de luzes e recompila TODOS os materiais iluminados: era o travamento no iPhone)
+  e.obj.traverse(o => { if (o.userData.ruina) { o.scale.y *= .36; o.traverse(m => { if (m.isMesh) m.material = matRuina(m.material, .5); }); } });
+  e.obj.traverse(o => { if (o === e.obj) return; if (o.isPointLight) o.intensity = 0; else if (o.parent === e.obj && o.position.y > (e.tipo === 'nucleo' ? 1.5 : 2.2)) o.visible = false; if (o.isMesh && o.material && o.material.color && o.visible && o.parent === e.obj) o.material = matRuina(o.material, .45, .2); });
   e.barra.style.display = 'none';
   const amigos = herois.filter(h => h.time !== e.time);
   for (const h of amigos) { if (e.tipo !== 'nucleo') { h.ouro += 200; h.stats.ouroTotal += 200; } darXp(h, 120); }
@@ -1390,6 +1399,9 @@ function lerEntrada() {
 const perfStat = { visU: 0 };
 const camAlvo = new THREE.Vector3(); let camIni = false; let camExtra = null;
 function atualizarCamera(dt) {
+  // defesa contra tela preta: posição NaN/infinita (empurrão, colisão, divisão por zero) deixaria a câmera em NaN e nada seria desenhado
+  for (const u of unidades) { const q = u.obj.position; if (Number.isFinite(q.x + q.y + q.z)) { (u._okPos || (u._okPos = new THREE.Vector3())).copy(q); } else { console.warn('[NaN] posição de', u.nome || u.tipo); if (u._okPos) q.copy(u._okPos); else q.set(0, 0, 0); u.empurrao = null; u.dash = null; } }
+  if (!Number.isFinite(camAlvo.x + camAlvo.y + camAlvo.z)) camIni = false;
   const ref = estado.fim ? estado.fim.nucleo.obj.position : (jogador ? jogador.obj.position : POS.baseLuz);
   const foco = ref.clone(); foco.y = 0; if (CAM_ANTIGA || estado.fim) { foco.x += 1.2; foco.z -= 1.2; }
   if (!camIni) { camAlvo.copy(foco); camIni = true; }
@@ -1457,7 +1469,7 @@ const mmFundo = (() => {
     g.beginPath(); [[1 - L, 0], [1, -L], [1 + L, 0], [1, L]].forEach(([x, z], i) => { const [a, b] = P(x, z); i ? g.lineTo(a, b) : g.moveTo(a, b); }); g.closePath(); g.fill();
     linha([[1, -L + 2], [1, L - 2]], 'rgba(80,150,200,.55)', 12);
     linha(ROTA_TOPO, 'rgba(210,190,150,.3)', 8); linha(ROTA_BAIXO, 'rgba(210,190,150,.3)', 8);
-    const mid = []; for (let x = -58; x <= 60; x += 4) mid.push([x, laneZ(x)]); linha(mid, 'rgba(235,215,170,.85)', 10);
+    const mid = []; for (let x = LANE.x0 + 6; x <= LANE.x1 - 6; x += 4) mid.push([x, laneZ(x)]); linha(mid, 'rgba(235,215,170,.85)', 10);
     for (const [x, z] of TORRES_LATERAIS) { const [a, b] = P(x, z); g.fillStyle = 'rgba(160,160,160,.55)'; g.beginPath(); g.arc(a, b, 3.5, 0, 7); g.fill(); }
     for (const [x, z, cor] of [[...POCO_XZ, 'rgba(40,200,190,.5)'], [...DRAG_XZ, 'rgba(255,110,40,.5)']]) { const [a, b] = P(x, z); g.fillStyle = cor; g.beginPath(); g.arc(a, b, 11, 0, 7); g.fill(); }
     const base = (x, y, c1) => { const gr = g.createRadialGradient(x, y, 0, x, y, 26); gr.addColorStop(0, c1); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, 26, 0, 7); g.fill(); };
@@ -1506,6 +1518,7 @@ function atualizarHUD(dt) {
   $('bXp').style.transform = `scaleX(${h.nivel >= 15 ? 1 : h.xp / XP_NIVEL(h.nivel)})`; $('nivel').textContent = h.nivel;
   $('loja').classList.toggle('pode', podeComprar(h)); $('loja').classList.toggle('temOuro', h.ouro >= 400); atualizarCompraRapida();
   hudEl.classList.toggle('semRotulos', estado.tempo > 60);
+  { const u = grade.uniforms.uCinza; u.value += ((!h.vivo && !estado.fim ? .85 : 0) - u.value) * .15; }
   const m = $('morte'); if (!h.vivo && !estado.fim) { m.className = 'on'; m.innerHTML = `Renascendo em <b>${Math.ceil(h.morteT)}</b><small>Aproveite para comprar na LOJA</small>`; } else m.className = '';
   $('pontosAviso').className = h.pontos > 0 && h.vivo ? 'on' : '';
   const b = bot; if (b) { const ii = $('inimInfo'); if (!ii.firstChild) { ii.innerHTML = `<canvas width="64" height="64"></canvas><div><b>${b.def.nome}</b><small></small></div><span class="mira">Toque: travar mira</span>`; const cv = ii.querySelector('canvas'); if (retratos[b.id]) cv.getContext('2d').drawImage(retratos[b.id], 0, 0, 64, 64); }

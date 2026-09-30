@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { SELVA_ON, SELVA_LARG, SELVA_SUL, distTrilha, distCampo, COVAS, naMuralha, bordaCova, MAPA_WR, MAPA_C, MAPA_FOLGA, distLosango, distLateral, TORRES_LATERAIS, ROTA_TOPO, ROTA_BAIXO } from './selva_mapa.js';
+import { SELVA_ON, SELVA_LARG, SELVA_SUL, distTrilha, distCampo, COVAS, naMuralha, bordaCova, MAPA_WR, MAPA_K, laneZ as laneZK, MAPA_C, MAPA_FOLGA, distLosango, distLateral, TORRES_LATERAIS, ROTA_TOPO, ROTA_BAIXO } from './selva_mapa.js';
 export { MAPA_WR };
 
 // ---------- utilidades ----------
@@ -9,8 +9,8 @@ const R = rng(7);
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp, smooth = THREE.MathUtils.smoothstep;
 
 // Traçado da rota (lane): x de -70 a 70, com uma leve curva
-export const LANE = { x0: -64, x1: 64, largura: 3.8 };
-export const laneZ = (x) => 2.2 * Math.sin(x * 0.045) - 0.6 * Math.sin(x * 0.11 + 1);
+export const LANE = MAPA_WR ? { x0: -95, x1: 97, largura: 3.8 } : { x0: -64, x1: 64, largura: 3.8 };
+export const laneZ = laneZK; const K = MAPA_K;
 // 0 = Luz (ouro), 1 = Trevas (roxo)
 export const lado = (x) => smooth(x, -6, 16);
 
@@ -25,8 +25,12 @@ POS.torreLuz2 = new THREE.Vector3(-37, 0, laneZ(-37) - 6.2); POS.torreTrevas2 = 
 POS.nucleoLuz = new THREE.Vector3(-47, 0, laneZ(-47)); POS.nucleoTrevas = new THREE.Vector3(49, 0, laneZ(49));
 if (MAPA_WR) { // espaçamento do WR no Meio: externa perto do rio, interna, torre da base (inibidor) e Núcleo
   const tz = (x) => laneZ(x) - 1.2; // em cima da estrada do Meio (como no WR); as tropas desviam
-  POS.torreLuz.set(-13, 0, tz(-13)); POS.torreTrevas.set(15, 0, tz(15)); POS.torreLuz2.set(-25, 0, tz(-25)); POS.torreTrevas2.set(27, 0, tz(27));
-  POS.torreLuz3 = new THREE.Vector3(-36, 0, tz(-36)); POS.torreTrevas3 = new THREE.Vector3(38, 0, tz(38));
+  // torres a 18 m uma da outra (alcance 10,5: os círculos não se tocam, como no WR); simetria em volta de x = 1
+  const T3 = (x, v) => v.set(x, 0, tz(x));
+  T3(-18, POS.torreLuz); T3(20, POS.torreTrevas); T3(-36, POS.torreLuz2); T3(38, POS.torreTrevas2);
+  POS.torreLuz3 = T3(-54, new THREE.Vector3()); POS.torreTrevas3 = T3(56, new THREE.Vector3());
+  T3(-68, POS.nucleoLuz); POS.nucleoLuz.z = laneZ(-68); T3(70, POS.nucleoTrevas); POS.nucleoTrevas.z = laneZ(70);
+  POS.baseLuz.set(-83, 0, laneZ(-83)); POS.baseTrevas.set(85, 0, laneZ(85));
 }
 // distância à rota mais próxima (Meio + laterais) e relevo do mapa WR (plano dentro do losango, sobe fora dele)
 export const distRota = (x, z) => MAPA_WR ? Math.min(Math.abs(z - laneZ(x)), distLateral(x, z)) : Math.abs(z - laneZ(x));
@@ -94,7 +98,7 @@ export function texBrilho(stops = [[0, 'rgba(255,255,255,1)'], [0.25, 'rgba(255,
 
 // ---------- chão ----------
 function criarChao(scene, q) {
-  const W = MAPA_WR ? 172 : 190, H = MAPA_WR ? 172 : 120, sx = MAPA_WR ? (q.mobile ? 120 : 190) : q.mobile ? 150 : 220, sz = MAPA_WR ? (q.mobile ? 120 : 190) : q.mobile ? 90 : 130;
+  const W = MAPA_WR ? 172 * K : 190, H = MAPA_WR ? 172 * K : 120, sx = MAPA_WR ? (q.mobile ? 150 : 230) : q.mobile ? 150 : 220, sz = MAPA_WR ? (q.mobile ? 150 : 230) : q.mobile ? 90 : 130;
   const geo = new THREE.PlaneGeometry(W, H, sx, sz); geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position, cols = new Float32Array(pos.count * 3), terras = new Float32Array(pos.count);
   const P = q.pintado; // paleta mais quente e saturada no estilo pintado
@@ -217,7 +221,7 @@ function criarTufos(scene, q, tempoU) {
   const N = q.baixa ? 700 : q.mobile ? 1000 : 3200; const inst = new THREE.InstancedMesh(merged, mat, N);
   const m4 = new THREE.Matrix4(), col = new THREE.Color(); let i = 0, guard = 0;
   while (i < N && guard++ < N * 10) {
-    const x = (R() - .5) * (MAPA_WR ? 136 : 150), z = (R() - .5) * (MAPA_WR ? 136 : 60); const d = distRota(x, z); if (d < LANE.largura + 1.5 || (MAPA_WR && distLosango(x, z) > MAPA_C + MAPA_FOLGA)) continue;
+    const x = (R() - .5) * (MAPA_WR ? 136 * K : 150), z = (R() - .5) * (MAPA_WR ? 136 * K : 60); const d = distRota(x, z); if (d < LANE.largura + 1.5 || (MAPA_WR && distLosango(x, z) > MAPA_C + MAPA_FOLGA)) continue;
     const s = 0.7 + R() * .9; m4.makeRotationY(R() * 6.28); m4.scale(new THREE.Vector3(s, s * (0.8 + R() * .6), s)); m4.setPosition(x, alturaChao(x, z) - .05, z); inst.setMatrixAt(i, m4);
     const t = lado(x); col.set(t > .5 ? '#6b4a7a' : (x < -25 ? '#c9c05a' : '#86b54c')).lerp(new THREE.Color(t > .5 ? '#9a3a6a' : '#e0d070'), R() * .4); inst.setColorAt(i, col); i++;
   }
@@ -581,9 +585,9 @@ export function criarMundo(scene, modelos, q, tempoU) {
   const perto = (x, z, r) => [POS.torreLuz, POS.torreTrevas, POS.torreLuz2, POS.torreTrevas2, POS.torreLuz3, POS.torreTrevas3, POS.baseLuz, POS.baseTrevas].some(p => p && Math.hypot(x - p.x, z - p.z) < (p === POS.baseLuz || p === POS.baseTrevas ? 14 : r)) || TORRES_LATERAIS.some(([tx, tz]) => Math.hypot(x - tx, z - tz) < r);
   if (SELVA_ON) { const rs = rng(31); const ZL = MAPA_WR ? MAPA_C : SELVA_LARG - 1;
     const PX = MAPA_WR ? 3.7 : 4.6, PZ = MAPA_WR ? 3.6 : 4.4; // mapa WR: mata mais fechada (paredes de mata entre as trilhas)
-    for (let x = -58; x <= 60; x += PX) for (let zz = -ZL; zz <= (MAPA_WR ? MAPA_C : SELVA_SUL - 1); zz += PZ) {
+    for (let x = -58 * K; x <= 60 * K; x += PX) for (let zz = -ZL; zz <= (MAPA_WR ? MAPA_C : SELVA_SUL - 1); zz += PZ) {
       const xx = x + (rs() - .5) * 2.4, z = (MAPA_WR ? 0 : laneZ(xx)) + zz + (rs() - .5) * 2.2, d = MAPA_WR ? distRota(xx, z) : Math.abs(zz), q = rs(), q2 = rs();
-      if (d < LANE.largura + 5 || distTrilha(xx, z) < 4.2 || distCampo(xx, z)[0] < (distCampo(xx, z)[1].lado ? 7.5 : 10.5) || Math.abs(xx) > 57) continue;
+      if (d < LANE.largura + 5 || distTrilha(xx, z) < 4.2 || distCampo(xx, z)[0] < (distCampo(xx, z)[1].lado ? 7.5 : 10.5) || Math.abs(xx - 1) > 56 * K) continue;
       if (MAPA_WR && (distLosango(xx, z) > MAPA_C - 5 || rioWR(xx, z) < 5 || perto(xx, z, 6.5))) continue;
       if (q < .3) { if (TP) pedras.push({ x: xx, y: alturaChao(xx, z) - .08, z, alt: 1 + q2 * 1.6, ry: q2 * 6.28, cor: lado(xx) > .5 ? '#8a78a8' : '#ffffff' }); else { const o = colocar('rock_single_B', xx, z, 2.4 + q2 * 2); if (o) recolorir(o, lado(xx) > .5 ? '#5a4a70' : '#a89478'); } continue; }
       if (q > .78 || (zz > 0 && !MAPA_WR)) { if (zz > 0 && q < .5 && TP) pedras.push({ x: xx, y: alturaChao(xx, z) - .08, z, alt: .8 + q2 * 1.2, ry: q2 * 6.28, cor: lado(xx) > .5 ? '#8a78a8' : '#ffffff' }); continue; } const t = lado(xx);
@@ -615,8 +619,8 @@ export function criarMundo(scene, modelos, q, tempoU) {
   let lodProps = null;
   if (TP) {
     for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; if (Math.sin(a) > -.3 || Math.cos(a) > .5) continue; const x = POS.baseLuz.x + Math.cos(a) * 6.8, z = POS.baseLuz.z + Math.sin(a) * 6.8; colunas.push({ x, y: 0, z, alt: 3.4, ry: a, cor: '#ffffff' }); }
-    const iA = instanciar(scene, TP.arvore, arvores, { trecho: 16, sombra: !q.mobile, lod: TP.arvore_lod1, distLOD: q.baixa ? -99 : q.mobile ? 3 : 18, distMax: q.mobile ? (MAPA_WR ? 30 : 40) : 60, lod2: TP.arvore_lod2, distLOD2: q.mobile ? 18 : 34, altoSoFundo: q.mobile }); // celular: o lado de perto da câmera quase só aparece na borda de baixo
-    const iP = instanciar(scene, TP.pedra, pedras, { trecho: 16, sombra: !q.mobile, lod: TP.pedra_lod1, distLOD: q.baixa ? -99 : q.mobile ? 3 : 18, distMax: q.mobile ? (MAPA_WR ? 26 : 34) : 60, altoSoFundo: q.mobile });
+    const iA = instanciar(scene, TP.arvore, arvores, { trecho: 16, sombra: !q.mobile, lod: TP.arvore_lod1, distLOD: q.baixa ? -99 : q.mobile ? 3 : 18, distMax: q.mobile ? (MAPA_WR ? 38 : 40) : 60, lod2: TP.arvore_lod2, distLOD2: q.mobile ? 18 : 34, altoSoFundo: q.mobile }); // celular: o lado de perto da câmera quase só aparece na borda de baixo
+    const iP = instanciar(scene, TP.pedra, pedras, { trecho: 16, sombra: !q.mobile, lod: TP.pedra_lod1, distLOD: q.baixa ? -99 : q.mobile ? 3 : 18, distMax: q.mobile ? (MAPA_WR ? 34 : 34) : 60, altoSoFundo: q.mobile });
     const iC = instanciar(scene, TP.coluna, colunas, { trecho: 60, sombra: !q.mobile });
     let iTL = null, iTT = null;
     if (MAPA_WR && TORRES_LATERAIS.length) { const gl = geoTripo(TP.torre_luz), altL = gl.alt * (6.8 / gl.larg) * PROP_TORRE.esc.luz;
@@ -635,7 +639,7 @@ export function criarMundo(scene, modelos, q, tempoU) {
   for (let i = 0; i < 18; i++) { const x = 12 + r() * 50, z = laneZ(x) + (r() - .5) * 22; nevD.push({ x, y: .4 + r() * .6, z, s: 8 + r() * 10, a: 0 }); }
   const solMat = nevMat.clone(); solMat.color.set(0x8a6a20); solMat.opacity = .22;
   const sols = new THREE.InstancedMesh(planoChao, solMat, 12); const mI = new THREE.Matrix4(), qI = new THREE.Quaternion(), eixoY = new THREE.Vector3(0, 1, 0), vI = new THREE.Vector3(), sI = new THREE.Vector3();
-  for (let i = 0; i < 12; i++) { const x = -60 + r() * 45, z = laneZ(x) + (r() - .5) * 20, sc = 8 + r() * 10; mI.compose(vI.set(x, .3, z), qI.identity(), sI.set(sc, 1, sc)); sols.setMatrixAt(i, mI); }
+  for (let i = 0; i < 12; i++) { const x = (-60 + r() * 45) * K, z = laneZ(x) + (r() - .5) * 20, sc = 8 + r() * 10; mI.compose(vI.set(x, .3, z), qI.identity(), sI.set(sc, 1, sc)); sols.setMatrixAt(i, mI); }
   const posNev = () => { nevD.forEach((d, i) => { mI.compose(vI.set(d.x, d.y, d.z), qI.setFromAxisAngle(eixoY, d.a), sI.set(d.s, 1, d.s)); nevs.setMatrixAt(i, mI); }); nevs.instanceMatrix.needsUpdate = true; };
   posNev(); nevs.frustumCulled = sols.frustumCulled = false; scene.add(nevs, sols);
   let nevT = 0; anim.push((dt) => { nevT += dt; if (nevT < .1) return; nevD.forEach((d, i) => { d.a += nevT * .05 * (i % 2 ? 1 : -1); }); nevT = 0; posNev(); });
