@@ -24,7 +24,7 @@ POS.baseLuz.z = laneZ(POS.baseLuz.x); POS.baseTrevas.z = laneZ(POS.baseTrevas.x)
 POS.torreLuz2 = new THREE.Vector3(-37, 0, laneZ(-37) - 6.2); POS.torreTrevas2 = new THREE.Vector3(39, 0, laneZ(39) - 6.2);
 POS.nucleoLuz = new THREE.Vector3(-47, 0, laneZ(-47)); POS.nucleoTrevas = new THREE.Vector3(49, 0, laneZ(49));
 if (MAPA_WR) { // espaçamento do WR no Meio: externa perto do rio, interna, torre da base (inibidor) e Núcleo
-  const tz = (x) => laneZ(x) - 1.2; // em cima da estrada do Meio (como no WR); as tropas desviam
+  const tz = (x) => laneZ(x) - 4.6; // na beira da estrada do Meio (como no LoL/WR): a rota fica livre para passar dos dois lados
   // torres a 18 m uma da outra (alcance 10,5: os círculos não se tocam, como no WR); simetria em volta de x = 1
   const T3 = (x, v) => v.set(x, 0, tz(x));
   T3(-18, POS.torreLuz); T3(20, POS.torreTrevas); T3(-36, POS.torreLuz2); T3(38, POS.torreTrevas2);

@@ -24,7 +24,7 @@ export const distLateral = (x, z) => MAPA_WR ? Math.min(distPoli(ROTA_TOPO, x, z
 // torres das rotas laterais (só visuais): base, interna, externa de cada metade; [x, z, time]
 export const TORRES_LATERAIS = [];
 if (MAPA_WR) for (const pl of [ROTA_TOPO, ROTA_BAIXO]) for (const [ti, a, b] of [['luz', pl[1], pl[2]], ['trevas', pl[5], pl[4]]]) for (const t of [.06, .38, .72]) {
-  const x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t; const nx = 1 - x, nz = -z, nl = Math.hypot(nx, nz); TORRES_LATERAIS.push([x + nx / nl * 1.2, z + nz / nl * 1.2, ti]); } // em cima da estrada
+  const x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t; const nx = 1 - x, nz = -z, nl = Math.hypot(nx, nz); TORRES_LATERAIS.push([x + nx / nl * 4.6, z + nz / nl * 4.6, ti]); } // na beira da estrada (lado da selva): a rota fica livre
 // Layout (simetria por ROTAÇÃO de 180° em volta de (1, 0), como no WR): Luz (x<0) — Rocha (azul) + Lobos entre a base e o rio de cima,
 // Sarça (vermelho) + Gigantes entre o Meio e a rota de baixo. Trevas: o mesmo girado. Acampamentos a >= 15 das torres ativas.
 const ROT = (s, p) => s < 0 ? p : [2 - p[0], -p[1]];

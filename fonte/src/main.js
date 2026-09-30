@@ -1243,7 +1243,7 @@ function atualizarMinion(u, dt) {
   } else if (u.invocado) { u.tocar(u.anim.idle, .2);
   } else {
     const s = u.time === 'luz' ? 1 : -1; const px = u.obj.position.x + s * 3;
-    let dv = 0; if (MAPA_WR) for (const e of estruturas) { if (!e.vivo || e.tipo !== 'torre') continue; const ddx = Math.abs(e.obj.position.x - px); if (ddx < 4.5) dv = Math.max(dv, (1 - ddx / 4.5) * 3.4); } // torre em cima da estrada: contorna pelo lado de baixo
+    let dv = 0; if (MAPA_WR) for (const e of estruturas) { if (!e.vivo || e.tipo !== 'torre') continue; const ddx = Math.abs(e.obj.position.x - px); if (ddx < 4.5) dv = Math.max(dv, (1 - ddx / 4.5) * .8); } // torre em cima da estrada: contorna pelo lado de baixo
     mover(u, new THREE.Vector3(px, 0, laneZ(px) + u.laneOff + dv), dt); u.tocar(u.anim.correr, .2, false, u.anim.velCorrer || 1);
   }
   if (u.fumaca && Math.random() < dt * 4) { const p = u.obj.position; fxD.emit(p.x + (Math.random() - .5) * .8, .3 + Math.random() * .8, p.z + (Math.random() - .5) * .8, { vel: [0, .8, 0], cor: [.16, .04, .18], vida: 1.1, t0: .5, t1: 1.3, alpha: .55 }); }
@@ -1283,7 +1283,7 @@ function colisoes() {
     const a = unidades[i], b = unidades[j]; if (!a.vivo || !b.vivo || a.saltando || b.saltando) continue; const dx = b.obj.position.x - a.obj.position.x, dz = b.obj.position.z - a.obj.position.z; const d2 = dx * dx + dz * dz, m = a.raio + b.raio;
     if (d2 < m * m && d2 > 1e-8) { const d = Math.sqrt(d2); const k = (m - d) / d * .5; const fa = a.tipo === 'heroi' ? .25 : 1, fb = b.tipo === 'heroi' ? .25 : 1; a.obj.position.x -= dx * k * fa; a.obj.position.z -= dz * k * fa; b.obj.position.x += dx * k * fb; b.obj.position.z += dz * k * fb; }
   }
-  for (const u of unidades) { if (!u.vivo) continue; for (const e of estruturas) { if (!e.vivo) continue; const dx = u.obj.position.x - e.obj.position.x, dz = u.obj.position.z - e.obj.position.z; const r = e.raio * .85 + u.raio * .5; const d2 = dx * dx + dz * dz; if (d2 < r * r && d2 > 1e-6) { const d = Math.sqrt(d2); u.obj.position.x = e.obj.position.x + dx / d * r; u.obj.position.z = e.obj.position.z + dz / d * r; } } }
+  for (const u of unidades) { if (!u.vivo) continue; for (const e of estruturas) { if (!e.vivo) continue; const dx = u.obj.position.x - e.obj.position.x, dz = u.obj.position.z - e.obj.position.z; const r = e.raio * (e.tipo === 'torre' ? .7 : .85) + u.raio * .5; const d2 = dx * dx + dz * dz; if (d2 < r * r && d2 > 1e-6) { const d = Math.sqrt(d2); u.obj.position.x = e.obj.position.x + dx / d * r; u.obj.position.z = e.obj.position.z + dz / d * r; } } }
 }
 let ondaT = 5, regenT = 0, histT = 0;
 function atualizar(dt) {
