@@ -47,6 +47,13 @@ Segue a rota com as tropas, farma, luta quando está em vantagem, usa as habilid
 - `?heroi=davi&vs=golias` — começa direto a partida com esses heróis (ids: davi, sansao, debora, gideao, golias, farao, jezabel, nabuco).
 - `?q=baixa` — qualidade reduzida para celulares fracos (sem MSAA/SMAA, sem mapas de relevo, sombras menores).
 
+## iPhone / Safari
+- `viewport-fit=cover`: minimapa, LOJA, joystick, placar, painel, habilidades e feitiços respeitam `env(safe-area-inset-*)` (notch, Dynamic Island e barra de início), na horizontal e na vertical.
+- Altura em `100dvh` (barra do Safari não corta o HUD); zoom de pinça/toque duplo, seleção de texto e menu de toque longo desligados (`public/ios.js`).
+- Na vertical aparece a tela "Gire o celular". No iPhone (fora do modo app) aparece uma dica para **Compartilhar → Adicionar à Tela de Início**, que abre o jogo em tela cheia (o Safari do iOS não tem API de tela cheia); `manifest.webmanifest` + metas `apple-mobile-web-app-*`.
+- Resolução limitada no celular (até 1,5× e ~1,1 milhão de pixels) para manter o desempenho em telas DPR 3.
+- Teste: `node tools/iphone.mjs <url> <saida.png> "iPhone 11" land|port 1 896 414 2` (Playwright WebKit; simula as áreas seguras).
+
 ## Gráficos
 - Antisserrilhado: MSAA (4× no PC, 2× no celular) + SMAA no PC; nada disso no `?q=baixa`.
 - Texturas CC0 do ambientCG (grama, terra, pedra da rota, mármore, obsidiana) usadas como **mapas de detalhe** sobre a paleta do jogo, com mapas de relevo (normal maps).
