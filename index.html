@@ -14,8 +14,8 @@
 <title>Luz x Trevas · MOBA bíblico 3D</title>
 <link rel="stylesheet" href="fonts.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2228%22 fill=%22%23f5c85a%22/%3E%3C/svg%3E" />
-  <script type="module" crossorigin src="./assets/index-oeP8tS9a.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BEgsWwy1.css">
+  <script type="module" crossorigin src="./assets/index-DLpCGFwh.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DttMENWw.css">
 </head>
 <body>
 <canvas id="cena"></canvas>
@@ -23,6 +23,8 @@
 <div id="hud">
   <!-- Minimapa -->
   <div id="minimapa"><canvas id="mm" width="256" height="256"></canvas></div>
+  <button id="bPing" aria-label="Comandos" hidden><svg viewBox="0 0 32 32"><path d="M8 4v25M8 5h15l-4 5 4 5H8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/></svg></button>
+  <div id="rodaPing"><button data-p="dragao"><span class="ico" style="background-image:url(ui/selva_icones.webp);background-position:66.67% 0"></span>Vamos no Dragão</button><button data-p="leviata"><span class="ico" style="background-image:url(ui/selva_icones.webp);background-position:100.00% 0"></span>Vamos no Leviatã</button><button data-p="recuar"><b>✕</b>Recuar</button><button data-p="ajuda"><b>!</b>Me ajuda</button></div>
 
   <!-- Placar -->
   <div id="placar">
@@ -59,6 +61,7 @@
 
   <!-- Feitiços -->
   <div id="feiticos">
+    <button class="feitico" id="bBeemote" aria-label="Invocar Beemote" hidden><span class="ico" style="background-image:url(ui/selva_icones.webp);background-position:83.33% 0"></span><span>Beemote</span></button>
     <button class="feitico" id="bRecuar" aria-label="Recuar"><svg viewBox="0 0 32 32"><path d="M16 4 4 14h4v12h6v-8h4v8h6V14h4Z" fill="currentColor"/></svg><span>Recuar</span></button>
     <button class="feitico" id="bCurar" aria-label="Curar"><svg viewBox="0 0 32 32"><path d="M12 4h8v8h8v8h-8v8h-8v-8H4v-8h8Z" fill="currentColor"/></svg><span>Curar</span><em class="cd"></em></button>
     <button class="feitico" id="bClarao" aria-label="Clarão"><svg viewBox="0 0 32 32"><path d="M18 2 6 18h8l-2 12 14-18h-9Z" fill="currentColor"/></svg><span>Clarão</span><em class="cd"></em></button>
@@ -123,6 +126,7 @@
 </div>
 <div id="lojaPainel"></div>
 <div id="fim"></div>
+<div id="funcaoTela"><h2>Escolha sua função</h2><p class="sub">2 contra 2 · você e um aliado contra dois vilões</p><div class="cartas"><button data-f="selva"><span class="ico" style="background-image:url(ui/selva_icones.webp);background-position:33.33% 0"></span><b>Selva</b><small>Caça nos acampamentos, pega a Sarça e a Rocha, embosca o meio e disputa Dragão e Leviatã.</small></button><button data-f="meio"><i>⚔</i><b>Meio</b><small>Segura a rota, farma as tropas e pressiona as torres. O aliado vai para a selva.</small></button></div><div class="aliado"></div><button class="sec" id="funcaoVoltar">Voltar</button></div>
 <div id="vs"></div>
 <div id="vesteNova"></div>
 <div id="galeria"></div>
