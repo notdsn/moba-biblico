@@ -69,3 +69,8 @@ Os arquivos foram reduzidos (512–1024 px, JPG) e os mapas de cor foram "neutra
 - **Three.js** r186 — MIT — https://threejs.org (inclui GLTFLoader, EffectComposer, UnrealBloomPass, SkeletonUtils, decodificador meshopt — MIT)
 - **Vite** — MIT (apenas para gerar o build)
 - **glTF-Transform** e **meshoptimizer** — MIT (apenas no pipeline de conversão, `tools/`)
+
+## Modelos Tripo
+- Heróis Davi, Sansão, Débora e Gideão; vilões Golias, Faraó, Jezabel e Nabucodonosor; tropas Guardião (Luz) e Sombra (Trevas); torres, Núcleos, fonte, árvore, pedra e coluna; e os 19 ícones de item da LOJA: gerados pelo Edson no Tripo AI (plano Pro, uso comercial).
+- Texturas `tex/pintado/*`: derivadas das texturas CC0 do ambientCG (filtro pintado feito por `tools/pintar_texturas.py`).
+- Texturas de UI `ui/madeira.webp` e `ui/pergaminho.webp`: originais, geradas processualmente (`tools/pintar_ui.py`).

@@ -71,3 +71,22 @@ Segue a rota com as tropas, farma, luta quando está em vantagem, usa as habilid
 - `src/vfx.js` — partículas, ondas de choque, projéteis, números de dano.
 - `lab.html` — bancada de testes dos personagens (só no modo de desenvolvimento).
 - `tools/` — `build_chars.mjs` (gera heroi.glb, heroi_f.glb, soldado.glb e cabelos a partir dos pacotes Quaternius), conversão dos cenários e captura/testes (print.mjs, video2.mjs, sim.mjs, fluxo.mjs).
+
+## Desempenho (meta: 60 FPS no iPhone 11)
+- **Menos draw calls**: as peças estáticas das torres, dos Núcleos e das fontes foram juntadas por material. As rochas e os pinheiros recoloridos agora compartilham material, o que permite juntar a vegetação por trecho do mapa. A névoa e o brilho do chão viraram 2 `InstancedMesh`, no lugar de 30 planos.
+- **Sombras no celular**: um mapa de 1024 px redesenhado em quadros alternados. As tropas usam sombra "blob" (uma `InstancedMesh`) em vez de sombra real.
+- **Resolução dinâmica**: abaixo de 55 FPS a resolução cai 0,1 (mínimo 0,75x no celular). Com 59 FPS ou mais por 3 s, ela volta a subir.
+- **Culling**: personagens fora da câmera não são desenhados nem projetam sombra (esfera folgada), e a animação deles roda a 10 Hz.
+- **Pools**: os projéteis são reaproveitados. As partículas usam buffers fixos com limite (750/340 no celular, 500/220 no `?q=baixa`).
+- **Contador de FPS**: pela engrenagem (fica salvo no aparelho) ou por `?fps`. Mostra FPS, ms, draw calls, triângulos e resolução.
+- **Modelos novos (Tripo)**: rode `node tools/comprimir_modelo.mjs entrada.glb public/models/nome.glb --max 1024 --lod 0.35`. As texturas saem em WebP de até 1024 px (ou KTX2 com `--ktx2` e o `toktx` instalado), a malha é comprimida com meshopt e sai também um `_lod1.glb`. No carregamento, `reduzirTexturas()` ainda reduz a 1024 px qualquer textura maior. O KTX2Loader já está ligado (transcoder em `public/basis/`). `juntarLOD()` pendura o LOD no mesmo esqueleto.
+
+## Modelos Tripo (heróis) e estilo pintado
+- Davi, Sansão, Débora e Gideão usam por padrão os modelos feitos no Tripo Pro (`public/models/tripo/<id>.glb` + `<id>_lod1.glb`), comprimidos com `node tools/comprimir_modelo.mjs` (WebP 1024, MR 512, meshopt, LOD1 ~35%).
+- Clipes originais: `idle.001`, `run.001`, `slash.001`, `fall.001` → mapeados em `aliasTripo` (main.js) para Idle / Run (+Dash/Roll) / Attack e Cast (trechos do slash, re-temporizados) / Death.
+- Vilões (golias, farao, jezabel, nabuco) seguem o mesmo caminho dos heróis. Tropas (`guardiao`, `sombra`; o bruto é a Sombra tingida) ficam abaixo de 600 KB: textura 512, sem normal map nem MR, malha simplificada, clipes cortados, LOD1 com cor assada nos vértices (troca a 19 m no celular) e o mixer atualizado a 15–31 Hz quando longe ou no celular.
+- Props do Tripo (`public/models/tripo/props/`): torres, Núcleos e fonte são peças únicas (a torre em ruína é achatada); árvore, pedra e coluna são `InstancedMesh` por trecho de 16 m e por lado da rota, com cor por instância (Luz/Trevas). Árvores e pedras longe da câmera usam o `_lod1` com cor nos vértices; a sombra das árvores vem da malha LOD. O Núcleo das Trevas veio com 2 milhões de triângulos e foi reduzido a 14 mil.
+- Ícones de item: atlas `public/ui/itens_tripo.webp` (5×4, 256 px cada), usado por `iconeItem()` (LOJA, inventário, árvore de receita, build recomendada).
+- `tools/dc_luta.mjs <url>` mede draw calls e triângulos por quadro no iPhone 11 emulado; `vitrine.html?m=tripo/props/arvore,...` mostra modelos lado a lado.
+- `?modelos=antigos` volta aos modelos antigos (heróis, vilões, tropas, props e ícones) **e** ao visual antigo; `?estilo=antigo` mantém os modelos Tripo, mas volta ao visual antigo.
+- Estilo pintado: `public/tex/pintado/*` (gerado por `tools/pintar_texturas.py`), `public/ui/madeira.webp` / `pergaminho.webp` (`tools/pintar_ui.py`), CSS `html.pintado`, luzes mais quentes, bloom/saturação mais suaves.

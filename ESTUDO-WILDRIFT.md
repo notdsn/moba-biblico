@@ -42,8 +42,28 @@ Estudo feito em 29/09/2026 com fontes públicas: tabelas de atributos da LoL Wik
 - **Câmera semi-travada** opcional (arrastar a tela para olhar à frente).
 - Subir o alcance do ataque do Davi para ~8,5 (≈ 480 u), se ele parecer curto demais depois dos testes com a câmera nova.
 
+## 4. Torres: tamanho, alcance e posição (rodada de 29/09, noite)
+
+**O que o Wild Rift faz** (LoL Wiki, página *WR: Turret*; alturas estimadas por vídeos de gameplay, não há número oficial):
+- **Alcance da torre: 750 u**, contra 525–625 u dos atiradores. A torre alcança ~1,2–1,4x o ataque à distância mais longo, então ninguém bate na torre de fora do alcance dela.
+- Torres **externa e interna têm o mesmo tamanho**. Pela gameplay, a torre tem **~3x a altura de um campeão**, e o Nexus é mais baixo e mais largo.
+- A barra de vida da torre é **grande e dividida em segmentos** (as "placas" da torre externa). A cor mostra o time. O **círculo de alcance aparece quando você chega perto** e fica mais forte quando a torre mira em você.
+- Na rota do meio, a distância do centro até a torre externa (~1850 u) é quase igual à distância da externa até a interna (~1770 u). Cada torre seguinte fica ~1 "vão" atrás, e o Nexus e a fonte ficam no fundo da base.
+
+**O que mudamos:**
+| Item | Antes | Agora |
+|---|---|---|
+| Alcance da torre | 10,5 | 10,5 m. Já era ~1,4x o ataque do Davi (7,5), a mesma proporção do WR. Mantido. |
+| Altura | externa 7,7 / interna 7,2 (Luz); 10,4 / 9,8 (Trevas) | **Todas ~9 m ≈ 3,2x o herói (2,8 m)**. Externa e interna com o mesmo tamanho. |
+| Posição (x) | Luz −16 / −33 / Núcleo −45,5; Trevas 22 / 38 / 47,5 (assimétrico) | **Simétrico em torno do meio (x = 1)**: externa a 20 m do meio, interna 18 m atrás, Núcleo 10 m atrás, fonte 11 m atrás. |
+| Barra de vida | 12u fina, sem número | **24u, marcas a cada 500 de vida, "1.900 / 3.000", cor do time, pisca branco ao levar dano e deixa um rastro dourado**. Se o topo da torre sai da tela, a barra fica logo abaixo do placar. |
+| Círculo de alcance | não tinha | Vermelho ao se aproximar de torre inimiga (a 6 m da borda). Fica forte dentro do alcance e **pulsa quando a torre mira em você**. Azul fraco nas torres aliadas. |
+
+**Limite:** nosso mapa é bem mais curto que o do WR, se medido em "alcances de torre". A zona neutra entre as duas torres externas tem ~1,9 alcance, contra ~2,9 no WR. Copiar as distâncias exatas faria as torres cobrirem a rota inteira. Por isso copiamos as **proporções** (vãos quase iguais, simetria, tamanhos) e não os números absolutos. O Núcleo do WR também ataca, e o nosso ainda não ataca (sugestão para uma próxima rodada).
+
 ## Fontes
 - LoL Wiki — módulos de dados do Wild Rift (velocidade de movimento e alcance de ataque dos campeões).
 - devtrackers.gg — respostas de desenvolvedores do Wild Rift sobre o tamanho fixo da câmera e os alcances.
 - Game Haus — análise da câmera e dos controles do Wild Rift. TheGamer / Reddit r/wildrift — mira rápida, mira manual e cancelamento.
+- LoL Wiki — *WR: Turret* (alcance 750, vida 3000/3500, placas da torre externa).
 - Riot Games — "VFX Style Guide" (2017) e "Clarity in League" (hierarquia de cores, cores de aliado/inimigo, telegraph de CC).
