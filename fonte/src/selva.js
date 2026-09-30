@@ -66,13 +66,16 @@ vec3 deformar(vec3 pos) {
   float per = (1. - smoothstep(.06, .3, q.y)) * uA.w; float ph = uPasso + (q.x > 0. ? 3.1416 : 0.) + (q.z > 0. && uB.w < .5 ? 3.1416 : 0.);
   q.z += per * sin(ph) * .07 * uMove; q.y += per * max(0., cos(ph)) * .035 * uMove;
   // asas (Dragão)
-  float asa = smoothstep(.16, .46, abs(q.x)) * smoothstep(.12, .3, q.y) * uB.x; q.y += asa * (sin(t * 4.6) * .26 + .04) * (abs(q.x) + .1); q.z -= asa * cos(t * 4.6) * .05;
+  float asa = smoothstep(.16, .46, abs(q.x)) * smoothstep(.12, .3, q.y) * uB.x; float fph = t * 3.4; float fl = sin(fph + .6 * sin(fph)); // batida com ease: desce rápido, sobe devagar
+  q.y += asa * (fl * .24 + .05) * (abs(q.x) + .1) * (1. + max(uAtk, 0.) * .5); q.z -= asa * cos(fph + .6 * sin(fph)) * .045;
+  q.x += uB.x * sin(t * 1.3 - q.z * 3.2) * .022 * (1. - cab); // corpo do Dragão ondula de leve
   // corpo de serpente (Leviatã)
-  q.x += uB.y * sin(q.z * 9. - t * 2.6) * .04 * (.4 + q.y); q.y += uB.y * sin(q.x * 7. - t * 2.1) * .025;
+  float cauS = mix(.012, .075, smoothstep(.35, -.45, q.z)); // onda ao longo do corpo: cabeça firme, cauda solta
+  q.x += uB.y * sin(q.z * 7. - t * (2.2 + uMove * 1.6)) * cauS * (1. + abs(uAtk) * .6); q.y += uB.y * sin(q.z * 5.5 - t * 1.7 + 1.) * cauS * .45;
   // chamas (Sarça)
   q.x += uB.z * sin(q.y * 11. - t * 7.) * .025 * q.y; q.z += uB.z * cos(q.y * 9. - t * 6.) * .02 * q.y;
   // tranco ao levar golpe
-  q.z -= uHit * .035; q.x += uHit * sin(t * 70.) * .01;
+  q.z -= uHit * .03; // tranco suave (a mola faz o resto)
   return (uNi * vec4(q, 1.)).xyz;
 }
 `;
@@ -215,8 +218,8 @@ function atualizarMonstro(m, dt, t, camAlvo) {
   const o = m.obj, p = o.position;
   if (m.estadoM === 'espera') { if (m.nasceEm != null && t >= m.nasceEm && !(m.sub === 'beemote' && t >= T_LEV) && !(m.sub === 'leviata' && t < T_LEV)) nascer(m); else if (m.sub === 'beemote' && t >= T_LEV) m.nasceEm = null; return; }
   if (m.estadoM === 'morrendo') {
-    m.morteT += dt; const k = Math.min(1, m.morteT / .9);
-    m.corpo.scale.setScalar(1 - k * .75); m.corpo.position.y = -k * .4; m.corpo.rotation.z = k * .35; for (const mt of m.mats) mt.opacity = 1 - k;
+    m.morteT += dt; const k0 = Math.min(1, m.morteT / 1.1), k = k0 * k0 * (3 - 2 * k0), ke = 1 - Math.pow(1 - k0, 3);
+    m.corpo.scale.setScalar(1 - k * .7); m.corpo.position.y = (m.corpo.position.y || 0) * (1 - ke) - k * .4; m.corpo.rotation.z = ke * .5; m.corpo.rotation.x *= 1 - ke; for (const mt of m.mats) mt.opacity = 1 - k * k;
     if (k >= 1) { o.visible = false; m.corpo.rotation.z = 0; m.corpo.position.y = 0; m.estadoM = 'espera'; if (m.modo === 'arauto') m.remover = true; }
     return;
   }
@@ -252,28 +255,44 @@ function atualizarMonstro(m, dt, t, camAlvo) {
     if (p.distanceTo(m.casa) < .4) { m.estadoM = 'ocioso'; m.invulneravel = false; m.hp = m.maxHp; m.dots.length = 0; } else mv = mover(m, m.casa, 6, dt);
   }
   if (longe && m.surgeT <= 0 && m.investida <= 0) return; // animação só perto da câmera
-  // animação por código
-  const c = m.corpo; let sc = 1; const U = m.U;
-  if (m.surgeT > 0) { m.surgeT -= dt; sc = 1 - Math.max(0, m.surgeT) / .7; sc = sc * sc * (3 - 2 * sc); }
-  const resp = Math.sin(m.fase * (m.T.obj ? 1.6 : 2.4));
-  const voa = m.sub === 'dragao' || m.sub === 'leviata';
-  c.position.y = (voa ? .35 + resp * .25 : Math.abs(Math.sin(m.fase * 7)) * .12 * mv);
-  c.scale.set(sc * (1 - resp * .012), sc * (1 + resp * .025), sc * (1 - resp * .012));
-  let incl = mv ? .06 : 0, avanco = 0, atk = 0;
-  if (m.investida > 0) { m.investida -= dt; const k = 1 - m.investida / .55; // preparo (recua e ergue), bote, recuo
-    const f = k < .4 ? -Math.sin(k / .4 * Math.PI / 2) * .6 : k < .6 ? -.6 + (k - .4) / .2 * 1.6 : 1 - (k - .6) / .4 * 1.1; atk = f; avanco = Math.max(-.3, f) * m.T.tam * .1; incl += f * .12; }
-  // andar: quique com achata-estica; voltar ao campo é trote (mais rápido)
-  const vel = mv ? (m.estadoM === 'volta' ? 1.6 : 1) : 0; m.movK = (m.movK || 0) + (vel - (m.movK || 0)) * Math.min(1, dt * 8);
-  m.passo += dt * (6 + 5 * vel) * (m.T.peq ? 1.3 : m.T.obj ? .7 : 1); const quique = Math.sin(m.passo * 2) * m.movK;
-  if (!voa) { c.position.y += Math.abs(Math.sin(m.passo)) * .1 * m.movK * (m.T.tam / 2.5); c.scale.y *= 1 + quique * .045; c.scale.x *= 1 - quique * .022; c.scale.z *= 1 - quique * .022; }
-  // tranco ao levar golpe
-  if (m.flash > .1 && m.hitT <= 0) m.hitT = .22; if (m.hitT > 0) m.hitT -= dt; const hit = Math.max(0, m.hitT / .22); incl -= hit * .1;
-  c.position.z = avanco - hit * .12; c.rotation.x = incl;
-  U.uT.value = m.fase; U.uAtk.value = atk; U.uMove.value = m.movK; U.uHit.value = hit; U.uPasso.value = m.passo;
-  const fl = m.flash > .06 ? .1 : 0; if (fl !== m._fl) { m._fl = fl; for (const mt of m.mats) { if (mt.emissive) { mt.emissive.setRGB(fl, fl * .85, fl * .7); mt.emissiveIntensity = 1; } } } // lampejo curto e fraco (o tranco é a reação principal)
+  animarCorpo(m, dt, mv);
+}
+// ---- animação procedural: tudo passa por molas amortecidas (sem trancos entre estados) ----
+// bob = quique ao andar; stomp = pisada pesada; roll = balanço lateral ao andar; pulse = pulso lento (Rocha); flick = chama tremulando (Sarça); fly = flutua
+const AN2 = { lobo: { bob: .12, bank: 1 }, beemote: { bob: .09, bank: .8, roll: .02 }, gigante_pedra: { bob: .15, stomp: 1, roll: .06, bank: .4 }, rocha: { bob: .04, pulse: 1, bank: .2 }, sarca: { bob: .03, flick: 1, bank: .3 }, dragao: { fly: 1, bank: 1.4 }, leviata: { fly: .6, bank: 1.1 } };
+const mola = (s, alvo, k, c, dt) => { s.v += ((alvo - s.x) * k - s.v * c) * dt; s.x += s.v * dt; return s.x; };
+const aprox = (a, b, r, dt) => a + (b - a) * (1 - Math.exp(-r * dt));
+function animarCorpo(m, dt, mv) {
+  const c = m.corpo, U = m.U, A = AN2[m.T.mod] || AN2.lobo, d = Math.min(dt, 1 / 20);
+  const sp = m.sp || (m.sp = { atk: { x: 0, v: 0 }, hit: { x: 0, v: 0 }, bank: 0 });
+  let sc = 1; if (m.surgeT > 0) { m.surgeT -= dt; const k = Math.min(1, 1 - Math.max(0, m.surgeT) / .7); sc = 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2); } // surge com leve passada (easeOutBack)
+  // ataque: preparo (recua) -> bote -> recuperação; a curva vai para uma mola (sem quinas)
+  let alvoAtk = 0; if (m.investida > 0) { m.investida -= dt; const k = Math.min(1, 1 - m.investida / .55); alvoAtk = k < .42 ? -.7 * Math.sin(k / .42 * Math.PI / 2) : k < .58 ? -.7 + 1.9 * ((k - .42) / .16) : 1.2 * (1 - (k - .58) / .42); }
+  const atk = mola(sp.atk, alvoAtk, 240, 24, d);
+  // andar: mistura suave e passo sincronizado com a velocidade
+  const vel = mv ? (m.estadoM === 'volta' ? 1.6 : 1) : 0; m.movK = aprox(m.movK || 0, vel, 5, dt);
+  m.passo += dt * m.movK * (m.T.obj ? 5.5 : 8) * (m.T.peq ? 1.25 : 1);
+  // golpe: impulso numa mola (achata e volta com um tremor amortecido) em vez de lampejo
+  if (m.flash > .1 && !m._golpe) { sp.hit.v -= 5.5; m._golpe = true; } else if (m.flash <= .1) m._golpe = false;
+  const hit = mola(sp.hit, 0, 210, 15, d);
+  // respiração em fases defasadas (altura e largura não pulsam juntas)
+  const f = m.fase, fr = m.T.obj ? 1.5 : 2.3; let sy = 1 + Math.sin(f * fr) * .022, sxz = 1 - Math.sin(f * fr - 1.2) * .012, rz = 0, y = 0;
+  if (A.pulse) { const pu = Math.pow(Math.max(0, Math.sin(f * 2.1)), 6); sy += pu * .05; sxz += pu * .035; } // pulso lento e pesado
+  if (A.flick) { const fk = Math.sin(f * 11) * .5 + Math.sin(f * 17.3 + 1) * .3 + Math.sin(f * 5.1) * .2; sy += fk * .025; rz += Math.sin(f * 1.7) * .045 + fk * .01; } // chama tremula e balança
+  if (A.fly) y = .35 + (Math.sin(f * 1.3) * .22 + Math.sin(f * 2.9 + .7) * .05) * A.fly;
+  else { const st = Math.abs(Math.sin(m.passo)); y = (A.stomp ? Math.pow(st, .6) : st) * A.bob * m.movK * (m.T.tam / 2.5); }
+  const pisada = A.stomp ? Math.pow(1 - Math.abs(Math.sin(m.passo)), 10) * m.movK : 0; // gigante: achata no impacto do pé
+  const quique = Math.sin(m.passo * 2) * m.movK * (A.fly ? 0 : 1);
+  sy *= (1 + quique * .04) * (1 - pisada * .07) * (1 + hit * .1); sxz *= (1 - quique * .02) * (1 + pisada * .04) * (1 - hit * .05);
+  c.scale.set(sc * sxz, sc * sy, sc * sxz); c.position.y = y; c.position.z = atk * m.T.tam * .09 + hit * .12;
+  // inclinação: para a frente ao andar e no bote, para trás no preparo e no golpe; inclina na curva (banking) e balança ao pisar
+  c.rotation.x = m.movK * .06 + atk * .13 + hit * .09;
+  m.rotV = (m.rotV || 0) * Math.exp(-dt * 2); sp.bank = aprox(sp.bank, Math.max(-.3, Math.min(.3, -m.rotV * .1 * A.bank)), 6, dt);
+  c.rotation.z = sp.bank + rz + Math.sin(m.passo) * (A.roll || 0) * m.movK;
+  U.uT.value = m.fase; U.uAtk.value = atk; U.uMove.value = m.movK; U.uHit.value = Math.max(0, -hit); U.uPasso.value = m.passo;
 }
 function mover(m, alvo, vel, dt) { _v.subVectors(alvo, m.obj.position).setY(0); const L = _v.length(); if (L < .05) return 0; const st = Math.min(L, vel * dt); m.obj.position.addScaledVector(_v, st / L); return 1; }
-function virar(m, alvo, dt) { const a = Math.atan2(alvo.x - m.obj.position.x, alvo.z - m.obj.position.z); let d = a - m.obj.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); m.obj.rotation.y += d * Math.min(1, dt * 6); }
+function virar(m, alvo, dt) { const a = Math.atan2(alvo.x - m.obj.position.x, alvo.z - m.obj.position.z); let d = a - m.obj.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); const k = m.T.obj ? 16 : 30, dd = Math.min(dt, .05); m.rotV = (m.rotV || 0) + (d * k - (m.rotV || 0) * 2 * Math.sqrt(k) * .85) * dd; m.obj.rotation.y += m.rotV * dd; }
 
 // ---- feed / anúncios ----
 function feedLinha(html, mal) { const el = document.getElementById('feed'); if (!el) return null; const d = document.createElement('div'); d.className = 'lin ' + (mal ? 'mal' : 'bom'); d.innerHTML = html; el.prepend(d); while (el.children.length > 4) el.lastChild.remove(); setTimeout(() => d.classList.add('sai'), 5500); setTimeout(() => d.remove(), 6200); return d; }
