@@ -179,12 +179,15 @@ export function aoCriarMinion(u) { if (!u.invocado && selva.leviata[u.time] > D.
 // ---- Beemote invocado (Arauto) ----
 export function invocarBeemote(h) {
   if (!(h.olhoBeemote > D.estado.tempo) || !h.vivo) return false; h.olhoBeemote = 0;
-  const p = h.obj.position; const m = criarMonstro('beemote', { x: p.x, z: p.z, tipo: 'invocado' }, 0, 0, h.time);
+  const ry = h.obj.rotation.y, p = { x: h.obj.position.x + Math.sin(ry) * 2.5, z: h.obj.position.z + Math.cos(ry) * 2.5 }; // solta à frente do herói (como no WR)
+  const m = criarMonstro('beemote', { x: p.x, z: p.z, tipo: 'invocado' }, 0, 0, h.time);
   m.modo = 'arauto'; m.dono = h; m.barra.classList.remove('neutro'); nascer(m); m.maxHp = m.hp = 2600 + D.estado.tempo * 3; m.vidaT = 26; m.cargas = 1; m.T = { ...m.T, dano: 150 };
   m.vel = 5; if (h === D.jogador()) D.aviso('O Beemote avança contra a torre inimiga!');
   anunciarObj('beemoteInv', h); return true;
 }
-function alvoArauto(m) { let best = null, bd = 1e9; for (const e of D.estruturas) { if (!e.vivo || e.time === m.time || D.protegida(e)) continue; const d = Math.abs(e.obj.position.x - m.obj.position.x); if (d < bd) { bd = d; best = e; } } return best; }
+// alvo do Beemote invocado: a estrutura inimiga atacável mais perto pela distância real (mapa diagonal). Só as do Meio existem em D.estruturas
+// (as torres das rotas laterais são só cenário). Trava no alvo escolhido enquanto ele estiver de pé.
+function alvoArauto(m) { if (m.alvoE && m.alvoE.vivo && !D.protegida(m.alvoE)) return m.alvoE; let best = null, bd = 1e9; for (const e of D.estruturas) { if (!e.vivo || e.time === m.time || D.protegida(e) || (e.tipo !== 'torre' && e.tipo !== 'nucleo')) continue; const d = e.obj.position.distanceTo(m.obj.position); if (d < bd) { bd = d; best = e; } } m.alvoE = best; return best; }
 
 // ---- atualização por quadro ----
 let tBuff = 0;
@@ -349,7 +352,7 @@ function campoMaisPerto(h, cacador, max = 60) {
     const d = m.obj.position.distanceTo(pos) + (m.campo.lado && m.campo.lado !== lado ? 12 : 0) + (m.T.peq ? 2 : 0); if (d < bd) { bd = d; best = m; } }
   return best;
 }
-export function botUsarOlho(h) { if (!(h.olhoBeemote > D.estado.tempo) || !h.vivo) return; const p = h.obj.position; if (Math.abs(p.z - D.laneZ(p.x)) < 5 && D.estruturas.some(e => e.vivo && e.tipo === 'torre' && e.time !== h.time && !D.protegida(e) && e.obj.position.distanceTo(p) < 22)) invocarBeemote(h); }
+export function botUsarOlho(h) { if (!(h.olhoBeemote > D.estado.tempo) || !h.vivo) return; const p = h.obj.position; const tr = D.estruturas.find(e => e.vivo && e.tipo === 'torre' && e.time !== h.time && !D.protegida(e) && e.obj.position.distanceTo(p) < 16); if (tr) { h.obj.rotation.y = Math.atan2(tr.obj.position.x - p.x, tr.obj.position.z - p.z); invocarBeemote(h); } } // bot: solta perto da torre inimiga, virado para ela
 
 // ---- minimapa ----
 export function desenharSelvaMM(g, mmPos) {
