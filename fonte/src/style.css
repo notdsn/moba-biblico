@@ -227,6 +227,7 @@ body:has(#morte.on) #cena{filter:grayscale(.85) brightness(.8)}
 .passo .al{color:#9fe0ff}.passo .in{color:#ff9aa6}
 #selLados{flex:1;display:flex;gap:calc(3*var(--u));width:100%;max-width:calc(170*var(--u))}
 #selLados[hidden],#selHerois[hidden]{display:none!important}
+.feitico[hidden]{display:none!important}
 .lado{flex:1;border-radius:calc(2*var(--u));border:2px solid;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:calc(2*var(--u));position:relative;overflow:hidden;transition:transform .2s}
 .lado:hover,.lado:active{transform:scale(1.02)}
 .lado.luz{background:linear-gradient(#2a4a7a,#101a30);border-color:#ffd66b;box-shadow:0 0 calc(3*var(--u)) rgba(255,200,90,.35)}
