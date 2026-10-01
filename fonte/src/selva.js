@@ -16,7 +16,7 @@ const TIPOS = {
   gigP:     { nome: 'Pedregulho',      mod: 'gigante_pedra', tam: 1.9, hp: 480, dano: 16, cad: 1.5, arm: 18, rm: 8, ouro: 22, xp: 25, raio: .7, alc: 1.6, ico: 3, peq: true },
   dragao:   { nome: 'Dragão',          mod: 'dragao', tam: 5.6, hp: 2700, dano: 70, cad: 1.6, arm: 30, rm: 30, ouro: 80, xp: 160, raio: 1.9, alc: 3.4, ico: 4, obj: true, area: 2.2 },
   beemote:  { nome: 'Beemote',         mod: 'beemote', tam: 4.4, hp: 3600, dano: 60, cad: 1.7, arm: 40, rm: 25, ouro: 150, xp: 200, raio: 1.7, alc: 3.0, ico: 5, obj: true },
-  leviata:  { cuspe: true, nome: 'Leviatã',         mod: 'leviata', tam: 8.2, hp: 6200, dano: 110, cad: 1.9, arm: 50, rm: 40, ouro: 150, xp: 260, raio: 2.6, alc: 4.4, ico: 6, obj: true, area: 3 },
+  leviata:  { cuspe: true, afunda: .4, alt: 4.9, nome: 'Leviatã',         mod: 'leviata', tam: 8.2, hp: 6200, dano: 110, cad: 1.9, arm: 50, rm: 40, ouro: 150, xp: 260, raio: 2.6, alc: 4.4, ico: 6, obj: true, area: 3 },
 };
 // primeiro nascimento e renascimento (s): buffs WR 2:30 → 90 s; campos pequenos 2:15 → 80 s; Dragão 5:00 → 3:00; Arauto 8:00 → 4:30 (até 7:00); Barão 12:00 → 7:00
 const TEMPOS = { sarca: [50, 90], rocha: [50, 90], lobos: [50, 80], gigantes: [50, 80], dragao: [240, 200], beemote: [300, 0], leviata: [600, 240] };
@@ -101,7 +101,7 @@ function criarMonstro(tipo, campo, dx = 0, dz = 0, time = 'neutro') {
   const montar = (src) => { const esq = src === M.hi && M.clipes; const g = esq ? clonarEsq(src) : src.clone(); g.scale.setScalar(k); g.position.set(-M.cx * k, -M.y0 * k, -M.cz * k); clonarMats(g, mats);
     if (esq) { g.traverse(o => { if (o.isSkinnedMesh) o.frustumCulled = false; }); rig = criarRig(g, M.clipes); } else aplicarDeform(g, T.mod, U); if (!D.Q.mobile && src === M.hi) g.traverse(o => { if (o.isMesh) o.castShadow = true; }); const w = new THREE.Group(); w.add(g); if (!esq && GIRO[T.mod] && M.clipes) w.rotation.y = GIRO[T.mod]; return w; };
   if (M.hi && dist > 0) { lod.addLevel(montar(M.hi), 0); if (M.lo) lod.addLevel(montar(M.lo), dist); } else lod.addLevel(montar(M.lo || M.hi), 0);
-  corpo.add(lod);
+  corpo.add(lod); if (T.afunda) lod.position.y = -T.afunda * M.alt * k; // Leviatã: corpo dentro d'água (o chão opaco esconde a parte de baixo)
   const sh = new THREE.Mesh(geoSombra, matSombra); sh.rotation.x = -Math.PI / 2; sh.position.y = .04; sh.scale.setScalar(T.raio * 2.4); obj.add(sh);
   const hx = campo.x + dx, hz = campo.z + dz;
   const m = { tipo: 'monstro', sub: tipo, T, time, nome: T.nome, campo, casa: new THREE.Vector3(hx, 0, hz), obj, corpo, modelo: obj, mats, vivo: false, hp: 1, maxHp: 1, raio: T.raio, st: { arm: T.arm, rm: T.rm },
@@ -264,7 +264,8 @@ function atualizarMonstro(m, dt, t, camAlvo) {
     if (p.distanceTo(m.casa) < .4) { m.estadoM = 'ocioso'; m.invulneravel = false; m.hp = m.maxHp; m.dots.length = 0; } else mv = mover(m, m.casa, 6, dt);
   }
   if (longe && m.surgeT <= 0 && m.investida <= 0) return; // animação só perto da câmera
-  if (m.cuspeT >= 0) { const t0 = m.cuspeT; m.cuspeT += dt; if (t0 < .55 && m.cuspeT >= .55 && m.vivo && m.cuspeAlvo && m.cuspeAlvo.vivo) lancarCuspe(m, m.cuspeAlvo); if (m.cuspeT > 1.3) m.cuspeT = -1; }
+  if (m.T.afunda) { const ag = D.scene.userData.aguaPoco; if (ag) { const u = ag.uniforms; u.uEsp.value = aprox(u.uEsp.value, m.vivo && m.estadoM !== 'morrendo' ? 1 : 0, 2, dt); u.uPulso.value = Math.max(0, u.uPulso.value - dt * .9); } }
+  if (m.cuspeT >= 0) { const t0 = m.cuspeT; m.cuspeT += dt; if (t0 === 0) respingo(m, 26); if (t0 < .55 && m.cuspeT >= .55 && m.vivo && m.cuspeAlvo && m.cuspeAlvo.vivo) lancarCuspe(m, m.cuspeAlvo); if (m.cuspeT > 1.3) m.cuspeT = -1; }
   animarCorpo(m, dt, mv);
 }
 // ---- animação procedural: tudo passa por molas amortecidas (sem trancos entre estados) ----
@@ -277,7 +278,10 @@ const CUSPE_ALC = 13, CUSPE_VEL = 17, CUSPE_AREA = 2.6, cuspes = []; const _q = 
 function criarCuspes() { const geo = new THREE.SphereGeometry(.55, 14, 10), mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(.25, .8, .15), transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
   const mat2 = new THREE.MeshBasicMaterial({ color: new THREE.Color(.45, .12, .6), transparent: true, opacity: .45, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
   for (let i = 0; i < 3; i++) { const g = new THREE.Mesh(geo, mat), h = new THREE.Mesh(geo, mat2); h.scale.setScalar(1.6); g.add(h); g.position.set(0, -60, 0); g.frustumCulled = false; D.scene.add(g); cuspes.push({ g, vivo: false }); } } // ficam na cena (embaixo do chão): o shader compila no carregamento
-function lancarCuspe(m, a) { const c = cuspes.find(c => !c.vivo) || cuspes[0]; const o = m.rig && m.rig.ossos.cabeca; if (o && m.lod.getCurrentLevel() === 0) o.getWorldPosition(_w); else _w.copy(m.obj.position).setY(m.T.tam * .7);
+function respingo(m, n) { const fx = D.fx, p = m.obj.position; if (!fx) return; const ag = D.scene.userData.aguaPoco; if (ag && m.T.afunda) ag.uniforms.uPulso.value = 1; // onda na água + gotas
+  for (let k = 0; k < n; k++) { const an = Math.random() * 6.28, r = 2.4 + Math.random() * 1.2, v = 1 + Math.random() * 2.5; fx.emit(p.x + Math.cos(an) * r, .2, p.z + Math.sin(an) * r, { vel: [Math.cos(an) * v, 3 + Math.random() * 4, Math.sin(an) * v], cor: [.55, .9, .9], vida: .7 + Math.random() * .3, t0: .7, t1: 0, grav: 12, drag: 1 }); }
+  if (D.fxD) for (let k = 0; k < 6; k++) { const an = Math.random() * 6.28; D.fxD.emit(p.x + Math.cos(an) * 3, .3, p.z + Math.sin(an) * 3, { vel: [0, .5, 0], cor: [.6, .8, .8], vida: 1.1, t0: 1, t1: 2.4, alpha: .4 }); } }
+function lancarCuspe(m, a) { respingo(m, 12); const c = cuspes.find(c => !c.vivo) || cuspes[0]; const o = m.rig && m.rig.ossos.cabeca; if (o && m.lod.getCurrentLevel() === 0) o.getWorldPosition(_w); else _w.copy(m.obj.position).setY(m.T.tam * .7 * (1 - (m.T.afunda || 0)));
   c.g.position.copy(_w); c.vivo = true; c.m = m; c.alvo = a; c.dano = m.dano; c.t = 0; if (D.som) try { D.som('habilidade'); } catch (e) {} }
 function atualizarCuspes(dt) { const fx = D.fx; for (const c of cuspes) { if (!c.vivo) continue; c.t += dt; const a = c.alvo, p = c.g.position; _w.copy(a.obj.position).setY(1); const dd = _w.distanceTo(p);
     c.g.scale.setScalar(1 + .15 * Math.sin(c.t * 30)); if (fx) for (let k = 0; k < 2; k++) fx.emit(p.x + (Math.random() - .5) * .4, p.y + (Math.random() - .5) * .4, p.z + (Math.random() - .5) * .4, { vel: [(Math.random() - .5), -.5 - Math.random(), (Math.random() - .5)], cor: k ? [.7, .3, 1] : [.45, 1, .3], vida: .5, t0: .9, t1: 0, drag: 2 });
@@ -286,14 +290,17 @@ function atualizarCuspes(dt) { const fx = D.fx; for (const c of cuspes) { if (!c
       if (D.fxD) for (let k = 0; k < 10; k++) D.fxD.emit(p.x + (Math.random() - .5) * 2, .4, p.z + (Math.random() - .5) * 2, { vel: [0, .6, 0], cor: [.3, .55, .25], vida: 1.4, t0: 1.2, t1: 2.8, alpha: .55 });
       p.set(0, -60, 0); continue; }
     p.addScaledVector(_w.sub(p).normalize(), Math.min(dd, CUSPE_VEL * dt)); } }
+let rot0 = 0;
 function cabecaBarao(m, dt) { const o = m.rig.ossos; if (!o.cabeca) return; const f = m.fase, t = m.cuspeT >= 0 ? m.cuspeT : -1;
   let yaw = Math.sin(f * .45) * .28 + Math.sin(f * .9 + 1) * .08; const al = m.estadoM === 'luta' && m.alvo ? m.alvo : null;
   if (al) { _w.copy(al.obj.position); m.corpo.worldToLocal(_w); yaw = Math.max(-1.2, Math.min(1.2, Math.atan2(_w.x, _w.z))); }
   m.yawH = aprox(m.yawH || 0, yaw, al ? 5 : 1.5, dt);
   const rec = t < 0 ? 0 : t < .5 ? -ss(0, .5, t) : t < .62 ? -1 + 1.9 * ss(.5, .62, t) : .9 * (1 - ss(.62, 1.3, t)); // recua -> bote -> volta
-  m.pitH = aprox(m.pitH || 0, rec, 18, dt); const br = Math.sin(f * 1.3) * .04, jaw = t < 0 ? .08 + .05 * Math.sin(f * 1.3) : t < .5 ? .35 * ss(0, .5, t) : t < .8 ? .85 : .85 * (1 - ss(.8, 1.3, t));
+  m.pitH = aprox(m.pitH || 0, rec, 18, dt); const br = Math.sin(f * 1.3) * .04; // boca: respira/rosna no ocioso; no cuspe recua entreabrindo, escancara, cospe e fecha num estalo
+  let jaw = t < 0 ? .07 + .05 * Math.sin(f * 1.3) + .22 * Math.pow(Math.max(0, Math.sin(f * .37)), 8) : t < .45 ? .25 * ss(0, .45, t) : t < .55 ? .25 + .8 * ss(.45, .55, t) : t < .68 ? 1.05 * (1 - ss(.58, .68, t)) : .08 * ss(.68, 1.1, t);
+  if (m.rugeT > 0) { m.rugeT -= dt; const e = ss(0, .35, 1.8 - m.rugeT) * (1 - ss(1.4, 1.8, 1.8 - m.rugeT)); jaw = Math.max(jaw, 1.1 * e); m.pitH -= e * .9 * Math.min(1, dt * 12); rot0 = .05 * Math.sin(f * 40) * e; } else rot0 = 0; // rugido ao surgir
   const rot = (b, x, y) => { if (!b) return; if (!m.rig.anim.has(b.name)) b.quaternion.copy(m.rig.rest[b.name]); _e.set(x, y, 0); b.quaternion.multiply(_q.setFromEuler(_e)); };
-  rot(o.col3, br * .5 + m.pitH * .12, m.yawH * .2); rot(o.col4, br + m.pitH * .22, m.yawH * .35); rot(o.col5, br + m.pitH * .3, m.yawH * .45); rot(o.cabeca, m.pitH * .35 - br, 0); rot(o.mandibula, jaw, 0); }
+  rot(o.col3, br * .5 + m.pitH * .12, m.yawH * .2); rot(o.col4, br + m.pitH * .22, m.yawH * .35); rot(o.col5, br + m.pitH * .3, m.yawH * .45); rot(o.cabeca, m.pitH * .35 - br + rot0, rot0); rot(o.mandibula, jaw, 0); }
 function ss(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
 // ---- esqueleto: AnimationMixer com crossfade (Idle em loop; Attack/Hit/Spawn uma vez e voltam ao Idle; Death trava no fim) ----
 function criarRig(g, clipes) { const mixer = new THREE.AnimationMixer(g), acts = {};
@@ -304,7 +311,7 @@ function criarRig(g, clipes) { const mixer = new THREE.AnimationMixer(g), acts =
 function rigTocar(r, nome, fade, inicio = 0, vel = 1) { const a = r.acts[nome]; if (!a || (r.atual === a && nome !== 'Attack' && nome !== 'Hit')) return; a.reset(); a.time = inicio; a.timeScale = vel; a.setEffectiveWeight(1); a.play();
   if (r.atual && r.atual !== a) r.atual.crossFadeTo(a, fade, false); else if (!r.atual) a.fadeIn(fade); r.atual = a; r.nome = nome; r.fimT = nome === 'Idle' || nome === 'Walk' ? 1e9 : (a.getClip().duration - inicio) / vel; }
 function animarRig(m, dt, mv) { const r = m.rig, c = m.corpo; c.scale.setScalar(1); c.position.set(0, 0, 0); c.rotation.x = 0;
-  if (m.surgeT > 0) { if (m.surgeT >= .69) rigTocar(r, 'Spawn', .1); m.surgeT -= dt; }
+  if (m.surgeT > 0) { if (m.surgeT >= .69) { rigTocar(r, 'Spawn', .1); m.rugeT = 1.8; } m.surgeT -= dt; }
   m.movK = aprox(m.movK || 0, mv ? 1 : 0, 5, dt);
   if (r.acts.Walk) { if (m.movK > .35 && r.nome === 'Idle') rigTocar(r, 'Walk', .25); else if (m.movK < .2 && r.nome === 'Walk') rigTocar(r, 'Idle', .3); if (r.nome === 'Walk') r.atual.timeScale = .6 + .6 * m.movK * (m.estadoM === 'volta' ? 1.4 : 1); }
   if (m.investida > 0) { if (!m._atkOn) { if (m.T.mod === 'leviata') rigTocar(r, 'Attack', .15, 0, 1.3); else rigTocar(r, 'Attack', .12, .1, 1.6); m._atkOn = true; } m.investida -= dt; } else m._atkOn = false; // bote cai em ~.28 s = quando o dano entra

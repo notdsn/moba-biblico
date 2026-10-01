@@ -664,9 +664,24 @@ function criarCovas(scene, q, anim, TP, pedras, colocar, recolorir) {
       pulsos.push([plano(cv.x, cv.z, .05, cv.r * 2.2, 0xff5018, .2), .2]);
       for (let i = 0; i < 14; i++) { const a = r() * 6.28, d = 1.5 + r() * (cv.r - 2); nBrasas.push([cv.x + Math.cos(a) * d, cv.z + Math.sin(a) * d, .5 + r() * .9, r() * 6]); }
     } else if (t === 'poco') { // água escura com brilho verde-azulado
-      const agua = new THREE.Mesh(new THREE.CircleGeometry(cv.r - .5, q.mobile ? 28 : 44), new THREE.MeshStandardMaterial({ color: 0x0a2530, roughness: .1, metalness: .5, emissive: 0x0a5a60, emissiveIntensity: .35, transparent: true, opacity: .86, depthWrite: false }));
-      agua.rotation.x = -Math.PI / 2; agua.position.set(cv.x, .045, cv.z); agua.renderOrder = 1; scene.add(agua);
-      pulsos.push([plano(cv.x, cv.z, .07, cv.r * 2.6, 0x20e0d0, .28), .28]); pulsos.push([agua.material, .35, true]);
+      // água do poço (shader barato, sem luz): teal escuro, ondulações e anel de espuma onde o corpo do Leviatã entra na água.
+      // O corpo submerso fica embaixo do chão (opaco), então a água só precisa cobrir a superfície.
+      const mA = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uT: { value: 0 }, uR: { value: cv.r - .5 }, uEsp: { value: 0 }, uRE: { value: 2.9 }, uPulso: { value: 0 } },
+        vertexShader: 'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+        fragmentShader: `uniform float uT, uR, uEsp, uRE, uPulso; varying vec2 vP;
+          void main(){ float d = length(vP); float a = atan(vP.y, vP.x);
+            float on = sin(d * 2.6 - uT * 1.6) * .5 + .5; on *= sin(vP.x * 1.7 + uT * .9) * sin(vP.y * 1.9 - uT * .7) * .5 + .5;
+            vec3 c = mix(vec3(.004, .025, .035), vec3(.012, .09, .1), on * .7 + .15 * (1. - d / uR));
+            float ruido = sin(a * 9. + uT * 2.3) * .5 + sin(a * 17. - uT * 3.1) * .3;
+            float esp = uEsp * (1. - smoothstep(0., .3 + .15 * ruido, abs(d - uRE - .25 * sin(uT * 2. + a * 3.))));
+            float anel = uPulso * (1. - smoothstep(0., .5, abs(d - uRE - 1.2 - (1. - uPulso) * 4.)));
+            float borda = 1. - smoothstep(uR - 1.2, uR, d);
+            c += vec3(.45, .6, .58) * clamp(esp * .7 + anel * .5, 0., 1.) + vec3(.03, .2, .18) * pow(on, 6.) * .35;
+            gl_FragColor = vec4(c, (.9 + .1 * esp) * borda); }` });
+      const agua = new THREE.Mesh(new THREE.CircleGeometry(cv.r - .5, q.mobile ? 28 : 44), mA);
+      agua.rotation.x = -Math.PI / 2; agua.position.set(cv.x, .06, cv.z); agua.renderOrder = 1; scene.add(agua); scene.userData.aguaPoco = mA;
+      anim.push((dt, tt) => { mA.uniforms.uT.value = tt; });
+      pulsos.push([plano(cv.x, cv.z, .07, cv.r * 2.6, 0x20e0d0, .28), .28]);
     } else if (t === 'sarca') { // clareira da sarça que arde sem se consumir
       pulsos.push([plano(cv.x, cv.z, .05, 6.5, 0xff7a20, .3), .3]);
       for (let i = 0; i < 7; i++) { const a = r() * 6.28, d = 1.2 + r() * 2.6; nBrasas.push([cv.x + Math.cos(a) * d, cv.z + Math.sin(a) * d, .4 + r() * .6, r() * 6]); }

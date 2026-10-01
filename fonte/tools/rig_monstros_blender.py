@@ -24,7 +24,7 @@ def perna(n, pts, p):
 if N == 'leviata':  # coluna vertical (a serpente enrolada sobe do chão até a cabeça), cabeça/mandíbula e cauda no chão
     zs = [0, .12, .26, .40, .54, .68, .82]
     for i in range(6): bone('col%d' % i, (0, 0, zs[i]), (0, 0, zs[i + 1]), 'col%d' % (i - 1) if i else None, i > 0)
-    bone('cabeca', (0, -.08, .78), (0, -.36, .70), 'col5'); bone('mandibula', (0, -.12, .70), (0, -.34, .62), 'cabeca')
+    bone('cabeca', (0, -.08, .78), (0, -.36, .70), 'col5'); bone('mandibula', (0, -.15, .70), (0, -.35, .66), 'cabeca')  # dobradiça atrás da boca
     bone('cauda1', (0, .12, .12), (0, .28, .14), 'col0'); bone('cauda2', (0, .28, .14), (0, .44, .16), 'cauda1', True)
 elif N == 'gigante_pedra':
     bone('quadril', (0, 0, .30), (0, 0, .50)); bone('peito', (0, 0, .50), (0, 0, .68), 'quadril', True); bone('cabeca', (0, -.02, .68), (0, -.05, .88), 'peito', True)
@@ -50,7 +50,11 @@ def dseg(p, h, t): ab = t - h; u = max(0, min(1, (p - h).dot(ab) / ab.length_squ
 for v in ob.data.vertices:
     p = v.co; cand = segs
     if N == 'leviata':
-        if p.y < -.06 and p.z > .56: cand = [s for s in segs if s[0] in ('cabeca', 'mandibula', 'col5')]
+        if p.y < -.17 and .58 < p.z < .712 and abs(p.x) < .2:  # maxilar de baixo: só a região da boca, peso forte (abre limpo)
+            k = min(1, (-.17 - p.y) / .05); G['mandibula'].add([v.index], k, 'REPLACE');
+            if k < 1: G['cabeca'].add([v.index], 1 - k, 'REPLACE')
+            continue
+        if p.y < -.06 and p.z > .56: cand = [s for s in segs if s[0] in ('cabeca', 'col5')]
         elif p.y > .16 and p.z < .32: cand = [s for s in segs if s[0] in ('cauda1', 'cauda2', 'col0')]
         else:  # faixa de altura: mistura suave entre os dois ossos da coluna mais próximos em z
             cand = None; zc = [(s[0], (s[1].z + s[2].z) / 2) for s in segs if s[0].startswith('col')]
