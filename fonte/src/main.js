@@ -2072,7 +2072,7 @@ function configurarHUD() {
   document.body.dataset.time = h.time;
 }
 function selvaDeps() {
-  return { scene, unidades, herois, estado, Q, carregar, danificar, ganharOuro, darXp, criarBarra, iniciarStatus, atualizarStatus, mover2, atacar, usarHab, estruturas, protegida, jogadorTime, jogador: () => jogador, anunciar, retratos, aviso, som, FONTE, laneZ, aplicarLento };
+  return { scene, unidades, herois, estado, Q, carregar, danificar, ganharOuro, darXp, criarBarra, iniciarStatus, atualizarStatus, mover2, atacar, usarHab, estruturas, protegida, jogadorTime, jogador: () => jogador, get fx() { return fx; }, get fxD() { return fxD; }, tremer, anunciar, retratos, aviso, som, FONTE, laneZ, aplicarLento };
 }
 // tela de função (2v2): Selva ou Meio; o aliado fica com a outra
 function pedirFuncao(id) {
