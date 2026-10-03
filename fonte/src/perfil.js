@@ -43,6 +43,16 @@ export const VESTES = {
   jezabel: { padrao: 'Rainha Ímpia', lista: [{ id: 'sidom', nome: 'Rainha de Sidom', tex: 'models/tripo/skins/jezabel_sidom.webp', campo: 'semMorrer', n: 3, req: 'Vencer 3 partidas sem morrer com Jezabel', verso: '“Jezabel, filha de Etbaal, rei dos sidônios.” — 1Rs 16:31' }] },
   josue: { padrao: 'O Comandante', lista: [{ id: 'jerico', nome: 'Conquistador de Jericó', tex: null, campo: 'torres', n: 10, req: 'Derrubar 10 torres com Josué (arte da veste em breve)', verso: '“Eu e a minha casa serviremos ao Senhor.” — Js 24:15' }] },
   elias: { padrao: 'O Tisbita', lista: [{ id: 'manto', nome: 'Manto de Elias', tex: null, campo: 'vitorias', n: 5, req: 'Vencer 5 partidas com Elias (arte da veste em breve)', verso: '“Elias subiu ao céu num redemoinho.” — 2Rs 2:11' }] },
+  acabe: { padrao: 'Rei de Samaria', lista: [{ id: 'marfim', nome: 'Casa de Marfim', tex: null, campo: 'vitorias', n: 5, req: 'Vencer 5 partidas com Acabe (arte em breve)', verso: '“A casa de marfim que edificou.” — 1Rs 22:39' }] },
+  dalila: { padrao: 'De Soreque', lista: [{ id: 'prata', nome: 'Mil e Cem Moedas', tex: null, campo: 'abates', n: 30, req: 'Fazer 30 abates com Dalila (arte em breve)', verso: '“Cada um de nós te dará mil e cem moedas de prata.” — Jz 16:5' }] },
+  herodes: { padrao: 'Rei da Judeia', lista: [{ id: 'purpura', nome: 'Manto de Púrpura', tex: null, campo: 'vitorias', n: 5, req: 'Vencer 5 partidas com Herodes (arte em breve)', verso: '“Herodes, vendo que fora iludido pelos magos…” — Mt 2:16' }] },
+  hama: { padrao: 'O Agagita', lista: [{ id: 'anel', nome: 'Anel do Rei', tex: null, campo: 'vitorias', n: 5, req: 'Vencer 5 partidas com Hamã (arte em breve)', verso: '“O rei tirou o anel da sua mão e o deu a Hamã.” — Et 3:10' }] },
+  ester: { padrao: 'Rainha da Pérsia', lista: [{ id: 'coroa', nome: 'Para um Tempo Como Este', tex: null, campo: 'cura', n: 8000, req: 'Curar 8.000 com Ester (arte em breve)', verso: '“Quem sabe se não foi para tal tempo como este?” — Et 4:14' }] },
+  ninrode: { padrao: 'Rei de Sinar', lista: [{ id: 'babel', nome: 'Construtor de Babel', tex: null, campo: 'abates', n: 50, req: 'Abater 50 heróis com Ninrode (arte em breve)', verso: '“Poderoso caçador diante do Senhor.” — Gn 10:9' }] },
+  sarai: { padrao: 'De Ur dos Caldeus', lista: [{ id: 'promessa', nome: 'Mãe das Nações', tex: null, campo: 'abates', n: 50, req: 'Abater 50 heróis com Sarai (arte em breve)', verso: '“Há coisa demasiado difícil para o Senhor?” — Gn 18:14' }] },
+  moises: { padrao: 'Servo do Senhor', lista: [{ id: 'sinai', nome: 'Do Monte Sinai', tex: null, campo: 'controles', n: 50, req: 'Aplicar 50 controles com Moisés (arte em breve)', verso: '“O Senhor pelejará por vós.” — Êx 14:14' }] },
+  golias2: { padrao: 'Irmão de Golias', lista: [{ id: 'tear', nome: 'Eixo de Tear', tex: null, campo: 'abates', n: 50, req: 'Abater 50 heróis com Lami (arte em breve)', verso: '“A haste da sua lança era como eixo de tecelão.” — 1Cr 20:5' }] },
+  balaao: { padrao: 'Filho de Beor', lista: [{ id: 'jumenta', nome: 'Profeta de Petor', tex: null, campo: 'controles', n: 50, req: 'Aplicar 50 controles com Balaão (arte em breve)', verso: '“O Senhor abriu a boca da jumenta.” — Nm 22:28' }] },
   nabuco: { padrao: 'Rei de Babilônia', lista: [{ id: 'ouro', nome: 'Cabeça de Ouro', tex: 'models/tripo/skins/nabuco_ouro.webp', campo: 'nucleos', n: 5, req: 'Destruir 5 Núcleos com Nabucodonosor', verso: '“Tu és a cabeça de ouro.” — Dn 2:38' }] },
 };
 export const vesteDe = (id, vid) => (VESTES[id] && VESTES[id].lista.find(v => v.id === vid)) || null;
@@ -125,6 +135,16 @@ export const DICAS = {
   jezabel: ['As habilidades da Jezabel batem mais em quem está com menos da metade da vida.', 'O Decreto demora 1,5 s: use quando o inimigo não puder fugir.'],
   josue: ['Bata sempre no mesmo alvo: cada ataque do Josué tira armadura.', 'Sol, Detém-te congela as recargas: use antes da luta começar.'],
   elias: ['Acertar habilidades devolve mana ao Elias.', 'O Carro de Fogo cruza o mapa todo: mire nas rotas laterais.'],
+  acabe: ['Ataque o alvo do Dardo para ganhar velocidade.', 'A Flecha de Ramote-Gileade acha sozinha o inimigo mais ferido do mapa.'],
+  dalila: ['Cada habilidade que acerta rouba dano de ataque.', 'O Colo de Dalila salta até tropas e monstros: use para fugir ou entrar.'],
+  herodes: ['Herodes fica mais resistente quando está sozinho.', 'Use o Sinédrio antes do combo: cada habilidade sai duas vezes.'],
+  hama: ['O dano dos ataques do Hamã é sorteado: às vezes vem um golpe enorme.', 'A Forca puxa todos para o centro: emende com o Edito Real.'],
+  ester: ['Use o Cetro Estendido atravessando aliados e inimigos ao mesmo tempo.', 'Se Perecer, Pereci: ative quando o inimigo for lançar o controle principal.'],
+  ninrode: ['Ataque o mesmo alvo 3 vezes para marcá-lo como presa.', 'Arme armadilhas nas entradas da selva e nos arbustos.'],
+  sarai: ['Faça a selva com a passiva: mais dano e ouro nos monstros.', 'Promessa de Isaque: cada abate reinicia tudo, então emende as lutas.'],
+  moises: ['As Tábuas da Lei tiram escudos e buffs: guarde para a ult inimiga.', 'Abrir o Mar avisa 2 s antes: use em corredores e para separar o time inimigo.'],
+  golias2: ['Puxe com a lança e fique perto: o 3º ataque varre todos à frente.', 'Queda do Gigante prende até quem está imparável.'],
+  balaao: ['Amaldiçoe o inimigo antes da cura dele: a cura vira dano.', 'A Profecia mostra todos os inimigos do mapa por um instante.'],
   nabuco: ['Cada abate dá escudo ao Nabucodonosor.', 'Os Guardas da Babilônia ajudam a derrubar torres.'],
 };
 export const sortear = (l) => l[Math.floor(Math.random() * l.length)];

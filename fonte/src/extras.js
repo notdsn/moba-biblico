@@ -39,7 +39,7 @@ export function atualizarFog(dt) {
   for (const w of EX.sentinelas) if (w.vivo) src[w.time].push(w.pos.x, w.pos.z, VIS.sentinela, -2); // sentinela enxerga dentro da moita
   const ve = (x, z, mi, T) => { const S = src[T]; for (let i = 0; i < S.length; i += 4) { const dx = x - S[i], dz = z - S[i + 1], d2 = dx * dx + dz * dz, r = S[i + 2]; if (d2 > r * r) continue; if (mi < 0 || S[i + 3] === mi || S[i + 3] === -2 || d2 < 2.5) return true; } return false; };
   for (const u of D.unidades) { if (!u.vivo || !src[u.time]) continue; const f = u.fogVis || (u.fogVis = {}); const p = u.obj.position;
-    for (const T of TIMES) f[T] = T === u.time || !FOG_ON || (u.revelado > t && u.revelaPara === T) || ve(p.x, p.z, u._moita, T); }
+    for (const T of TIMES) f[T] = T === u.time || !FOG_ON || (u.revelado > t && u.revelaPara === T) || (!(u.nuvemT > t) && ve(p.x, p.z, u._moita, T)); } // nuvemT: Coluna de Nuvem do Moisés
   for (const w of EX.sentinelas) if (w.vivo) w.vis = w.time === D.jogadorTime() || ve(w.pos.x, w.pos.z, -1, D.jogadorTime());
 }
 // esconde no mundo o que o time do jogador não vê

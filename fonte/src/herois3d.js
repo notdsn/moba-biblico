@@ -300,5 +300,7 @@ export const VISUAL = {
   davi: { corpo: 'm', esc: 1 }, sansao: { corpo: 'm', esc: 1.04 }, debora: { corpo: 'f', esc: 1.04 }, gideao: { corpo: 'm', esc: 1 },
   golias: { corpo: 'm', esc: 1.3 }, farao: { corpo: 'm', esc: 1.02 }, jezabel: { corpo: 'f', esc: 1.04 }, nabuco: { corpo: 'm', esc: 1.06 },
   josue: { corpo: 'm', esc: 1.02 }, elias: { corpo: 'm', esc: 1 },
+  acabe: { corpo: 'm', esc: 1.02 }, dalila: { corpo: 'f', esc: 1.02 }, herodes: { corpo: 'm', esc: 1.02 }, hama: { corpo: 'm', esc: 1.02 }, balaao: { corpo: 'm', esc: 1 },
+  ester: { corpo: 'f', esc: 1 }, ninrode: { corpo: 'm', esc: 1.04 }, sarai: { corpo: 'f', esc: 1 }, moises: { corpo: 'm', esc: 1.02 }, golias2: { corpo: 'm', esc: 1.25 },
 };
 export const CABELOS = ['simpleparted', 'long', 'beard', 'buzzed', 'buns'];
