@@ -6,6 +6,9 @@ export { MAPA_WR };
 // ---------- utilidades ----------
 export function rng(seed = 1) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 const R = rng(7);
+const _Q = new URLSearchParams(location.search); // padrão agora: mapa v2 + 3 rotas 5v5; ?mapa=v1 volta ao mapa antigo (2v2 no Meio), ?rotas=1 tira as rotas laterais
+export const MAPA_5V5 = MAPA_WR && SELVA_ON && _Q.get('mapa') !== 'v1' && _Q.get('rotas') !== '1' && _Q.get('modo') !== '1v1'; // prévia 5v5: torres laterais viram torres de verdade (criadas no main)
+export const MAPA_V2 = MAPA_WR && _Q.get('mapa') !== 'v1'; // prévia do mapa bíblico v2 (areia, pedra e o Jordão)
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp, smooth = THREE.MathUtils.smoothstep;
 
 // Traçado da rota (lane): x de -70 a 70, com uma leve curva
@@ -131,6 +134,14 @@ function criarChao(scene, q) {
       c.multiplyScalar(lerp(1, .88, smooth(d, 7, 12) * (1 - k))); // mata mais fechada
       if (MAPA_WR) { const rv = rioWR(x, z); if (rv < 6 && d > LANE.largura + 1) c.lerp(new THREE.Color(P ? '#3f7a8a' : '#35707e'), (1 - smooth(rv, 2.5, 6)) * .7); } // rio raso
     }
+    if (MAPA_V2) { // Luz: areia de Judá com tufos de oliveiral; Trevas: basalto e obsidiana; rotas de pedra; o Jordão com juncos nas margens
+      const areia = new THREE.Color('#e0c48a').lerp(new THREE.Color('#c9a466'), nn); const bas = new THREE.Color('#3b3340').lerp(new THREE.Color('#5a4a52'), nn);
+      c.copy(areia).lerp(bas, smooth(t, .2, .8));
+      if (n3 > .45) c.lerp(new THREE.Color(t < .5 ? '#9aa35a' : '#6a3a3a'), (n3 - .45) * 1.1 * (t < .5 ? .55 : .35));
+      c.lerp(new THREE.Color('#d9ccb0').lerp(new THREE.Color('#6e6470'), t), terraF * .8);
+      const rv = rioWR(x, z); if (rv < 10) { c.lerp(new THREE.Color('#7f9248'), (1 - smooth(rv, 6, 10)) * .75); c.lerp(new THREE.Color('#5f6a4a'), (1 - smooth(rv, 3.5, 6.5)) * .8); }
+      c.multiplyScalar(lerp(1, .6, smooth(distLosango(x, z), MAPA_C + 5, MAPA_C + 14)));
+    }
     terras[i] = Math.min(1, terraF * 1.05);
     // escurecer bordas da rota (sombra das pedras) e o horizonte
     c.multiplyScalar(1 - .12 * smooth(d, LANE.largura + 2, LANE.largura + 3.5) * (1 - smooth(d, LANE.largura + 3.5, LANE.largura + 8)));
@@ -145,10 +156,11 @@ function criarChao(scene, q) {
   if (TEX.grama_d && TEX.terra_d) {
     // grama e terra batida CC0 misturadas por vértice; as cores por vértice continuam dando o tom de cada lado
     const rx = W / 6, rz = H / 6;
-    mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: texRep('grama_d', rx, rz), roughness: .93, metalness: 0 });
-    if (TEX.grama_n) { mat.normalMap = texRep('grama_n', rx, rz); mat.normalScale.set(.7, .7); }
-    mat.color.setScalar(.42);
-    const terraT = texRep('terra_d', 1, 1);
+    mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: texRep(MAPA_V2 ? 'terra_d' : 'grama_d', rx, rz), roughness: .93, metalness: 0 });
+    if (TEX.grama_n && !MAPA_V2) { mat.normalMap = texRep('grama_n', rx, rz); mat.normalScale.set(.7, .7); }
+    if (MAPA_V2 && TEX.terra_n) { mat.normalMap = texRep('terra_n', rx, rz); mat.normalScale.set(.8, .8); }
+    mat.color.setScalar(MAPA_V2 ? .62 : .42);
+    const terraT = texRep(MAPA_V2 && TEX.pedra_d ? 'pedra_d' : 'terra_d', 1, 1);
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.mapTerra = { value: terraT };
       sh.vertexShader = 'attribute float aTerra;\nvarying float vTerra;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n  vTerra = aTerra;');
@@ -160,7 +172,22 @@ function criarChao(scene, q) {
     };
   } else { const tex = texGrama(); tex.repeat.set(W / 7, H / 7); mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: tex, roughness: .95, metalness: 0 }); }
   const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; scene.add(m);
+  if (MAPA_V2) criarJordao(scene, q);
   return m;
+}
+// o Jordão (prévia v2): faixa de água que segue o rio do mapa, com correnteza e espuma nas margens
+function criarJordao(scene, q) {
+  const N = q.mobile ? 80 : 140, L = MAPA_C + MAPA_FOLGA + 6, larg = 7.5; const pos = [], uv = [], idx = [];
+  for (let i = 0; i <= N; i++) { const z = -L + 2 * L * i / N, x = 1 + 2.2 * Math.sin(z * .09); for (const sx of [-1, 1]) { pos.push(x + sx * larg / 2, .05, z); uv.push(sx < 0 ? 0 : 1, z / 8); } if (i < N) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uT: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+    fragmentShader: `uniform float uT; varying vec2 vUv;
+      void main(){ float e = abs(vUv.x - .5) * 2.; float onda = sin(vUv.y * 9. - uT * 2.2 + sin(vUv.x * 12.) * 1.5) * .5 + .5; float onda2 = sin(vUv.y * 23. + vUv.x * 7. - uT * 3.1) * .5 + .5;
+        vec3 fundo = mix(vec3(.16,.42,.45), vec3(.28,.55,.52), onda * .6 + onda2 * .2); float esp = smoothstep(.72, .95, e) * (.6 + .4 * onda2);
+        vec3 c = mix(fundo, vec3(.86,.92,.86), esp * .7) + vec3(.9) * pow(onda2 * onda, 6.) * .25; gl_FragColor = vec4(c, (1. - smoothstep(.9, 1., e)) * .78); }` });
+  const w = new THREE.Mesh(g, mat); w.renderOrder = 1; w.name = 'jordao'; scene.add(w); scene.userData.aguaJordao = mat;
+  const t0 = performance.now(); w.onBeforeRender = () => { mat.uniforms.uT.value = (performance.now() - t0) / 1000; };
 }
 
 // Pedras do caminho (instanciadas)
@@ -623,7 +650,7 @@ export function criarMundo(scene, modelos, q, tempoU) {
     const iP = instanciar(scene, TP.pedra, pedras, { trecho: 16, sombra: !q.mobile, lod: TP.pedra_lod1, distLOD: q.baixa ? -99 : q.mobile ? 3 : 18, distMax: q.mobile ? (MAPA_WR ? 34 : 34) : 60, altoSoFundo: q.mobile });
     const iC = instanciar(scene, TP.coluna, colunas, { trecho: 60, sombra: !q.mobile });
     let iTL = null, iTT = null;
-    if (MAPA_WR && TORRES_LATERAIS.length) { const gl = geoTripo(TP.torre_luz), altL = gl.alt * (6.8 / gl.larg) * PROP_TORRE.esc.luz;
+    if (MAPA_WR && TORRES_LATERAIS.length && !MAPA_5V5) { const gl = geoTripo(TP.torre_luz), altL = gl.alt * (6.8 / gl.larg) * PROP_TORRE.esc.luz;
       const cor = (t) => t === 'luz' ? '#8c8c90' : '#6a6070'; // apagadas: desligadas por enquanto (ROTAS_LATERAIS)
       iTL = instanciar(scene, TP.torre_luz, TORRES_LATERAIS.filter(t => t[2] === 'luz').map(([x, z, t]) => ({ x, y: alturaChao(x, z), z, alt: altL, ry: 0, cor: cor(t) })), { trecho: 30, sombra: false, distMax: q.mobile ? 36 : 70 });
       iTT = instanciar(scene, TP.torre_trevas, TORRES_LATERAIS.filter(t => t[2] === 'trevas').map(([x, z, t]) => ({ x, y: alturaChao(x, z), z, alt: PROP_TORRE.altura, ry: 0, cor: cor(t) })), { trecho: 30, sombra: false, distMax: q.mobile ? 36 : 70 }); }

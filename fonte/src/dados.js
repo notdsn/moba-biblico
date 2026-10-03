@@ -167,6 +167,36 @@ export const HEROIS = {
     },
     build: ['sandalias', 'laminaEude', 'espadaGolias', 'arcoJonatas', 'armaduraSaul'],
   },
+  josue: {
+    rota: 'barao', nome: 'Josué', titulo: 'O Comandante de Israel', time: 'luz', papel: 'Lutador · Tanque', corpo: 'm', esc: 1.02, distancia: false, cor: [1, .82, .45],
+    funcao: 'lutador', refWR: 'Jarvan IV',
+    base: { hp: 680, hpN: 116, mana: 330, manaN: 35, ad: 63, adN: 4.4, ap: 0, arm: 40, armN: 4.2, rm: 36, rmN: 2, cad: .84, alcance: 2.5, vel: 6.2 },
+    anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Sword_Regular_A', velAtaque: 1.3, morte: 'Death01', atrasoAtaque: .28 },
+    icone: 'ataqueEspada',
+    passiva: { nome: 'Marcha de Sete Dias', desc: 'Ataques seguidos no mesmo alvo quebram a defesa dele (Js 6:15): -4 de armadura por ataque por 3 s, até 7 acúmulos.' },
+    hab: {
+      q: { nome: 'Trombetas de Jericó', icone: 'trombeta', desc: 'Toque das trombetas à frente (Js 6:20): dano em cone que DESTRÓI os escudos dos inimigos e causa dano dobrado em torres e muralhas.', tipo: 'area', centro: 'frente', dist: 2.2, raio: 3.6, atraso: .3, cd: [8, 7.5, 7, 6.5, 6], mana: [45, 50, 55, 60, 65], dano: [70, 110, 150, 190, 230], k: .8, esc: 'ad', quebraEscudo: true, danoTorre: 2, cor: [1, .88, .5], visual: 'trombeta', anim: 'Sword_Regular_C', velAnim: 1.3 },
+      w: { visual: 'leao', nome: 'Comandante do Exército', icone: 'desafio', desc: 'Josué comanda o povo (Js 1:10): ele e os heróis aliados por perto causam +10% de dano por 5 s.', tipo: 'buff', cd: [16, 15, 14, 13, 12], mana: [60, 60, 60, 60, 60], aliados: 8, auraDano: [.1, 5], anim: 'Spell_Simple_Shoot', velAnim: .9 },
+      e: { nome: 'Pedras do Jordão', icone: 'pisao', desc: 'Avança e deixa atrás de si um muro com as 12 pedras do Jordão (Js 4:9) por 3 s, que bloqueia a passagem.', tipo: 'dash', cd: [13, 12.5, 12, 11.5, 11], mana: [50, 50, 50, 50, 50], dist: 6, vel: 18, danoFim: [55, 85, 115, 145, 175], k: .5, esc: 'adb', raioFim: 2.2, muroPedras: 3, visualFim: 'poeira', anim: 'Shield_Dash', velAnim: 1.4 },
+      r: { nome: 'Sol, Detém-te', icone: 'fe', desc: '“Sol, detém-te em Gibeom” (Js 10:12-13): luz parada no céu; inimigos na área sofrem dano e ficam com as RECARGAS CONGELADAS por 4 s.', tipo: 'area', centro: 'self', raio: 6, atraso: .5, cd: [70, 60, 50], mana: [100, 100, 100], dano: [160, 260, 360], k: .7, esc: 'adb', congelaCd: 4, cor: [1, .92, .55], visual: 'coluna', anim: 'Spell_Simple_Shoot', velAnim: .8 },
+    },
+    build: ['sandalias', 'espadaGolias', 'armaduraSaul', 'escudoFe', 'couracaJustica'],
+  },
+  elias: {
+    rota: 'meio', nome: 'Elias', titulo: 'O Profeta de Fogo', time: 'luz', papel: 'Mago', corpo: 'm', esc: 1, distancia: true, projetil: 'luz', cor: [1, .6, .25],
+    funcao: 'mago', refWR: 'Vel\'Koz',
+    base: { hp: 590, hpN: 110, mana: 450, manaN: 50, ad: 50, adN: 3, ap: 0, arm: 32, armN: 4.4, rm: 34, rmN: 1.2, cad: .8, alcance: 7, vel: 5.9 },
+    anim: { idle: 'Idle_Loop', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Spell_Simple_Shoot', velAtaque: 1.6, morte: 'Death01', atrasoAtaque: .2 },
+    icone: 'ataqueMagia',
+    passiva: { nome: 'Corvos de Querite', desc: 'Os corvos o sustentam (1Rs 17:6): cada habilidade que acerta um herói devolve 12 + 2 por nível de mana.' },
+    hab: {
+      q: { nome: 'Fogo do Carmelo', icone: 'cantaro', desc: 'Fogo do céu no Carmelo (1Rs 18:38): raio de fogo CANALIZADO em linha por 1 s (4 pulsos de dano mágico). Elias fica parado enquanto canaliza.', tipo: 'linha', comp: 11, larg: 1.6, atraso: .25, impactos: 4, intervalo: .25, canaliza: true, cd: [8, 7.5, 7, 6.5, 6], mana: [55, 60, 65, 70, 75], dano: [30, 46, 62, 78, 94], k: .22, esc: 'ap', mag: true, cor: [1, .5, .15], anim: 'Spell_Simple_Shoot', velAnim: .8 },
+      w: { visual: 'harpa', nome: 'Voz Mansa e Delicada', icone: 'salmo', desc: 'Uma voz mansa e delicada (1Rs 19:12): LIMPA todos os controles do aliado mais ferido por perto (ou de Elias) e o cura.', tipo: 'buff', cd: [16, 15, 14, 13, 12], mana: [70, 75, 80, 85, 90], purifica: 9, curaAlvo: [80, 115, 150, 185, 220], kCura: .4, anim: 'Spell_Simple_Shoot', velAnim: .9 },
+      e: { nome: 'Cova em Horebe', icone: 'veu', desc: 'Esconde-se na cova do monte Horebe (1Rs 19:9): fica INTOCÁVEL por 1,5 s, sem receber dano nem controle, mas não pode agir.', tipo: 'buff', cd: [20, 19, 18, 17, 16], mana: [60, 60, 60, 60, 60], estase: 1.5, anim: 'Idle_Loop', velAnim: 1 },
+      r: { nome: 'Carro de Fogo', icone: 'estrelas', desc: 'Um carro de fogo com cavalos de fogo (2Rs 2:11): após 1 s, atravessa o MAPA INTEIRO em linha reta, com grande dano mágico e lentidão.', tipo: 'linha', comp: 130, alc: 45, larg: 3.2, atraso: 1, cd: [80, 70, 60], mana: [100, 100, 100], dano: [240, 360, 480], k: .8, esc: 'ap', mag: true, lento: [.4, 1.5], cor: [1, .45, .1], anim: 'Spell_Simple_Shoot', velAnim: .7 },
+    },
+    build: ['sandalias', 'cajadoArao', 'cetroEster', 'harpaDavi', 'escudoFe'],
+  },
   golias: {
     rota: 'barao', nome: 'Golias', titulo: 'O Gigante de Gate', time: 'trevas', papel: 'Tanque', corpo: 'm', esc: 1.3, distancia: false, cor: [1, .6, .3],
     funcao: 'tanque', refWR: 'Malphite',
@@ -228,7 +258,7 @@ export const HEROIS = {
     build: ['sandalias', 'espadaGolias', 'laminaEude', 'armaduraSaul', 'escudoFe'],
   },
 };
-export const LUZ = ['davi', 'sansao', 'debora', 'gideao'];
+export const LUZ = ['davi', 'sansao', 'debora', 'gideao', 'josue', 'elias'];
 export const TREVAS = ['golias', 'farao', 'jezabel', 'nabuco'];
 
 // ---------- itens ----------

@@ -11,7 +11,20 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import './style.css';
 import { iniciarExtras, atualizarExtras, aplicarFogVisual, porSentinela, botSentinela, desenharExtrasMM, monstroAbatidoPor, bonusFim, heroisDoDia, missaoDoDia, FOG_ON, TREINO, EX, SENT } from './extras.js';
-import { criarMundo, carregarTexturas, POS, laneZ, LANE, texBrilho, PROP_TORRE } from './world.js';
+import { criarMundo, carregarTexturas, POS, laneZ, LANE, texBrilho, PROP_TORRE, MAPA_5V5, MAPA_V2 } from './world.js';
+import { mapaV2, layoutBase, derrubarPortao, MURO_N, MURO_ABRE } from './mapa_v2.js';
+const PORTOES = {}; let LAY = null; // mapa v2: portões destrutíveis e muralhas
+// ---- prévia 5v5 com 3 rotas (?rotas=3): Barão (topo), Meio e Dragão (baixo), torres e tropas em cada rota ----
+const ROTAS3 = MAPA_5V5;
+const ROTAS_L = { barao: null, dragao: null }; // pontos da estrada da Luz até as Trevas
+function rotaPara(h) { return h.funcao === 'barao' ? ROTAS_L.barao : h.funcao === 'atirador' || h.funcao === 'suporte' ? ROTAS_L.dragao : null; }
+// ponto da rota a 'k' metros do ponto mais próximo de p (k > 0 = rumo ao inimigo do time)
+function andarNaRota(R, p, time, k) { // projeta p no trecho mais próximo e anda k metros pela estrada (k > 0 = rumo ao inimigo)
+  let mi = 0, mt = 0, md = 1e9; for (let i = 0; i < R.length - 1; i++) { const a = R[i], b = R[i + 1]; const vx = b.x - a.x, vz = b.z - a.z, L2 = vx * vx + vz * vz || 1; const t = Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.z - a.z) * vz) / L2)); const x = a.x + vx * t - p.x, z = a.z + vz * t - p.z, d = x * x + z * z; if (d < md) { md = d; mi = i; mt = t; } }
+  const fw = (time === 'luz') === (k > 0); let resto = Math.abs(k); let i = mi, t = mt;
+  while (true) { const a = R[i], b = R[i + 1], L = a.distanceTo(b) || 1e-3; if (fw) { const sobra = (1 - t) * L; if (resto <= sobra || i + 1 >= R.length - 1) { return a.clone().lerp(b, Math.min(1, t + resto / L)); } resto -= sobra; i++; t = 0; } else { const sobra = t * L; if (resto <= sobra || i <= 0) { return a.clone().lerp(b, Math.max(0, t - resto / L)); } resto -= sobra; i--; t = 1; } }
+}
+function progressoRota(R, p, time) { let mi = 0, md = 1e9; for (let i = 0; i < R.length; i++) { const d = R[i].distanceToSquared(p); if (d < md) { md = d; mi = i; } } return time === 'luz' ? mi : R.length - 1 - mi; }
 import { SELVA_ON, SELVA_LARG, SELVA_SUL, empurrarCova, desvioCova, MAPA_WR, MAPA_C, MAPA_FOLGA, ROTA_TOPO, ROTA_BAIXO, TORRES_LATERAIS, POCO_XZ, DRAG_XZ } from './selva_mapa.js';
 import { iniciarSelva, atualizarSelva, monstroMorreu, multDano, aoAtacar, aoCriarMinion, botSelva, botUsarOlho, desenharSelvaMM, invocarBeemote, ping, PINGS, selva as SELVA, nascerTudo } from './selva.js';
 import { Unidade, anelHeroi, auraSombra } from './units.js';
@@ -21,6 +34,7 @@ import { HEROIS, LUZ, TREVAS, ITENS, svg, custoEfetivo, fmtSt, CATS , FUNCOES, c
 // escolhe um herói pela rota (estilo Wild Rift); sem ninguém da rota, sorteia entre todos
 const porRota = (lista, rota) => { const r = lista.filter(x => HEROIS[x].rota === rota); const l = r.length ? r : lista; return l[Math.floor(Math.random() * l.length)]; };
 let filtroRota = '';
+const extras5 = [];
 import { Particulas, Aneis, colunaLuz, Textos } from './vfx.js';
 import { criarPoderes } from './poderes.js';
 import { som, destravarSom, ouvinteSom, somLigado, estadoSom } from './som.js';
@@ -43,7 +57,7 @@ let DIF_ID = DIFS[P.get('dif')] ? P.get('dif') : (DIFS[localStorage.getItem('mob
 // configurações do aparelho (menu da engrenagem)
 const CFG = { joyFixo: localStorage.getItem('mobaJoyFixo') === '1', tremor: localStorage.getItem('mobaTremor') !== '0', atkContinuo: localStorage.getItem('mobaAtkCont') !== '0', menorVida: localStorage.getItem('mobaMenorVida') === '1' };
 const TRIPO = P.get('modelos') !== 'antigos';   // modelos novos do Tripo (heróis da Luz); ?modelos=antigos volta aos Quaternius
-const TRIPO_IDS = ['davi', 'sansao', 'debora', 'gideao', 'golias', 'farao', 'jezabel', 'nabuco']; // heróis + vilões
+const TRIPO_IDS = ['davi', 'sansao', 'debora', 'gideao', 'golias', 'farao', 'jezabel', 'nabuco', 'josue', 'elias']; // heróis + vilões
 const TRIPO_MINIONS = ['guardiao', 'sombra'];
 const PROPS_TRIPO = ['torre_luz', 'torre_trevas', 'nucleo_luz', 'nucleo_trevas', 'fonte', 'arvore', 'arvore_lod1', 'arvore_lod2', 'pedra', 'pedra_lod1', 'coluna'];               // medição de desempenho headless: usa as mesmas otimizações do celular
 const mobile = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -155,13 +169,14 @@ let jogador = null, bot = null, aliado = null, cacador = null; let selvaIni = nu
 const estado = { luz: 0, trevas: 0, tempo: 0, fim: null, iniciado: false };
 
 const suportaWebp = () => new Promise(r => { const i = new Image(); i.onload = () => r(i.width === 1); i.onerror = () => r(false); i.src = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA'; });
+const VAR_BASE = { josue: 'sansao', elias: 'davi' }; // heróis novos só têm o modelo do Tripo: o boneco antigo (referência de escala) vem de um parecido
 async function iniciar() {
   if (TRIPO && !(await suportaWebp())) { const u = new URL(location.href); u.searchParams.set('modelos', 'antigos'); location.replace(u.toString()); return; }
   const [heroiG, heroiF, soldadoG, ...cabs] = await Promise.all(['heroi', 'heroi_f', 'soldado', ...CABELOS.map(c => 'cabelo_' + c)].map(carregar));
   const cabelos = Object.fromEntries(CABELOS.map((c, i) => [c, cabs[i]]));
   progTxt.textContent = 'Montando heróis e vilões…'; await esperar(10);
   clips = heroiG.animations;
-  for (const id of [...LUZ, ...TREVAS]) { BASES[id] = { cena: montarVariante(VISUAL[id].corpo === 'f' ? heroiF : heroiG, id, { cabelo: cabelos.simpleparted, cabelos }), clips }; }
+  for (const id of [...LUZ, ...TREVAS]) { BASES[id] = { cena: montarVariante(VISUAL[id].corpo === 'f' ? heroiF : heroiG, VAR_BASE[id] || id, { cabelo: cabelos.simpleparted, cabelos }), clips }; }
   if (TRIPO) {
     progTxt.textContent = 'Carregando os heróis (Tripo)…';
     const ids = TRIPO_IDS.filter(id => !(id === 'davi' && DAVI_GROK));
@@ -203,6 +218,7 @@ async function iniciar() {
   NOMES_PROPS.forEach((n, i) => { modelos[n] = props[i].scene; props[i].scene.traverse(o => { if (o.isMesh) { o.material.roughness = .85; } }); });
   progTxt.textContent = 'Carregando texturas…'; await carregarTexturas(Q);
   mundo = criarMundo(scene, modelos, Q, tempoU);
+  if (MAPA_V2) mapaV2(scene, loader, POS, MAPA_C, PORTOES).then(g => { window.__mapaV2 = g ? g.children.length : -1; });
   // limite de partículas (buffers fixos, sem alocação durante a partida)
   fx = new Particulas(scene, Q.baixa ? 420 : Q.mobile ? 600 : 1600, true);
   fxD = new Particulas(scene, Q.baixa ? 180 : Q.mobile ? 260 : 700, false);
@@ -231,7 +247,7 @@ async function iniciar() {
 // ================= vestes (skins): textura repintada só na roupa =================
 const texVestes = new Map();
 function carregarVeste(id, vid) {
-  const v = vesteDe(id, vid); if (!v) return Promise.resolve(null);
+  const v = vesteDe(id, vid); if (!v || !v.tex) return Promise.resolve(null);
   const k = id + ':' + vid; if (texVestes.has(k)) return texVestes.get(k);
   const pr = new THREE.TextureLoader().loadAsync(urlAbs(v.tex)).then(t => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Q.baixa ? 1 : 4; t.needsUpdate = true; return t; }).catch(e => { console.warn('[veste]', k, e && e.message); return null; });
   texVestes.set(k, pr); return pr;
@@ -247,14 +263,41 @@ function criarEstruturas() {
   const add = (time, tipo, g, o) => { const e = { time, tipo, obj: g, vivo: true, raio: g.userData.raio || 2.6, cd: 0, alcance: PROP_TORRE.alcance, alvoAnt: null, serie: 0, ...o }; e.maxHp = e.hp; criarBarra(e); estruturas.push(e); return e; };
   const tl1 = add('luz', 'torre', mundo.torreLuz, { hp: 2400 * HPE, nome: 'Torre Externa da Luz', ordem: 1, placas: 0 });
   const tl2 = add('luz', 'torre', mundo.torreLuz2, { hp: 2700 * HPE, nome: 'Torre Interna da Luz', ordem: 2, requer: [tl1] });
-  const tl3 = mundo.torreLuz3 ? add('luz', 'torre', mundo.torreLuz3, { hp: 2900 * HPE, nome: 'Torre da Base da Luz', ordem: 3, requer: [tl2] }) : null;
-  const nl = add('luz', 'nucleo', mundo.nucleoLuz, { hp: 3000 * HPE, nome: 'Núcleo da Luz', alcance: 0, requer: [tl1, tl2, tl3].filter(Boolean) });
+  if (MAPA_V2) { LAY = { luz: layoutBase(POS.baseLuz, POS.nucleoLuz), trevas: layoutBase(POS.baseTrevas, POS.nucleoTrevas) }; // torre da base fica DENTRO da muralha, ao lado do caminho portão -> Núcleo (ordem: externas -> portão -> torre de dentro -> Núcleo)
+    for (const [T, t] of [['luz', mundo.torreLuz3], ['trevas', mundo.torreTrevas3]]) if (t) { const L = LAY[T]; t.position.copy(L.centro).addScaledVector(L.f, L.R - 6).add(new THREE.Vector3(L.f.z, 0, -L.f.x).multiplyScalar(7)); t.position.y = 0; } }
+  const portao = (time, req) => { const L = LAY[time]; const g = new THREE.Group(); g.position.copy(L.portao); g.userData.topo = 8.5; g.userData.raio = 3.4; scene.add(g); PORTOES[time] = g; return add(time, 'torre', g, { hp: 2900 * HPE, nome: `Portão de Jerusalém ${time === 'luz' ? 'da Luz' : 'das Trevas'}`, ordem: 3, requer: [req], alcance: 0, portao: true, raio: 3.4 }); };
+  const dentro = (time, g, req) => g ? add(time, 'torre', g, { hp: 2900 * HPE, nome: `Torre do Santuário ${time === 'luz' ? 'da Luz' : 'das Trevas'}`, ordem: 3, requer: [req], dentroMuralha: true }) : req;
+  const tl3 = MAPA_V2 ? dentro('luz', mundo.torreLuz3, portao('luz', tl2)) : mundo.torreLuz3 ? add('luz', 'torre', mundo.torreLuz3, { hp: 2900 * HPE, nome: 'Torre da Base da Luz', ordem: 3, requer: [tl2] }) : null;
+  const nl = add('luz', 'nucleo', mundo.nucleoLuz, { hp: 3000 * HPE, nome: 'Núcleo da Luz', alcance: 0, requer: [tl1, tl2, tl3, ...estruturas.filter(e => e.portao && e.time === 'luz')].filter(Boolean) });
   const tt1 = add('trevas', 'torre', mundo.torreTrevas, { hp: 2400 * HPE, nome: 'Torre Externa das Trevas', ordem: 1, placas: 0 });
   const tt2 = add('trevas', 'torre', mundo.torreTrevas2, { hp: 2700 * HPE, nome: 'Torre Interna das Trevas', ordem: 2, requer: [tt1] });
-  const tt3 = mundo.torreTrevas3 ? add('trevas', 'torre', mundo.torreTrevas3, { hp: 2900 * HPE, nome: 'Torre da Base das Trevas', ordem: 3, requer: [tt2] }) : null;
-  const nt = add('trevas', 'nucleo', mundo.nucleoTrevas, { hp: 3000 * HPE, nome: 'Núcleo das Trevas', alcance: 0, requer: [tt1, tt2, tt3].filter(Boolean) });
+  const tt3 = MAPA_V2 ? dentro('trevas', mundo.torreTrevas3, portao('trevas', tt2)) : mundo.torreTrevas3 ? add('trevas', 'torre', mundo.torreTrevas3, { hp: 2900 * HPE, nome: 'Torre da Base das Trevas', ordem: 3, requer: [tt2] }) : null;
+  const nt = add('trevas', 'nucleo', mundo.nucleoTrevas, { hp: 3000 * HPE, nome: 'Núcleo das Trevas', alcance: 0, requer: [tt1, tt2, tt3, ...estruturas.filter(e => e.portao && e.time === 'trevas')].filter(Boolean) });
   nl.obj.userData.raio = 3.2; nt.obj.userData.raio = 3.2;
-  for (const e of estruturas) if (e.tipo === 'torre') criarAnelTorre(e); prepararRuinas();
+  if (ROTAS3) {
+    const den = (pl) => { const out = []; for (let i = 0; i < pl.length - 1; i++) { const [ax, az] = pl[i], [bx, bz] = pl[i + 1]; const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 3)); for (let k = 0; k < n; k++) out.push(new THREE.Vector3(ax + (bx - ax) * k / n, 0, az + (bz - az) * k / n)); } const u = pl[pl.length - 1]; out.push(new THREE.Vector3(u[0], 0, u[1])); return out; };
+    const gL = LAY ? [LAY.luz.portao.clone()] : [], gT = LAY ? [LAY.trevas.portao.clone()] : [];
+    const fora = (v) => !LAY || ['luz', 'trevas'].every(T => Math.hypot(v.x - LAY[T].centro.x, v.z - LAY[T].centro.z) > LAY[T].R + 3); // no mapa v2 a estrada lateral começa do lado de fora da muralha
+    const sai = (T) => LAY ? [LAY[T].centro.clone().addScaledVector(LAY[T].f, LAY[T].R + 4)] : [];
+    // mapa v2: a estrada lateral chega no trecho de muralha virado para ela (não vai até o portão); as tropas nascem do lado de fora
+    const ent = (T, q) => { const L = LAY[T]; const d = new THREE.Vector3(q.x - L.centro.x, 0, q.z - L.centro.z).normalize(); return L.centro.clone().addScaledVector(d, L.R + 3); };
+    const montar = (pl) => { const m = den(pl).filter(fora); if (!LAY) return [POS.nucleoLuz.clone(), ...m, POS.nucleoTrevas.clone()]; const eL = ent('luz', m[0]), eT = ent('trevas', m[m.length - 1]); const R = [POS.nucleoLuz.clone(), eL, ...m, eT, POS.nucleoTrevas.clone()]; R.ent = { luz: eL, trevas: eT }; return R; };
+    ROTAS_L.barao = montar(ROTA_TOPO); ROTAS_L.dragao = montar(ROTA_BAIXO);
+    const nomeR = ['Barão', 'Dragão'], nomeO = ['da Base', 'Interna', 'Externa'];
+    for (let r = 0; r < 2; r++) for (const time of ['luz', 'trevas']) {
+      const ts = TORRES_LATERAIS.slice(r * 6, r * 6 + 6).filter(t => t[2] === time); let ant = null; const cadeia = [];
+      for (let o = 2; o >= 0; o--) { const [x, z] = ts[o]; const g = (time === 'luz' ? mundo.torreLuz : mundo.torreTrevas).clone(true); g.position.set(x, 0, z); scene.add(g);
+        const e = add(time, 'torre', g, { hp: [2900, 2700, 2400][o] * HPE, nome: `Torre ${nomeO[o]} ${time === 'luz' ? 'da Luz' : 'das Trevas'} (${nomeR[r]})`, ordem: 3 - o, rota: r ? 'dragao' : 'barao', requer: ant ? [ant] : undefined }); ant = e; cadeia.push(e); }
+    }
+  }
+  if (ROTAS3 && LAY) for (const g of estruturas.filter(e => e.portao)) { g.requerUm = [...g.requer, ...estruturas.filter(e => e.time === g.time && e.rota && e.ordem === 3)]; g.requer = []; } // portão: cai a última torre de QUALQUER rota
+  if (LAY) for (const G of estruturas.filter(e => e.portao)) { // a VIDA é da muralha inteira: 18 trechos (o portão é só um deles, decorativo) dividem um só HP e uma só barra
+    const T = G.time, L = LAY[T]; G.nome = `Muralha de Jerusalém ${T === 'luz' ? 'da Luz' : 'das Trevas'}`;
+    for (let i = 1; i < MURO_N; i++) { const a = L.ang + i / MURO_N * Math.PI * 2; const o = new THREE.Group(); o.position.set(L.centro.x + Math.sin(a) * (L.R + .4), 0, L.centro.z + Math.cos(a) * (L.R + .4)); o.userData.raio = 2.7; scene.add(o);
+      const sec = { time: T, tipo: 'torre', obj: o, raio: 2.7, cd: 0, alcance: 0, portao: true, secao: true, dono: G, nome: G.nome, ordem: 3, alvoAnt: null, serie: 0 };
+      for (const k of ['hp', 'maxHp', 'vivo', 'flash', 'requer', 'requerUm']) Object.defineProperty(sec, k, { get: () => G[k], set: (v) => { G[k] = v; }, enumerable: true });
+      estruturas.push(sec); } }
+  for (const e of estruturas) if (e.tipo === 'torre' && !e.portao) criarAnelTorre(e); prepararRuinas();
 }
 // círculo de alcance da torre (como no WR): aparece quando o seu herói chega perto; fica mais forte dentro do alcance
 // e pulsa quando a torre está mirando em você
@@ -283,7 +326,7 @@ function atualizarAneisTorre(dt) {
     A.mat.opacity = A.op * (mira ? .75 + .25 * Math.sin(t * 14) : 1); A.matD.opacity = A.op * (mira ? .16 : .07);
   }
 }
-const protegida = (e) => e.requer && e.requer.some(r => r.vivo);
+const protegida = (e) => (e.requer && e.requer.some(r => r.vivo)) || (e.requerUm && e.requerUm.every(r => r.vivo)); // requerUm: basta UMA cair (portão no 5v5: qualquer rota aberta)
 const FONTE = { luz: POS.baseLuz, trevas: POS.baseTrevas };
 const NUCLEO = { luz: POS.nucleoLuz, trevas: POS.nucleoTrevas };
 const naFonte = (h, r = 8.5) => h.obj.position.distanceTo(FONTE[h.time]) < r;
@@ -335,7 +378,8 @@ function aliasTripo(anims, clipsRef, d, escMundo, rest) {
   const acha = (n) => anims.find(a => a.name.split('.')[0] === n);
   const semRaiz = (c, manterY = true) => { for (const t of c.tracks) if (/Hips\.position$/.test(t.name)) { const v = t.values, x0 = rest ? rest.x : v[0], z0 = rest ? rest.z : v[2]; for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i + 2] = z0; if (!manterY) v[i + 1] = v[1]; } } return c; };
   const trecho = (c, nome, t0, t1, fator) => { const fps = 24; const k = THREE.AnimationUtils.subclip(c, nome, Math.round(t0 * fps), Math.round(t1 * fps), fps); semRaiz(k); if (fator !== 1) { for (const t of k.tracks) t.scale(fator); k.resetDuration(); } return k; };
-  const idle = acha('idle'), run = acha('run'), slash = acha('slash'), fall = acha('fall');
+  // nomes antigos (idle/run/slash/fall) ou novos (attack/cast/hit/death): o 'attack' novo é o mesmo combo de 6,6 s do 'slash'
+  const idle = acha('idle'), run = acha('run'), slash = acha('slash') || acha('attack'), fall = acha('fall') || acha('death'), hit = acha('hit'), cast = acha('cast');
   // velocidade da raiz no run original (m/s no modelo) -> em unidades do mundo
   let vRaiz = 2.17; if (run) { const tr = run.tracks.find(t => /Hips\.position$/.test(t.name)); if (tr) { const v = tr.values, n = v.length / 3; vRaiz = Math.abs(v[(n - 1) * 3 + 2] - v[2]) / (tr.times[n - 1] - tr.times[0]) || 2.17; } }
   const vMundo = vRaiz * escMundo; const A = d.anim;
@@ -347,11 +391,13 @@ function aliasTripo(anims, clipsRef, d, escMundo, rest) {
   const fAtk = ((A.atrasoAtaque || .25) * (A.velAtaque || 1)) / (GOLPE1[2] - GOLPE1[0]);
   const cAtk = slash ? trecho(slash, 'atk', GOLPE1[0], GOLPE1[1], fAtk) : null;
   const cCast = slash ? trecho(slash, 'cast', GOLPE2[0], GOLPE2[1], .28 / (GOLPE2[2] - GOLPE2[0])) : null;
-  const cMorte = fall ? semRaiz(fall.clone()) : null;
+  const cMorte = fall ? semRaiz(fall.clone()) : null; const cHit = hit ? semRaiz(hit.clone()) : null;
+  // cast próprio (5,4 s): usa o trecho do meio, acelerado (só se o herói não tiver o slash antigo para o cast)
+  const cCast2 = !acha('slash') && cast ? trecho(cast, 'cast', cast.duration * .3, cast.duration * .55, .5 / (cast.duration * .25)) : null;
   const nomes = new Set([...clipsRef.map(c => c.name), A.idle, A.correr, A.ataque, A.morte]);
   for (const n of nomes) {
     if (n === A.ataque) add(cAtk, n); else if (n === A.correr) add(cRun, n); else if (n === A.idle || /Idle/.test(n)) add(cIdle, n);
-    else if (/Death/.test(n)) add(cMorte, n); else if (/Jog|Sprint|Walk|Run|Roll|Dash/.test(n)) add(cRun, n); else if (/Hit/.test(n)) add(cIdle, n); else add(cCast, n);
+    else if (/Death/.test(n)) add(cMorte, n); else if (/Jog|Sprint|Walk|Run|Roll|Dash/.test(n)) add(cRun, n); else if (/Hit/.test(n)) add(cHit || cIdle, n); else add(cCast2 || cCast, n);
   }
   return out;
 }
@@ -394,6 +440,7 @@ function novoMinion(time, x, z, bruto = false) {
 function onda(time, n = 4) {
   const s = time === 'luz' ? 1 : -1; const x0 = NUCLEO[time].x + s * 4.5;
   for (let i = 0; i < n; i++) { const x = x0 - s * Math.floor(i / 2) * 1.8, off = (i % 2 ? 1 : -1) * 1.1; novoMinion(time, x, laneZ(x) + off, i === n - 1); }
+  if (ROTAS3) for (const R of [ROTAS_L.barao, ROTAS_L.dragao]) for (let i = 0; i < n; i++) { const p = R.ent ? andarNaRota(R, R.ent[time], time, 2.5 - Math.floor(i / 2) * 1.8) : andarNaRota(R, NUCLEO[time], time, 6 - Math.floor(i / 2) * 1.8); const u = novoMinion(time, p.x + (i % 2 ? 1 : -1) * .9, p.z + (i % 2 ? .6 : -.6), i === n - 1); u.rota = R; }
 }
 function iniciarStatus(u) { u.lento = 0; u.lentoT = 0; u.atord = 0; u.escudos = []; u.dots = []; u.buffs = []; u.invis = 0; u.provoc = null; u.combateT = 99; u.vooT = 0; u.voo = 0; u.vooH = 0; u.medo = null; u.encanto = null; u.raiz = 0; u.empurrao = null; u.imparavel = 0; u.confuso = null; u.corrente = null; u.cego = 0; u.antiCura = null; u.silencio = 0; u.aterrado = 0; u.jaula = null; }
 
@@ -434,7 +481,7 @@ const intervaloAtaque = (h) => h.def.base.cad / (1 + h.st.as + buff(h, 'as'));
 const _olhar = new THREE.Vector3();
 const velocidade = (u) => { const ms = (u.st && u.st.ms !== undefined ? u.st.ms : 0) + (u.velo === 'seco' ? .06 + .02 * ((u.hab && u.hab.e && u.hab.e.nv) || 1) : 0); return u.vel * (1 + ms + buff(u, 'ms')) * (1 - u.lento); };
 const veloArm = (u) => u.velo === 'molhado' ? 12 + 4 * ((u.hab && u.hab.e && u.hab.e.nv) || 1) : 0; // Gideão: velo molhado = +armadura/RM
-const arm = (u) => (u.st ? u.st.arm : 15) + buff(u, 'arm') + veloArm(u);
+const arm = (u) => (u.st ? u.st.arm : 15) + buff(u, 'arm') + veloArm(u) - (u.marcha && u.marcha.t > estado.tempo ? u.marcha.v : 0); // Josué: Marcha de Sete Dias
 const rmag = (u) => (u.st ? u.st.rm : 15) + buff(u, 'arm') + buff(u, 'rm') + veloArm(u) + (u.id === 'farao' ? 4 * (u.coracao || 0) : 0);
 const XP_NIVEL = (n) => MODO2 ? 190 + 130 * (n - 1) : 100 + 60 * (n - 1); // 2v2 com selva: curva mais lenta (nível 11–13 aos 15 min)
 function darXp(h, v) {
@@ -481,6 +528,7 @@ function mitigar(fonte, alvo, valor, o = {}) {
   if (fonte && fonte.tipo === 'heroi') {
     if (o.hab && fonte.id === 'jezabel' && alvo.hp < alvo.maxHp * .5) v *= 1.25;
     if (fonte.itens.includes('espadaGolias') && alvo.maxHp > fonte.maxHp) v *= 1.08;
+    if (fonte.auraDanoT > estado.tempo) v *= 1 + fonte.auraDanoV; // Josué W
   }
   return v;
 }
@@ -493,7 +541,7 @@ function medirDano(f, a) {
 }
 function danificar(fonte, alvo, valor, o = {}) {
   if (!alvo || !alvo.vivo || estado.fim) return false;
-  if (alvo.invulneravel) return false;
+  if (alvo.invulneravel || alvo.estase > 0) return false; // Elias E: intocável
   if (fonte && (fonte.tipo === 'heroi' || fonte.tipo === 'minion') && (alvo.time === 'luz' || alvo.time === 'trevas')) { fonte.revelado = estado.tempo + 1.2; fonte.revelaPara = alvo.time; } // quem ataca aparece para o time atacado (mesmo na moita)
   if (SELVA_ON) valor *= multDano(fonte);
   if (alvo.tipo === 'torre' || alvo.tipo === 'nucleo') return danoEstrutura(fonte, alvo, valor);
@@ -514,6 +562,7 @@ function danificar(fonte, alvo, valor, o = {}) {
     if (alvo.tipo === 'heroi') { alvo.ultimoAgressor = fonte; alvo.agressorT = estado.tempo; fonte.agrediuHeroiT = estado.tempo; }
     if (o.ataque && fonte.st.ls) curarU(fonte, v * fonte.st.ls, false);
     if (o.cura) curarU(fonte, v * o.cura, true);
+    if (o.hab && fonte.id === 'elias' && alvo.tipo === 'heroi') fonte.mana = Math.min(fonte.manaMax, fonte.mana + 12 + 2 * fonte.nivel); // Corvos de Querite
     if (o.hab && fonte.id === 'debora' && alvo.tipo === 'heroi' && fonte.cdPassiva <= 0) { fonte.cdPassiva = 8; darEscudo(fonte, 60 + 4 * fonte.nivel, 3); }
     if (o.hab && fonte.itens.includes('cetroEster')) aplicarLento(alvo, .1, 1);
   }
@@ -533,6 +582,7 @@ function danificar(fonte, alvo, valor, o = {}) {
 // cerco tardio: acelera um pouco o fim da partida. Antes não tinha teto (x4 aos 12 min, x10 aos 15) e as torres caíam num golpe
 const muralhas = () => 1 + Math.min(.6, Math.max(0, (estado.tempo - 420) / 60) * .1);
 function danoEstrutura(fonte, e, valor) {
+  const ponto = e.obj; if (e.secao) { e.dono.ancora = e.obj; e.dono.ancoraT = estado.tempo + 4; e = e.dono; } // trecho da muralha: dano vai para o HP único; a barra vai para o trecho atingido
   if (!e.vivo || protegida(e)) { if (fonte === jogador && protegida(e)) aviso(e.tipo === 'nucleo' ? 'Destrua as torres antes do Núcleo' : 'Destrua a torre externa primeiro', true); return false; }
   // fortificação (estilo WR): até 4:00 as torres recebem 45% menos dano de heróis; de 4:00 a 5:00 o bônus some aos poucos
   const fort = fonte && fonte.tipo === 'heroi' && e.tipo === 'torre' ? 1 - .45 * Math.min(1, Math.max(0, (300 - estado.tempo) / 60)) : 1;
@@ -542,7 +592,7 @@ function danoEstrutura(fonte, e, valor) {
     const n = Math.min(4, Math.floor((1 - Math.max(0, e.hp) / e.maxHp) / .2));
     while (e.placas < n) { e.placas++; for (const h of herois) if (h.vivo && h.time !== e.time && h.obj.position.distanceTo(e.obj.position) < 13) { ganharOuro(h, 40, e.obj.position.clone().setY(3)); if (h === jogador) textoInfo(h, 'Placa da torre!'); } }
   }
-  if (fonte === jogador) textos.add(e.obj.position.clone().setY(2), '' + v, '');
+  if (fonte === jogador) textos.add(ponto.position.clone().setY(2), '' + v, '');
   if (e.hp <= 0) { e.hp = 0; destruirEstrutura(e, fonte); return true; }
   return false;
 }
@@ -612,7 +662,9 @@ const RUINA = new Map();
 function matRuina(m, k, ke = 1) { const ch = m.uuid + k; let r = RUINA.get(ch); if (!r) { r = m.clone(); r.color.multiplyScalar(k); if (r.emissive) r.emissive.multiplyScalar(ke); RUINA.set(ch, r); } return r; }
 function prepararRuinas() { for (const e of estruturas) e.obj.traverse(o => { if (!o.isMesh || !o.material || !o.material.color) return; matRuina(o.material, .5); matRuina(o.material, .45, .2); }); }
 function destruirEstrutura(e, fonte) {
+  if (e.secao) e = e.dono;
   e.vivo = false; tremer(.6);
+  if (e.portao) { derrubarPortao(e.time, e, POS, fxD, agendar, efeitos); estado.portaoCaiuT = estado.tempo; if (LAY) LAY[e.time].aberta = true; aviso(e.nome + ' desabou! A base está aberta por todos os lados'); }
   const p = e.obj.position; const cor = e.time === 'luz' ? [.6, .85, 1] : [1, .25, .35];
   for (let k = 0; k < 90; k++) { const a = Math.random() * 6.28, s = 3 + Math.random() * 9; fx.emit(p.x, 2 + Math.random() * 5, p.z, { vel: [Math.cos(a) * s, 2 + Math.random() * 8, Math.sin(a) * s], cor, vida: 1 + Math.random(), t0: .7, t1: 0, grav: 9, drag: 1 }); }
   for (let k = 0; k < 40; k++) fxD.emit(p.x + (Math.random() - .5) * 4, 1 + Math.random() * 3, p.z + (Math.random() - .5) * 4, { vel: [(Math.random() - .5) * 3, 1 + Math.random() * 2, (Math.random() - .5) * 3], cor: [.35, .3, .28], vida: 2.2, t0: 1.5, t1: 4, alpha: .7 });
@@ -747,6 +799,7 @@ function atacar(h) {
     let lento = 0;
     if (h.id === 'davi') { h.contAtaque++; if (h.contAtaque % 4 === 0) { dano *= crit ? 1.2 : 1.8; crit = true; lento = .3; } }
     if (h.id === 'sansao') dano *= 1 + .4 * (1 - h.hp / h.maxHp);
+    if (h.id === 'josue' && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') { h.marchaN = h.marchaAlvo === alvo && alvo.marcha && alvo.marcha.t > estado.tempo ? Math.min(7, h.marchaN + 1) : 1; h.marchaAlvo = alvo; alvo.marcha = { v: 4 * h.marchaN, t: estado.tempo + 3 }; }
     if (h.proxBonus) { dano *= 1 + h.proxBonus; h.proxBonus = 0; }
     if (h.gideaoBonus) { dano += 55 + .6 * h.st.ad; h.gideaoBonus = false; }
     if (h.proxMag) { mag += h.proxMag; h.proxMag = 0; }
@@ -772,12 +825,13 @@ const ESC_RANK = [1, 1.14, 1.34, 1.6, 1.9], ESC_RANK_R = [1, 1.4, 1.8], K_AP = 1
 const multRank = (h, d, nv) => (d === h.def.hab.r ? ESC_RANK_R : ESC_RANK)[Math.max(0, nv - 1)] || 1;
 function valorHab(h, d, nv) { const escV = d.esc === 'ap' ? h.st.ap * K_AP : d.esc === 'adb' ? h.st.ad - h.st.adBase : h.st.ad; return (d.dano ? d.dano[nv - 1] * multRank(h, d, nv) : 0) + (d.k || 0) * escV + (d.kAd || 0) * h.st.ad + (d.kHp || 0) * h.maxHp; }
 function acertarHab(h, u, d, nv, dano, extra = {}) {
-  if (!u.vivo) return;
+  if (!u.vivo || u.estase > 0) return;
   let v = dano;
   if (d.antiGigante && u.maxHp > h.maxHp) v *= 1 + d.antiGigante;
   if (d.kHpAlvo) v += d.kHpAlvo[Math.min(d.kHpAlvo.length, nv) - 1] * Math.min(u.maxHp, u.tipo === 'heroi' ? 1e9 : 2500); // Davi R: % da vida máxima do alvo
   if (d.kPerdida) v += d.kPerdida * (u.maxHp - u.hp);
   if (u.tipo === 'torre' || u.tipo === 'nucleo') return;
+  if (d.quebraEscudo && u.escudos && u.escudos.length) { u.escudos = []; if (u.tipo === 'heroi') textoInfo(u, 'Escudo destruído!'); }
   danificar(h, u, v, { mag: d.mag, hab: true, cura: d.rouba, ult: d === h.def.hab.r });
   if (!u.vivo) return;
   if (u.tipo === 'heroi' && h.stats && (d.lento || d.atordoa || d.raiz || d.medo || d.encanta || d.arremessa || d.provoca || d.atordoaLonge || d.confunde || d.corrente || d.cega || d.silencia || (d.aterra && extra.ultimo))) h.stats.controles++;
@@ -797,6 +851,7 @@ function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (d.silencia && u.tipo === 'heroi') silenciar(u, d.silencia);
   if (d.antiCura) u.antiCura = { v: d.antiCura[0], t: d.antiCura[1] };
   if (d.aterra && extra.ultimo) aterrar(u, d.aterra);
+  if (d.congelaCd && u.tipo === 'heroi' && !imune(u)) { u.cdCongelado = d.congelaCd; textoInfo(u, 'Recargas congeladas!'); }
   if (d.asPorAcerto && h.buffs.filter(b => b.queixada).length < 5) h.buffs.push({ tipo: 'as', v: d.asPorAcerto, t: 3, queixada: true });
   if (d.atordoaLonge && extra.frac !== undefined && extra.frac >= d.atordoaLonge[1]) { atordoar(u, d.atordoaLonge[0]); aneis.add(u.obj.position, new THREE.Color(1, .9, .4), .3, 2.2, .5); if (h === jogador) aviso('Tiro Certeiro! Atordoou'); }
 }
@@ -851,6 +906,7 @@ function usarHab(h, k) {
       const rr = n > 2 ? d.raio * .55 : d.raio;
       if (!PZ.area(d, c, rr, h, i)) visualArea(d.visual, c, rr, cor, h);
       for (const u of inimigosEm(c, h.time, rr)) acertarHab(h, u, d, nv, dano, { semAtordoar: n > 1 && i > 0, centro: c, ultimo: i === n - 1 });
+      if (d.danoTorre) { const ja = new Set(); for (const e of estruturas) { if (!e.vivo || e.time === h.time || protegida(e) || e.obj.position.distanceTo(c) > rr + e.raio) continue; const dono = e.dono || e; if (ja.has(dono)) continue; ja.add(dono); danificar(h, e, dano * d.danoTorre); } }
     });
     if (d.visual === 'coluna') ultColuna(centro);
   } else if (T === 'zona') {
@@ -871,11 +927,11 @@ function usarHab(h, k) {
       }
       if (e.t >= e.vida) { if (vis) scene.remove(vis); return false; } return true; } });
   } else if (T === 'dash') {
-    let dir = m.dir.clone(); let dist = d.dist;
+    let dir = m.dir.clone(); let dist = d.dist; const inicioDash = h.obj.position.clone();
     if (d.paraAlvo && m.alvo) { const dd = m.alvo.obj.position.distanceTo(h.obj.position); if (dd < d.dist + 2) dist = Math.max(1, dd - (d.blink ? -1.4 : 1)); }
     else if (h.ctrl.len > .2) dir = new THREE.Vector3(h.ctrl.x, 0, h.ctrl.y).normalize();
     h.obj.rotation.y = Math.atan2(dir.x, dir.z);
-    const fim = () => { PZ.dashFim(h, d); if (!h.vivo) return; if (d.danoFim) { const c = h.obj.position.clone(); if (!PZ.area(d, c, d.raioFim, h, 0)) visualArea(d.visualFim || 'golpe', c, d.raioFim, cor, h); for (const u of inimigosEm(c, h.time, d.raioFim)) acertarHab(h, u, { ...d, dano: d.danoFim }, nv, valorHab(h, { ...d, dano: d.danoFim }, nv), { centro: c }); } if (d.proxAtaque) h.proxBonus = d.proxAtaque; if (d.blink && m.alvo) h.olharPara(m.alvo.obj.position, 1, 1); };
+    const fim = () => { PZ.dashFim(h, d); if (!h.vivo) return; if (d.danoFim) { const c = h.obj.position.clone(); if (!PZ.area(d, c, d.raioFim, h, 0)) visualArea(d.visualFim || 'golpe', c, d.raioFim, cor, h); for (const u of inimigosEm(c, h.time, d.raioFim)) acertarHab(h, u, { ...d, dano: d.danoFim }, nv, valorHab(h, { ...d, dano: d.danoFim }, nv), { centro: c }); } if (d.proxAtaque) h.proxBonus = d.proxAtaque; if (d.muroPedras) muroPedras(inicioDash, dir, d.muroPedras); if (d.blink && m.alvo) h.olharPara(m.alvo.obj.position, 1, 1); };
     if (d.blink) { const a = h.obj.position.clone(); h.obj.position.addScaledVector(dir, dist); limitar(h.obj.position); if (!PZ.blink(h, d, a, h.obj.position.clone())) for (const p of [a, h.obj.position]) { for (let j = 0; j < 20; j++) fx.emit(p.x, 1 + Math.random(), p.z, { vel: [(Math.random() - .5) * 5, (Math.random() - .5) * 5, (Math.random() - .5) * 5], cor: [.6, .3, .9], vida: .45, t0: .6, t1: 0 }); } fim(); }
     else h.dash = { dir, t: dist / d.vel, vel: d.vel, fim, d };
   } else if (T === 'buff') {
@@ -888,6 +944,10 @@ function usarHab(h, k) {
     if (d.imparavel) { h.imparavel = d.imparavel; h.atord = 0; h.medo = null; h.encanto = null; h.confuso = null; h.raiz = 0; h.provoc = null; h.corrente = null; h.jaula = null; h.lento = 0; h.lentoT = 0; textoInfo(h, 'Imparável!'); }
     if (d.postura) { h.velo = h.velo === 'molhado' ? 'seco' : 'molhado'; textoInfo(h, h.velo === 'molhado' ? 'Velo molhado: +defesa' : 'Velo seco: +velocidade'); if (h.velo === 'seco') h.buffs.push({ tipo: 'ms', v: .2, t: 1.5 }); else h.buffs.push({ tipo: 'arm', v: 15, t: 1.5 }); }
     if (d.invis) { h.invis = d.invis; h.buffs.push({ tipo: 'ms', v: 0, t: 0 }); for (const u of unidades) if (u.alvoU === h) u.alvoU = null; }
+    if (d.auraDano) for (const u of herois) if (u.vivo && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < (d.aliados || 8)) { u.auraDanoT = estado.tempo + d.auraDano[1]; u.auraDanoV = d.auraDano[0]; if (u !== h) aneis.add(u.obj.position, cor, .4, 1.8, .5); }
+    if (d.purifica) { let alvo = null, pior = 1; for (const u of herois) if (u.vivo && u !== h && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < d.purifica && u.hp / u.maxHp < pior) { pior = u.hp / u.maxHp; alvo = u; } if (!alvo || (controlado(h) && !controlado(alvo))) alvo = h;
+      limparControles(alvo); curarU(alvo, d.curaAlvo[nv - 1] + (d.kCura || 0) * h.st.ap, true, h); textoInfo(alvo, 'Purificado!'); aneis.add(alvo.obj.position, new THREE.Color(.7, 1, .8), .4, 2.4, .6); }
+    if (d.estase) { limparControles(h); h.estase = d.estase; h.dots = []; textoInfo(h, 'Na cova de Horebe'); aneis.add(h.obj.position, new THREE.Color(.8, .8, 1), .5, 2, d.estase); }
     if (d.proxAtaqueMag) h.proxMag = d.proxAtaqueMag[nv - 1] + .5 * h.st.ap;
     if (d.aliados) for (const u of unidades) if (u.vivo && u !== h && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < d.aliados) { if (d.escudoAliados) darEscudo(u, d.escudoAliados[nv - 1] + .3 * h.st.ap, 3); if (d.cura) curarU(u, (d.cura[nv - 1] + (d.kCura || 0) * escC) * .5, false); }
     if (PZ.buff(d, h)) { aneis.add(h.obj.position, cor, .5, 2.6, .6, .15, .6); return true; }
@@ -898,11 +958,12 @@ function usarHab(h, k) {
     const o = h.obj.position.clone(); const dir = m.dir.clone(); const t = d.atraso || .3;
     avisoLinha(o, dir, d.comp, d.larg, cor, t); PZ.linhaIni(d, o, dir, h, t);
     if (d.visual === 'colunas') for (let i = 0; i < 5; i++) { const pp = o.clone().addScaledVector(dir, 1.6 + i * (d.comp - 1.6) / 4); pp.x += dir.z * (i % 2 ? .7 : -.7); pp.z -= dir.x * (i % 2 ? .7 : -.7); agendar(t - .3 + i * .05, () => pedraCaindo(pp, true)); }
-    agendar(t, () => {
-      if (!h.vivo) return;
+    const nL = d.impactos || 1; if (d.canaliza) { h.travado = t + nL * (d.intervalo || 0); h.canalFogo = estado.tempo + h.travado; }
+    for (let i = 0; i < nL; i++) agendar(t + i * (d.intervalo || 0), () => {
+      if (!h.vivo || (d.canaliza && (controlado(h) || h.silencio > 0))) return; // canal interrompido por controle
       if (!PZ.linha(d, o, dir, d.comp, d.larg, h)) visualLinha(d.visual, o, dir, d.comp, d.larg, cor);
-      for (const u of inimigosEmLinha(o, dir, d.comp, d.larg, h.time)) acertarHab(h, u, d, nv, dano, { centro: o });
-      if (h === jogador) tremer(d.visual === 'colunas' ? .6 : .15);
+      for (const u of inimigosEmLinha(o, dir, d.comp, d.larg, h.time)) acertarHab(h, u, d, nv, dano, { centro: o, semAtordoar: i > 0 });
+      if (h === jogador) tremer(d.visual === 'colunas' ? .6 : nL > 1 ? .05 : .15);
     });
   } else if (T === 'invocar') {
     const f = frente(h); const lado = new THREE.Vector3(f.z, 0, -f.x);
@@ -1050,12 +1111,30 @@ let avisoT = 0; const avisoEl = document.getElementById('aviso');
 function aviso(txt, mal = false) { avisoEl.textContent = txt; avisoEl.className = 'on' + (mal ? ' mal' : ''); avisoT = 1.8; }
 
 // ================= inteligência do bot (herói inimigo) =================
+// mapa v2: quem precisa cruzar a muralha vai até o portão (pelo lado de cá) e atravessa
+function desvioMuralha(p, alvo, time) {
+  for (const T of ['luz', 'trevas']) { const L = LAY[T]; const dentro = (q) => Math.hypot(q.x - L.centro.x, q.z - L.centro.z) < L.R; if (dentro(p) === dentro(alvo) || L.aberta) continue;
+    if (time && time !== T && !dentro(p)) { const d = new THREE.Vector3(p.x - L.centro.x, 0, p.z - L.centro.z).normalize(); return L.centro.clone().addScaledVector(d, L.R + 2.2); } // inimigo: para no trecho de muralha mais perto (não dá a volta até o portão)
+    const lado = L.centro.clone().addScaledVector(L.f, L.R + (dentro(p) ? -2.6 : 2.6)), outro = L.centro.clone().addScaledVector(L.f, L.R + (dentro(p) ? 2.6 : -2.6));
+    return Math.hypot(p.x - lado.x, p.z - lado.z) > 2.2 ? lado : outro; }
+  return alvo;
+}
+// muralha bloqueia: ninguém fica na faixa do muro; o portão fechado só deixa passar quem é do time dele
+function muralhasV2() {
+  const passo = Math.PI * 2 / MURO_N;
+  for (const u of unidades) { if (!u.vivo || (u.tipo !== 'heroi' && u.tipo !== 'minion')) continue; const p = u.obj.position;
+    for (const T of ['luz', 'trevas']) { const L = LAY[T]; if (L.aberta) continue; const dx = p.x - L.centro.x, dz = p.z - L.centro.z, d = Math.hypot(dx, dz); const fx = 1.3 + u.raio * .5; if (Math.abs(d - L.R) > fx) continue;
+      let da = Math.atan2(dx, dz) - L.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); const g = estruturas.find(e => e.portao && e.time === T);
+      const aberto = Math.abs(da) < L.meiaAbertura ? (!g || !g.vivo || u.time === T) : (g && !g.vivo && Math.abs(da) < (MURO_ABRE + .5) * passo);
+      if (aberto) continue; const r = d < L.R ? L.R - fx : L.R + fx; p.x = L.centro.x + dx / (d || 1) * r; p.z = L.centro.z + dz / (d || 1) * r; } }
+}
 function mover2(h, alvo) {
   if (SELVA_ON) alvo = desvioCova(h.obj.position, alvo);
+  if (LAY) alvo = desvioMuralha(h.obj.position, alvo, h.time);
   const p = h.obj.position; let dx = alvo.x - p.x, dz = alvo.z - p.z; const L = Math.hypot(dx, dz); if (L < .4) { h.ctrl.len = 0; return; } dx /= L; dz /= L;
   // desvia de estruturas no caminho (Núcleo, torres) em vez de travar nelas
   for (const e of estruturas) {
-    if (!e.vivo) continue; const vx = e.obj.position.x - p.x, vz = e.obj.position.z - p.z; const ao = vx * dx + vz * dz;
+    if (!e.vivo || e.secao || (e.portao && e.time === h.time)) continue; const vx = e.obj.position.x - p.x, vz = e.obj.position.z - p.z; const ao = vx * dx + vz * dz;
     if (ao <= 0 || ao > Math.min(L, 7)) continue; const R = e.raio * .85 + h.raio * .5 + .7; const px = vx - ao * dx, pz = vz - ao * dz; const pd = Math.hypot(px, pz);
     if (pd < R) { let sx = -px, sz = -pz; if (pd < .05) { sx = -dz; sz = dx; } const sl = Math.hypot(sx, sz) || 1; const k = (R - pd) / R * 2.2; dx += sx / sl * k; dz += sz / sl * k; const n = Math.hypot(dx, dz); dx /= n; dz /= n; }
   }
@@ -1146,7 +1225,7 @@ function pensar(h, dt) {
   const pc = proximaPeca(h);
   if (!naFonte(h, 20) && h.combateT > 3 && ((dInim > 10 && (h.ouro >= pc + DIF.margem || (h.ouro >= pc && hpF < .55))) || (dInim > 7 && h.ouro >= pc + 900))) { h.recuando = true; recuar(h); return; }
   // frente da tropa aliada
-  const torresMinhas = estruturas.filter(e => e.time === h.time && e.vivo && e.tipo !== 'nucleo');
+  const torresMinhas = estruturas.filter(e => e.time === h.time && e.vivo && e.tipo !== 'nucleo' && !e.secao);
   let frenteX = torresMinhas.length ? torresMinhas.reduce((a, e) => s * e.obj.position.x > s * a ? e.obj.position.x : a, -s * 99) : NUCLEO[h.time].x;
   let nAliados = 0;
   for (const u of unidades) if (u.vivo && u.tipo === 'minion' && u.time === h.time) { nAliados++; if (s * (u.obj.position.x - frenteX) > 0) frenteX = u.obj.position.x; }
@@ -1158,7 +1237,8 @@ function pensar(h, dt) {
   const inimSobTorre = inim && estruturas.some(e => e.vivo && e.tipo === 'torre' && e.time !== h.time && e.obj.position.distanceTo(inim.obj.position) < e.alcance);
   // pressão: herói inimigo morto (ou fraco e longe) → empurra a rota em vez de ficar parado no meio
   const adv = herois.find(x => x.time !== h.time); const pressao = adv && (!adv.vivo || (visivelPara(adv, h.time) && adv.hp / adv.maxHp < .35 && dInim > 12)) && hpF > .45;
-  if (naTorre && (tanqueTorre === 0 || torre.alvoAnt === h) && !(inim && inimHp < .15)) { mover2(h, pos.clone().add(new THREE.Vector3(-s * 6, 0, 0)).setZ(laneZ(pos.x - s * 6))); return; }
+  const RL = ROTAS3 ? rotaPara(h) : null;
+  if (naTorre && (tanqueTorre === 0 || torre.alvoAnt === h) && !(inim && inimHp < .15)) { mover2(h, RL ? andarNaRota(RL, pos, h.time, -6) : pos.clone().add(new THREE.Vector3(-s * 6, 0, 0)).setZ(laneZ(pos.x - s * 6))); return; }
   // lutar contra o herói: placar de luta (vida, nível, habilidades prontas, torre) e chance de abate
   if (inim && (dInim < 10 || (dInim < 13 && inim.hp < inim.maxHp * .3))) {
     const L = avaliarLuta(h, inim, inimSobTorre, hpF, inimHp);
@@ -1215,6 +1295,13 @@ function pensar(h, dt) {
   }
   // derrubar estrutura quando as tropas aliadas estiverem tanqueando
   for (const e of estruturas) { if (!e.vivo || e.time === h.time || protegida(e)) continue; const d = e.obj.position.distanceTo(pos); if (d < 16 && (tanqueTorre > 0 || e.tipo === 'nucleo' || !estruturas.some(t => t.vivo && t.time !== h.time && t.tipo === 'torre' && t.obj.position.distanceTo(pos) < t.alcance + 1))) { h.forcarAlvo = e; if (d > h.alcance + e.raio) mover2(h, e.obj.position); else atacar(h); return; } }
+  if (RL) { // rota lateral: atrás da tropa aliada mais avançada desta rota; sem tropa, na torre mais avançada da rota
+    let melhorP = -1, ref = null; for (const u of unidades) if (u.vivo && u.tipo === 'minion' && u.time === h.time && u.rota === RL) { const pr = progressoRota(RL, u.obj.position, h.time); if (pr > melhorP) { melhorP = pr; ref = u.obj.position; } }
+    if (!ref) for (const e of estruturas) if (e.vivo && e.tipo === 'torre' && e.time === h.time && e.rota === (RL === ROTAS_L.barao ? 'barao' : 'dragao')) { const pr = progressoRota(RL, e.obj.position, h.time); if (pr > melhorP) { melhorP = pr; ref = e.obj.position; } }
+    const q = ref ? andarNaRota(RL, ref, h.time, h.def.distancia ? -4 : -2.5) : andarNaRota(RL, NUCLEO[h.time], h.time, 10);
+    if (h.funcao === 'suporte') { const adc = herois.find(a => a !== h && a.vivo && a.time === h.time && a.funcao === 'atirador'); if (adc) { mover2(h, adc.obj.position.clone().add(new THREE.Vector3(-s * 1.5, 0, 1.2))); return; } }
+    mover2(h, q); return;
+  }
   // posição: logo atrás da tropa aliada
   const alvoX = THREE.MathUtils.clamp(frenteX - s * (h.def.distancia ? 4 : 2.5), -56, 56);
   const p = new THREE.Vector3(alvoX, 0, laneZ(alvoX) + (h.def.distancia ? -1 : 1));
@@ -1251,7 +1338,8 @@ function atualizarStatus(u, dt) {
 function atualizarHeroi(h, dt) {
   if (!h.vivo) { h.morteT -= dt; if (h.morteT <= 0 && !estado.fim) renascer(h); return; }
   atualizarStatus(h, dt); if (!h.vivo) return;
-  for (const k of ['q', 'w', 'e', 'r']) h.hab[k].cd = Math.max(0, h.hab[k].cd - dt);
+  if (h.cdCongelado > 0) h.cdCongelado -= dt; else for (const k of ['q', 'w', 'e', 'r']) h.hab[k].cd = Math.max(0, h.hab[k].cd - dt); // Josué R congela as recargas
+  if (h.estase > 0) { h.estase -= dt; h.travado = Math.max(h.travado, .2); h.ctrl.len = 0; }
   h.feit.curar = Math.max(0, h.feit.curar - dt); h.feit.clarao = Math.max(0, h.feit.clarao - dt); h.cdPassiva = Math.max(0, h.cdPassiva - dt); h.cdEscudoFe = Math.max(0, h.cdEscudoFe - dt);
   h.atkCd = Math.max(0, h.atkCd - dt); h.travado = Math.max(0, h.travado - dt);
   // regeneração
@@ -1321,9 +1409,12 @@ function atualizarMinion(u, dt) {
   } else if (u.invocado && u.invocado.obj.position.distanceTo(u.obj.position) > 3) { mover(u, u.invocado.obj.position, dt); u.tocar(u.anim.correr, .2, false, u.anim.velCorrer || 1);
   } else if (u.invocado) { u.tocar(u.anim.idle, .2);
   } else {
+    if (u.rota) { const q = andarNaRota(u.rota, u.obj.position, u.time, 3.5); mover(u, q, dt); u.tocar(u.anim.correr, .2, false, u.anim.velCorrer || 1); }
+    else {
     const s = u.time === 'luz' ? 1 : -1; const px = u.obj.position.x + s * 3;
-    let dv = 0; if (MAPA_WR) for (const e of estruturas) { if (!e.vivo || e.tipo !== 'torre') continue; const ddx = Math.abs(e.obj.position.x - px); if (ddx < 4.5) dv = Math.max(dv, (1 - ddx / 4.5) * .8); } // torre em cima da estrada: contorna pelo lado de baixo
+    let dv = 0; if (MAPA_WR) for (const e of estruturas) { if (!e.vivo || e.tipo !== 'torre' || e.secao) continue; const ddx = Math.abs(e.obj.position.x - px); if (ddx < 4.5) dv = Math.max(dv, (1 - ddx / 4.5) * .8); } // torre em cima da estrada: contorna pelo lado de baixo
     mover(u, new THREE.Vector3(px, 0, laneZ(px) + u.laneOff + dv), dt); u.tocar(u.anim.correr, .2, false, u.anim.velCorrer || 1);
+    }
   }
   if (u.fumaca && Math.random() < dt * 4) { const p = u.obj.position; fxD.emit(p.x + (Math.random() - .5) * .8, .3 + Math.random() * .8, p.z + (Math.random() - .5) * .8, { vel: [0, .8, 0], cor: [.16, .04, .18], vida: 1.1, t0: .5, t1: 1.3, alpha: .55 }); }
 }
@@ -1332,7 +1423,8 @@ const matTiroL = new THREE.MeshBasicMaterial({ color: new THREE.Color(.45, .75, 
 function atualizarTorres(dt) {
   for (const e of estruturas) {
     if (e.flash > 0) e.flash -= dt;
-    if (!e.vivo || e.tipo !== 'torre') continue;
+    if (!e.vivo || e.tipo !== 'torre' || e.portao) continue; // o portão não atira: é a barreira
+    if (e.dentroMuralha && protegida(e)) continue; // a torre de dentro só acorda quando o portão cai
     e.cd -= dt; if (e.cd > 0) continue;
     const tp = e.obj.position; let alvo = null;
     // 1) herói inimigo que atacou um herói aliado dentro do alcance
@@ -1357,12 +1449,18 @@ function atualizarTorres(dt) {
   }
 }
 const fonteCd = { luz: 0, trevas: 0 };
+// Josué E: muro de pedras temporário (poucas pedras, uma geometria e um material criados uma vez; bloqueia como obstáculo circular)
+const MUROS_T = []; const GEO_PEDRA_M = new THREE.DodecahedronGeometry(.75, 0), MAT_PEDRA_M = new THREE.MeshStandardMaterial({ color: 0x9a8a70, roughness: .95, flatShading: true });
+function muroPedras(c, dir, dur) { const lado = new THREE.Vector3(dir.z, 0, -dir.x); for (let i = -2; i <= 2; i++) { const p = c.clone().addScaledVector(lado, i * 1.3); const ms = new THREE.Mesh(GEO_PEDRA_M, MAT_PEDRA_M); ms.position.set(p.x, .55, p.z); ms.rotation.set(Math.random() * 3, Math.random() * 3, 0); ms.castShadow = true; scene.add(ms); MUROS_T.push({ x: p.x, z: p.z, r: .85, fim: estado.tempo + dur, ms }); for (let j = 0; j < 5; j++) fxD.emit(p.x, .5, p.z, { vel: [(Math.random() - .5) * 2, 1.5, (Math.random() - .5) * 2], cor: [.55, .5, .42], vida: .9, t0: 1, t1: 2, alpha: .6 }); } }
+function limparControles(u) { u.atord = 0; u.medo = null; u.encanto = null; u.confuso = null; u.raiz = 0; u.provoc = null; u.corrente = null; u.jaula = null; u.lento = 0; u.lentoT = 0; u.silencio = 0; u.cego = 0; u.aterrado = 0; u.cdCongelado = 0; }
 function colisoes() {
+  for (let i = MUROS_T.length - 1; i >= 0; i--) { const w = MUROS_T[i]; if (estado.tempo > w.fim) { scene.remove(w.ms); MUROS_T.splice(i, 1); continue; }
+    for (const u of unidades) { if (!u.vivo || u.saltando) continue; const p = u.obj.position, dx = p.x - w.x, dz = p.z - w.z, d = Math.hypot(dx, dz), m = w.r + u.raio; if (d < m && d > 1e-4) { p.x = w.x + dx / d * m; p.z = w.z + dz / d * m; } } }
   for (let i = 0; i < unidades.length; i++) for (let j = i + 1; j < unidades.length; j++) {
     const a = unidades[i], b = unidades[j]; if (!a.vivo || !b.vivo || a.saltando || b.saltando) continue; const dx = b.obj.position.x - a.obj.position.x, dz = b.obj.position.z - a.obj.position.z; const d2 = dx * dx + dz * dz, m = a.raio + b.raio;
     if (d2 < m * m && d2 > 1e-8) { const d = Math.sqrt(d2); const k = (m - d) / d * .5; const fa = a.tipo === 'heroi' ? .25 : 1, fb = b.tipo === 'heroi' ? .25 : 1; a.obj.position.x -= dx * k * fa; a.obj.position.z -= dz * k * fa; b.obj.position.x += dx * k * fb; b.obj.position.z += dz * k * fb; }
   }
-  for (const u of unidades) { if (!u.vivo) continue; for (const e of estruturas) { if (!e.vivo) continue; const dx = u.obj.position.x - e.obj.position.x, dz = u.obj.position.z - e.obj.position.z; const r = e.raio * (e.tipo === 'torre' ? .7 : .85) + u.raio * .5; const d2 = dx * dx + dz * dz; if (d2 < r * r && d2 > 1e-6) { const d = Math.sqrt(d2); u.obj.position.x = e.obj.position.x + dx / d * r; u.obj.position.z = e.obj.position.z + dz / d * r; } } }
+  for (const u of unidades) { if (!u.vivo) continue; for (const e of estruturas) { if (!e.vivo || e.secao || (e.portao && e.time === u.time)) continue; const dx = u.obj.position.x - e.obj.position.x, dz = u.obj.position.z - e.obj.position.z; const r = e.raio * (e.tipo === 'torre' ? .7 : .85) + u.raio * .5; const d2 = dx * dx + dz * dz; if (d2 < r * r && d2 > 1e-6) { const d = Math.sqrt(d2); u.obj.position.x = e.obj.position.x + dx / d * r; u.obj.position.z = e.obj.position.z + dz / d * r; } } }
 }
 let ondaT = 5, regenT = 0, histT = 0;
 function atualizar(dt) {
@@ -1390,7 +1488,7 @@ function atualizar(dt) {
     }
     for (const h of herois) atualizarHeroi(h, dt);
     for (const u of unidades) if (u.tipo === 'minion') atualizarMinion(u, dt);
-    colisoes();
+    colisoes(); if (LAY) muralhasV2();
     atualizarTorres(dt);
     if (SELVA_ON) atualizarSelva(dt, camAlvo);
     atualizarExtras(dt);
@@ -1508,7 +1606,7 @@ function criarBarra(u, tipo) {
   else { el.className = 'hpUnid ' + (u.time === jogadorTime() ? 'aliado' : 'inimigo'); el.innerHTML = '<div class="t"><i></i></div>'; }
   hudEl.insertBefore(el, hudEl.firstChild); u.barra = el; u.barraI = el.querySelector('.t i'); u.barraM = el.querySelector('.m i'); u.barraS = el.querySelector('.t s'); u.barraLv = el.querySelector('.lv');
 }
-function recolorirBarras() { for (const e of estruturas) { e.barra.className = 'hpUnid torre ' + (e.time === jogadorTime() ? 'aliado' : 'inimigo'); } }
+function recolorirBarras() { for (const e of estruturas) { if (!e.barra) continue; e.barra.className = 'hpUnid torre ' + (e.time === jogadorTime() ? 'aliado' : 'inimigo'); } }
 const vp = new THREE.Vector3();
 let topoB = null, topoBW = 0;
 function topoBarras() {
@@ -1522,8 +1620,9 @@ function atualizarBarras() {
     if (!u.vivo || (u.invis > 0 && u.time !== jogadorTime()) || estado.fim || (u.fogVis && u.fogVis[jogadorTime()] === false)) { u.barra.style.display = 'none'; continue; }
     const alt = u.tipo === 'torre' ? u.obj.userData.topo + 1.3 : u.tipo === 'nucleo' ? (u.obj.userData.barraY || 7) : u.tipo === 'heroi' || u.tipo === 'monstro' ? u.alturaBarra : (u.nome === 'Sombra' ? 2.55 : 2.85);
     const estr = u.tipo === 'torre' || u.tipo === 'nucleo';
-    if (estr) { vp.copy(u.obj.position); vp.y += 1; vp.project(camera); if (vp.z > 1 || Math.abs(vp.x) > 1.15 || Math.abs(vp.y) > 1.15) { u.barra.style.display = 'none'; continue; } }
-    vp.copy(u.obj.position); vp.y += alt; vp.project(camera);
+    const ap = u.ancora && u.ancoraT > estado.tempo ? u.ancora.position : u.obj.position; // muralha: a barra acompanha o trecho que está apanhando
+    if (estr) { vp.copy(ap); vp.y += 1; vp.project(camera); if (vp.z > 1 || Math.abs(vp.x) > 1.15 || Math.abs(vp.y) > 1.15) { u.barra.style.display = 'none'; continue; } }
+    vp.copy(ap); vp.y += alt; vp.project(camera);
     if (!estr && (vp.z > 1 || Math.abs(vp.x) > 1.2 || Math.abs(vp.y) > 1.2)) { u.barra.style.display = 'none'; continue; }
     u.barra.style.display = '';
     let x = (vp.x * .5 + .5) * W, y = (-vp.y * .5 + .5) * H;
@@ -1574,18 +1673,20 @@ function mmPos(x, z) { if (MAPA_WR) { const k = 148 / (MAPA_C + MAPA_FOLGA + 2);
 function desenharMinimapa() {
   const g = mmCtx; g.drawImage(mmFundo, 0, 0);
   const inv = jogadorTime() === 'trevas';
-  for (const e of estruturas) { const [x, y] = mmPos(e.obj.position.x, e.obj.position.z); const al = e.time === jogadorTime(); g.globalAlpha = e.vivo ? 1 : .3; g.fillStyle = al ? '#6fc3ff' : '#ff4a64'; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); if (e.tipo === 'nucleo') { g.arc(x, y, 8, 0, 7); } else { g.moveTo(x, y - 9); g.lineTo(x + 7, y + 6); g.lineTo(x - 7, y + 6); g.closePath(); } g.fill(); g.stroke(); g.globalAlpha = 1; }
+  for (const e of estruturas) { if (e.secao) continue; const [x, y] = mmPos(e.obj.position.x, e.obj.position.z); const al = e.time === jogadorTime(); g.globalAlpha = e.vivo ? 1 : .3; g.fillStyle = al ? '#6fc3ff' : '#ff4a64'; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); if (e.tipo === 'nucleo') { g.arc(x, y, 8, 0, 7); } else { g.moveTo(x, y - 9); g.lineTo(x + 7, y + 6); g.lineTo(x - 7, y + 6); g.closePath(); } g.fill(); g.stroke(); g.globalAlpha = 1; }
   if (FOG_ON && EX.pronto) { // névoa no minimapa: escuro onde o seu time não vê
     const fc = mmNevoa.c, fg = mmNevoa.g; if (fc.width !== g.canvas.width) { fc.width = g.canvas.width; fc.height = g.canvas.height; } fg.globalCompositeOperation = 'source-over'; fg.clearRect(0, 0, fc.width, fc.height); fg.fillStyle = 'rgba(8,6,16,.55)'; fg.fillRect(0, 0, fc.width, fc.height); fg.globalCompositeOperation = 'destination-out';
     const [ax, ay] = mmPos(0, 0), [bx, by] = mmPos(10, 0), esc = Math.hypot(bx - ax, by - ay) / 10, jt = jogadorTime(); const furo = (x, z, r) => { const [px, py] = mmPos(x, z); fg.beginPath(); fg.arc(px, py, r * esc, 0, 7); fg.fill(); };
-    for (const u of unidades) if (u.vivo && u.time === jt) furo(u.obj.position.x, u.obj.position.z, u.tipo === 'heroi' ? 12.5 : 8.5); for (const e of estruturas) if (e.vivo && e.time === jt) furo(e.obj.position.x, e.obj.position.z, 13.5); for (const w of EX.sentinelas) if (w.vivo && w.time === jt) furo(w.pos.x, w.pos.z, SENT.raio);
+    for (const u of unidades) if (u.vivo && u.time === jt) furo(u.obj.position.x, u.obj.position.z, u.tipo === 'heroi' ? 12.5 : 8.5); for (const e of estruturas) if (e.vivo && !e.secao && e.time === jt) furo(e.obj.position.x, e.obj.position.z, 13.5); for (const w of EX.sentinelas) if (w.vivo && w.time === jt) furo(w.pos.x, w.pos.z, SENT.raio);
     g.drawImage(fc, 0, 0); }
-  for (const u of unidades) { if (!u.vivo || u.tipo !== 'minion' || (u.fogVis && u.fogVis[jogadorTime()] === false)) continue; const [x, y] = mmPos(u.obj.position.x, u.obj.position.z); g.fillStyle = u.time === jogadorTime() ? '#8fd6ff' : '#ff5a6e'; g.beginPath(); g.arc(x, y, 3.2, 0, 7); g.fill(); }
+  for (const u of unidades) { if (!u.vivo || u.tipo !== 'minion' || !vistoNoMM(u)) continue; const [x, y] = mmPos(u.obj.position.x, u.obj.position.z); g.fillStyle = u.time === jogadorTime() ? '#8fd6ff' : '#ff5a6e'; g.beginPath(); g.arc(x, y, 3.2, 0, 7); g.fill(); }
   if (SELVA_ON) desenharSelvaMM(g, mmPos);
   if (EX.pronto) desenharExtrasMM(g, mmPos);
   const [cx, cy] = mmPos(camAlvo.x, camAlvo.z); g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 1.5; g.save(); g.translate(cx, cy); if (!MAPA_WR) g.rotate(-Math.PI / 4); g.strokeRect(-26, -14, 52, 28); g.restore();
-  for (const h of herois) { if (!h.vivo || (h.invis > 0 && h.time !== jogadorTime()) || (h.fogVis && h.fogVis[jogadorTime()] === false)) continue; const [hx, hy] = mmPos(h.obj.position.x, h.obj.position.z); const img = retratos[h.id]; if (img) { g.save(); g.beginPath(); g.arc(hx, hy, 12, 0, 7); g.clip(); g.drawImage(img, hx - 12, hy - 12, 24, 24); g.restore(); } g.strokeStyle = h === jogador ? '#ffd66b' : h.time === jogadorTime() ? '#6fc3ff' : '#ff4a64'; g.lineWidth = 2.5; g.beginPath(); g.arc(hx, hy, 12, 0, 7); g.stroke(); const al = h.time === jogadorTime(); g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(hx - 12, hy + 13, 24, 4.5); g.fillStyle = al ? '#4aa8ff' : '#ff4058'; g.fillRect(hx - 11.5, hy + 13.5, 23 * Math.max(0, h.hp / h.maxHp), 3.5); }
+  for (const h of herois) { if (!h.vivo || (h.invis > 0 && h.time !== jogadorTime()) || !vistoNoMM(h)) continue; const [hx, hy] = mmPos(h.obj.position.x, h.obj.position.z); const img = retratos[h.id]; if (img) { g.save(); g.beginPath(); g.arc(hx, hy, 12, 0, 7); g.clip(); g.drawImage(img, hx - 12, hy - 12, 24, 24); g.restore(); } g.strokeStyle = h === jogador ? '#ffd66b' : h.time === jogadorTime() ? '#6fc3ff' : '#ff4a64'; g.lineWidth = 2.5; g.beginPath(); g.arc(hx, hy, 12, 0, 7); g.stroke(); const al = h.time === jogadorTime(); g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(hx - 12, hy + 13, 24, 4.5); g.fillStyle = al ? '#4aa8ff' : '#ff4058'; g.fillRect(hx - 11.5, hy + 13.5, 23 * Math.max(0, h.hp / h.maxHp), 3.5); }
 }
+// minimapa estilo WR: inimigo só aparece se estiver na visão de um herói, tropa, torre ou sentinela aliada (sem cálculo ainda = escondido)
+const vistoNoMM = (u) => u.time === jogadorTime() || !FOG_ON || !!(u.fogVis && u.fogVis[jogadorTime()] === true);
 const mmNevoa = (() => { const c = document.createElement('canvas'); return { c, g: c.getContext('2d') }; })();
 const cdEls = { q: $('bQ'), w: $('bW'), e: $('bE'), r: $('bR') };
 let hudT = 0, fpsAcc = 0, fpsN = 0, fpsMostrado = 60;
@@ -2191,7 +2292,12 @@ window.__missoes = telaMissoes;
 function pedirFuncao(id) {
   if (TREINO) return comecarPartida(id, null, 'meio');
   const el = $('funcaoTela'); el.classList.add('on');
-  el.querySelector('.aliado').textContent = `Você: ${HEROIS[id].nome} · o aliado (PC) escolhe um herói do seu lado`;
+  if (ROTAS3) { // 5v5 em 3 rotas: as 5 funções do WR; a sugerida é a rota do herói
+    el.querySelector('.sub').textContent = '5 contra 5 · três rotas · os aliados (PC) ficam com as outras funções';
+    const C = [['barao', '🛡', 'Barão', 'Rota de cima: duelo, torres e o Leviatã.'], ['selva', '🌿', 'Selva', 'Acampamentos, Sarça, Rocha e emboscadas.'], ['meio', '⚔', 'Meio', 'Rota do meio: farma e ajuda as laterais.'], ['atirador', '🏹', 'Dragão · Atirador', 'Rota de baixo: dano de longe e torres.'], ['suporte', '✚', 'Dragão · Suporte', 'Protege o atirador e controla as lutas.']];
+    el.querySelector('.cartas').innerHTML = C.map(([f, ic, n, t]) => `<button data-f="${f}" class="${HEROIS[id].rota === f ? 'sug' : ''}"><i>${ic}</i><b>${n}</b><small>${t}</small></button>`).join(''); el.querySelector('.cartas').classList.add('c5');
+  }
+  el.querySelector('.aliado').textContent = `Você: ${HEROIS[id].nome}${ROTAS3 ? ` · sugestão: ${ROTAS[HEROIS[id].rota] || 'Meio'}` : ' · o aliado (PC) escolhe um herói do seu lado'}`;
   el.querySelectorAll('.cartas button').forEach(b => b.onclick = () => { el.classList.remove('on'); comecarPartida(id, null, b.dataset.f); });
   $('funcaoVoltar').onclick = () => { el.classList.remove('on'); $('selecao').classList.add('on'); };
 }
@@ -2209,10 +2315,19 @@ async function comecarPartida(id, vs, funcao) {
   jogador = criarHeroi(id, d.time, false); bot = criarHeroi(vsId, inimigo(d.time), true);
   if (SELVA_ON && P.get('modo') !== '1v1') { // 2v2: você + aliado (PC) contra caçador + meio (PC)
     const meus = (d.time === 'luz' ? LUZ : TREVAS).filter(x => x !== id), deles = lista.filter(x => x !== vsId);
-    const aId = HEROIS[P.get('aliado')] && meus.includes(P.get('aliado')) ? P.get('aliado') : porRota(meus, fnJog === 'selva' ? 'meio' : 'selva');
+    const aId = HEROIS[P.get('aliado')] && meus.includes(P.get('aliado')) ? P.get('aliado') : porRota(meus, fnJog === 'selva' || (ROTAS3 && fnJog !== 'meio') ? 'meio' : 'selva');
     const cId = HEROIS[P.get('cacador')] && deles.includes(P.get('cacador')) ? P.get('cacador') : porRota(deles, 'selva');
     aliado = criarHeroi(aId, d.time, true); cacador = criarHeroi(cId, inimigo(d.time), true);
     funcao = funcao || P.get('funcao') || 'meio'; jogador.funcao = funcao; aliado.funcao = funcao === 'selva' ? 'meio' : 'selva'; bot.funcao = 'meio'; cacador.funcao = 'selva';
+    if (ROTAS3 && funcao !== 'selva' && funcao !== 'meio') { aliado.funcao = 'meio'; } // escolheu uma lateral: o aliado do 2v2 fica no Meio e a Selva vai para os extras
+    if (ROTAS3) { // 5v5: completa Barão, Atirador e Suporte com quem sobrou (repete herói enquanto os 14 novos não chegam)
+      for (const [time, usados] of [[d.time, [id, aliado.id]], [inimigo(d.time), [vsId, cacador.id]]]) {
+        const pool = (time === 'luz' ? LUZ : TREVAS); let resto = pool.filter(x => !usados.includes(x));
+        const fnsT = ['barao', 'selva', 'meio', 'atirador', 'suporte'].filter(f => !(time === d.time ? [jogador.funcao, aliado.funcao] : ['meio', 'selva']).includes(f));
+        for (const fn of fnsT) { const pref = resto.filter(x => HEROIS[x].rota === fn); const hid = (pref[0] || resto[0] || pool[Math.floor(Math.random() * pool.length)]); resto = resto.filter(x => x !== hid); const x = criarHeroi(hid, time, true); x.funcao = fn; extras5.push(x); }
+      }
+      for (const x of extras5) { const R = rotaPara(x); if (!R) continue; const p = andarNaRota(R, NUCLEO[x.time], x.time, 4); x.obj.position.set(p.x, 0, p.z); }
+    }
   }
   if (SELVA_ON && !selvaIni) selvaIni = iniciarSelva(selvaDeps());
   if (SELVA_ON) { $('bPing').hidden = !aliado; }
@@ -2278,7 +2393,7 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { usarHab, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar };
+window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);
@@ -2292,4 +2407,4 @@ window.__info = () => ({ calls: renderer.info.render.calls, tris: renderer.info.
 window.__atualizar = (dt = 1 / 60) => { atualizar(dt); atualizarCamera(dt); };
 window.__tick = (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) { if (i < n - 1) { atualizar(dt); atualizarCamera(dt); } else passo(dt); } return true; };
 
-iniciar().catch(e => { console.error(e); progTxt.textContent = 'Erro ao carregar: ' + e.message; });
+iniciar().catch(e => { console.error(e, e && e.stack); progTxt.textContent = 'Erro ao carregar: ' + e.message; window.__erroStack = e && e.stack; });

@@ -41,6 +41,8 @@ export const VESTES = {
   golias: { padrao: 'O Filisteu', lista: [{ id: 'bronze', nome: 'Bronze Polido', tex: 'models/tripo/skins/golias_bronze.webp', campo: 'vitorias', n: 5, req: 'Vencer 5 partidas com Golias', verso: '“Trazia na cabeça um capacete de bronze.” — 1Sm 17:5' }] },
   farao: { padrao: 'Rei do Egito', lista: [{ id: 'coroa', nome: 'Coroa Dupla', tex: 'models/tripo/skins/farao_coroa.webp', campo: 'controles', n: 50, req: 'Aplicar 50 lentidões ou raízes com Faraó', verso: '“Quem é o Senhor, para que eu ouça a sua voz?” — Êx 5:2' }] },
   jezabel: { padrao: 'Rainha Ímpia', lista: [{ id: 'sidom', nome: 'Rainha de Sidom', tex: 'models/tripo/skins/jezabel_sidom.webp', campo: 'semMorrer', n: 3, req: 'Vencer 3 partidas sem morrer com Jezabel', verso: '“Jezabel, filha de Etbaal, rei dos sidônios.” — 1Rs 16:31' }] },
+  josue: { padrao: 'O Comandante', lista: [{ id: 'jerico', nome: 'Conquistador de Jericó', tex: null, campo: 'torres', n: 10, req: 'Derrubar 10 torres com Josué (arte da veste em breve)', verso: '“Eu e a minha casa serviremos ao Senhor.” — Js 24:15' }] },
+  elias: { padrao: 'O Tisbita', lista: [{ id: 'manto', nome: 'Manto de Elias', tex: null, campo: 'vitorias', n: 5, req: 'Vencer 5 partidas com Elias (arte da veste em breve)', verso: '“Elias subiu ao céu num redemoinho.” — 2Rs 2:11' }] },
   nabuco: { padrao: 'Rei de Babilônia', lista: [{ id: 'ouro', nome: 'Cabeça de Ouro', tex: 'models/tripo/skins/nabuco_ouro.webp', campo: 'nucleos', n: 5, req: 'Destruir 5 Núcleos com Nabucodonosor', verso: '“Tu és a cabeça de ouro.” — Dn 2:38' }] },
 };
 export const vesteDe = (id, vid) => (VESTES[id] && VESTES[id].lista.find(v => v.id === vid)) || null;
@@ -121,6 +123,8 @@ export const DICAS = {
   golias: ['Golias recebe 15% menos dano de tudo.', 'Provoque com o Desafio e emende o Terremoto.'],
   farao: ['A Praga de Gafanhotos deixa lento: combine com as Trevas Espessas.', 'O Coração Endurecido dá escudo abaixo de 40% de vida.'],
   jezabel: ['As habilidades da Jezabel batem mais em quem está com menos da metade da vida.', 'O Decreto demora 1,5 s: use quando o inimigo não puder fugir.'],
+  josue: ['Bata sempre no mesmo alvo: cada ataque do Josué tira armadura.', 'Sol, Detém-te congela as recargas: use antes da luta começar.'],
+  elias: ['Acertar habilidades devolve mana ao Elias.', 'O Carro de Fogo cruza o mapa todo: mire nas rotas laterais.'],
   nabuco: ['Cada abate dá escudo ao Nabucodonosor.', 'Os Guardas da Babilônia ajudam a derrubar torres.'],
 };
 export const sortear = (l) => l[Math.floor(Math.random() * l.length)];
