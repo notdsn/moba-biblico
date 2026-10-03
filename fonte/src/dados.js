@@ -67,6 +67,25 @@ export const ICONES = {
   iHarpa: L('M18 56V12c14 0 30 10 30 44z', '#e6b85a', 4) + L('M24 20v34M30 22v32M36 28v26M42 38v16', '#fff3cf', 2),
   iSandalia: F('M16 44c0-14 8-28 18-28s14 10 14 20-8 16-18 16c-8 0-14-2-14-8z', '#a07040') + L('M22 34h22M26 26l14 14', '#6a4424', 3),
 };
+Object.assign(ICONES, {
+  iCouro: F('M14 12h36l4 14-6 30H16l-6-30z', '#8a5a30') + L('M22 20v28M42 20v28', '#5a3a1e', 3) + L('M14 12l18 10 18-10', '#c8903a', 3),
+  iMirra: F('M24 18h16v6l6 8v22H18V32l6-8z', '#d8c8a0') + F('M26 10h12v8H26z', '#8a5a30') + F('M22 38h20v8H22z', '#c0503a'),
+  iFunda: L('M8 12c10 14 12 26 24 30', '#c8903a', 3) + L('M56 12c-10 14-12 26-24 30', '#c8903a', 3) + Ci(32, 44, 6, '#b8b0a0'),
+  iAmolar: F('M10 40l30-22 14 8-30 22z', '#8a8f98') + L('M20 50 52 22', '#e8ecf2', 2),
+  iBotaCarro: F('M14 10h14v30h18l6 10H14z', '#8a5a30') + Ci(46, 52, 7, '#c8903a') + Ci(46, 52, 3, '#5a3a1e'),
+  iBotaPapiro: F('M14 12h12v30h20l6 8H14z', '#d8c890') + L('M18 20h8M18 28h8M18 36h8', '#8a7a40', 2),
+  iGrevas: F('M18 8h16v34h14v12H18z', '#c8903a') + L('M22 14h8M22 22h8M22 30h8', '#8a5a20', 2),
+  iEspadaBronze: L('M14 50 48 16', '#d89a4a', 7) + L('M10 40l14 14', '#8a5a20', 5) + F('M48 16l8-8-2 10z', '#f0c070'),
+  iScutum: F('M14 8h36v40c0 6-8 10-18 10s-18-4-18-10z', '#b8302a') + F('M28 8h8v50h-8z', '#ffd66b') + Ci(32, 32, 6, '#e8ecf2'),
+  iArcoEgito: L('M14 8c30 6 30 42 0 48', '#d8a040', 5) + L('M14 8c-4 16-4 32 0 48', '#f0e8d0', 2) + F('M30 28h10v8H30z', '#3a7ab0'),
+  iFundaGuerra: L('M8 10c12 16 12 26 24 32', '#a07040', 4) + L('M56 10c-12 16-12 26-24 32', '#a07040', 4) + Ci(32, 46, 8, '#8a8f98') + L('M26 46h12', '#e8ecf2', 2),
+  iCouraca2: F('M16 10h32l6 12-4 32H14l-4-32z', '#7a4a26') + F('M24 22h16v20H24z', '#c8903a'),
+  iUnguento: F('M20 20h24v34H20z', '#e8dcc0') + F('M24 12h16v8H24z', '#5a3a1e') + F('M26 30h12v12H26z', '#8a2a3a'),
+  iHoplita: L('M10 54 54 10', '#c8b890', 4) + F('M50 6l8-2-2 8z', '#e8ecf2') + Ci(22, 42, 10, '#c8903a'),
+  iIncenso: F('M22 30h20l-4 20H26z', '#c8903a') + L('M32 26c-6-6 6-10 0-16', '#e8e8f0', 2) + L('M24 30h16', '#8a5a20', 3),
+  iArgila: F('M14 12h26v40H14z', '#b87a50') + L('M18 20h18M18 28h14M18 36h18M18 44h10', '#6a3a20', 2) + F('M36 16h14v36H36z', '#a06a40'),
+  iCapacete: F('M14 34c0-16 8-24 18-24s18 8 18 24v8H14z', '#a8a8b0') + F('M28 4h8v10h-8z', '#b8302a') + F('M14 40h36v6H14z', '#6a6a72'),
+});
 export const svg = (k) => `<svg viewBox="0 0 64 64">${ICONES[k] || ''}</svg>`;
 
 // ---------- funções (papéis) estilo Wild Rift ----------
@@ -81,13 +100,15 @@ export const FUNCOES = {
   suporte: { nome: 'Suporte', hp: 1, arm: 1, rm: 1, ad: 1, as: .01 },
   atirador: { nome: 'Atirador', hp: 1, arm: .9, rm: .95, ad: 1, as: .03 },
 };
+// rotas do Wild Rift: Barão (topo), Selva, Meio, Dragão (atirador + suporte)
+export const ROTAS = { barao: 'Barão', selva: 'Selva', meio: 'Meio', atirador: 'Dragão · Atirador', suporte: 'Dragão · Suporte' };
 export const crescimento = (n) => (n - 1) * (.7025 + .0175 * (n - 1));
 
 // ---------- heróis ----------
 // cd/mana/dano por nível da habilidade (1..5; ult 1..3)
 export const HEROIS = {
   davi: {
-    nome: 'Davi', titulo: 'O Pastor Guerreiro', time: 'luz', papel: 'Atirador', corpo: 'm', esc: 1, distancia: true, projetil: 'pedra', cor: [1, .85, .5],
+    rota: 'atirador', nome: 'Davi', titulo: 'O Pastor Guerreiro', time: 'luz', papel: 'Atirador', corpo: 'm', esc: 1, distancia: true, projetil: 'pedra', cor: [1, .85, .5],
     funcao: 'atirador', refWR: 'Caitlyn',
     base: { hp: 600, hpN: 128, mana: 345, manaN: 41, ad: 54, adN: 4.5, ap: 0, arm: 35, armN: 4.5, rm: 30, rmN: 1.4, cad: .78, alcance: 6.5, vel: 6.0 },
     anim: { idle: 'Idle_Loop', correr: 'Jog_Fwd_Loop', velCorrer: 1.25, ataque: 'OverhandThrow', velAtaque: 2.2, morte: 'Death01', atrasoAtaque: .24 },
@@ -102,7 +123,7 @@ export const HEROIS = {
     build: ['sandalias', 'arcoJonatas', 'laminaEude', 'espadaGolias', 'armaduraSaul'],
   },
   sansao: {
-    nome: 'Sansão', titulo: 'O Nazireu Invencível', time: 'luz', papel: 'Lutador · Tanque', corpo: 'm', esc: 1.04, distancia: false, cor: [1, .75, .4],
+    rota: 'barao', nome: 'Sansão', titulo: 'O Nazireu Invencível', time: 'luz', papel: 'Lutador · Tanque', corpo: 'm', esc: 1.04, distancia: false, cor: [1, .75, .4],
     funcao: 'lutador', refWR: 'Olaf',
     base: { hp: 690, hpN: 112, mana: 340, manaN: 33, ad: 64, adN: 4.55, ap: 0, arm: 40, armN: 3.9, rm: 38, rmN: 2, cad: .86, alcance: 2.5, vel: 6.2 },
     anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Sword_Regular_A', velAtaque: 1.3, morte: 'Death01', atrasoAtaque: .28 },
@@ -117,7 +138,7 @@ export const HEROIS = {
     build: ['sandalias', 'espadaGolias', 'armaduraSaul', 'escudoFe', 'couracaJustica'],
   },
   debora: {
-    nome: 'Débora', titulo: 'A Juíza Profetisa', time: 'luz', papel: 'Maga · Suporte', corpo: 'f', esc: 1.04, distancia: true, projetil: 'luz', cor: [.7, .9, 1],
+    rota: 'meio', nome: 'Débora', titulo: 'A Juíza Profetisa', time: 'luz', papel: 'Maga · Suporte', corpo: 'f', esc: 1.04, distancia: true, projetil: 'luz', cor: [.7, .9, 1],
     funcao: 'suporte', refWR: 'Seraphine',
     base: { hp: 600, hpN: 112, mana: 435, manaN: 49, ad: 52, adN: 3.6, ap: 0, arm: 34, armN: 4.7, rm: 36, rmN: 1.2, cad: .8, alcance: 7, vel: 5.9 },
     anim: { idle: 'Idle_Loop', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Spell_Simple_Shoot', velAtaque: 1.6, morte: 'Death01', atrasoAtaque: .2 },
@@ -132,7 +153,7 @@ export const HEROIS = {
     build: ['sandalias', 'cetroEster', 'harpaDavi', 'cajadoArao', 'escudoFe'],
   },
   gideao: {
-    nome: 'Gideão', titulo: 'O Valente dos Trezentos', time: 'luz', papel: 'Assassino · Lutador', corpo: 'm', esc: 1, distancia: false, cor: [1, .7, .35],
+    rota: 'selva', nome: 'Gideão', titulo: 'O Valente dos Trezentos', time: 'luz', papel: 'Assassino · Lutador', corpo: 'm', esc: 1, distancia: false, cor: [1, .7, .35],
     funcao: 'assassino', refWR: 'Zed',
     base: { hp: 690, hpN: 120, mana: 280, manaN: 36, ad: 68, adN: 4.55, ap: 0, arm: 46, armN: 5, rm: 40, rmN: 2, cad: .78, alcance: 2.4, vel: 6.4 },
     anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.25, ataque: 'Sword_Regular_A', velAtaque: 1.4, morte: 'Death01', atrasoAtaque: .26 },
@@ -147,7 +168,7 @@ export const HEROIS = {
     build: ['sandalias', 'laminaEude', 'espadaGolias', 'arcoJonatas', 'armaduraSaul'],
   },
   golias: {
-    nome: 'Golias', titulo: 'O Gigante de Gate', time: 'trevas', papel: 'Tanque', corpo: 'm', esc: 1.3, distancia: false, cor: [1, .6, .3],
+    rota: 'barao', nome: 'Golias', titulo: 'O Gigante de Gate', time: 'trevas', papel: 'Tanque', corpo: 'm', esc: 1.3, distancia: false, cor: [1, .6, .3],
     funcao: 'tanque', refWR: 'Malphite',
     base: { hp: 690, hpN: 120, mana: 345, manaN: 41, ad: 58, adN: 3.6, ap: 0, arm: 49, armN: 4.3, rm: 38, rmN: 2, cad: .95, alcance: 3.2, vel: 5.8 },
     anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.05, ataque: 'Sword_Regular_A', velAtaque: 1.0, morte: 'Death01', atrasoAtaque: .34 },
@@ -162,7 +183,7 @@ export const HEROIS = {
     build: ['sandalias', 'armaduraSaul', 'couracaJustica', 'escudoFe', 'espadaGolias'],
   },
   farao: {
-    nome: 'Faraó', titulo: 'O Rei do Egito', time: 'trevas', papel: 'Mago · Controlador', corpo: 'm', esc: 1.02, distancia: true, projetil: 'serpente', cor: [.5, 1, .55],
+    rota: 'meio', nome: 'Faraó', titulo: 'O Rei do Egito', time: 'trevas', papel: 'Mago · Controlador', corpo: 'm', esc: 1.02, distancia: true, projetil: 'serpente', cor: [.5, 1, .55],
     funcao: 'mago', refWR: 'Morgana',
     base: { hp: 630, hpN: 120, mana: 435, manaN: 49, ad: 58, adN: 2.65, ap: 0, arm: 37, armN: 4.5, rm: 36, rmN: 1.2, cad: .82, alcance: 7, vel: 5.9 },
     anim: { idle: 'Idle_Loop', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Spell_Simple_Shoot', velAtaque: 1.6, morte: 'Death01', atrasoAtaque: .2 },
@@ -177,7 +198,7 @@ export const HEROIS = {
     build: ['sandalias', 'cajadoArao', 'cetroEster', 'harpaDavi', 'escudoFe'],
   },
   jezabel: {
-    nome: 'Jezabel', titulo: 'A Rainha Ímpia', time: 'trevas', papel: 'Assassina · Maga', corpo: 'f', esc: 1.04, distancia: false, cor: [.95, .4, .9],
+    rota: 'suporte', nome: 'Jezabel', titulo: 'A Rainha Ímpia', time: 'trevas', papel: 'Assassina · Maga', corpo: 'f', esc: 1.04, distancia: false, cor: [.95, .4, .9],
     funcao: 'assassino', refWR: 'Evelynn',
     base: { hp: 600, hpN: 128, mana: 345, manaN: 49, ad: 64, adN: 3.6, ap: 0, arm: 45, armN: 5, rm: 38, rmN: 2, cad: .72, alcance: 2.4, vel: 6.4 },
     anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.25, ataque: 'Sword_Regular_B', velAtaque: 1.5, morte: 'Death01', atrasoAtaque: .24 },
@@ -192,7 +213,7 @@ export const HEROIS = {
     build: ['sandalias', 'cetroEster', 'cajadoArao', 'harpaDavi', 'couracaJustica'],
   },
   nabuco: {
-    nome: 'Nabucodonosor', titulo: 'O Rei de Babilônia', time: 'trevas', papel: 'Lutador', corpo: 'm', esc: 1.06, distancia: false, cor: [1, .5, .2],
+    rota: 'meio', nome: 'Nabucodonosor', titulo: 'O Rei de Babilônia', time: 'trevas', papel: 'Lutador', corpo: 'm', esc: 1.06, distancia: false, cor: [1, .5, .2],
     funcao: 'lutador', refWR: 'Darius',
     base: { hp: 650, hpN: 144, mana: 345, manaN: 41, ad: 70, adN: 5.5, ap: 0, arm: 52, armN: 5.1, rm: 38, rmN: 2, cad: .86, alcance: 2.6, vel: 6.1 },
     anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Sword_Regular_B', velAtaque: 1.2, morte: 'Death01', atrasoAtaque: .3 },
@@ -214,26 +235,44 @@ export const TREVAS = ['golias', 'farao', 'jezabel', 'nabuco'];
 // stats: ad, ap, hp, mana, arm, rm, as (vel. ataque, fração), ms (vel. mov., fração), ah (aceleração de habilidade), crit (fração), ls (roubo de vida)
 export const ITENS = {
   // componentes
-  espadaCurta: { nome: 'Espada Curta de Bronze', cat: 'ataque', custo: 400, st: { ad: 15 }, icone: 'iEspada' },
-  aljava: { nome: 'Aljava de Benjamim', cat: 'ataque', custo: 450, st: { as: .2 }, icone: 'iAljava', lore: 'Os benjamitas atiravam com precisão (Jz 20:16).' },
-  luvas: { nome: 'Luvas de Couro de Cabra', cat: 'ataque', custo: 450, st: { crit: .15 }, icone: 'iLuvas', lore: 'Como as peles de cabrito nas mãos de Jacó (Gn 27:16).' },
-  cota: { nome: 'Cota de Escamas', cat: 'defesa', custo: 450, st: { arm: 30 }, icone: 'iCota' },
-  manto: { nome: 'Manto de Lã', cat: 'defesa', custo: 450, st: { rm: 30 }, icone: 'iManto' },
-  cinto: { nome: 'Cinto de Couro', cat: 'defesa', custo: 400, st: { hp: 250 }, icone: 'iCinto', lore: 'Como o cinto de couro de Elias (2Rs 1:8).' },
-  rolo: { nome: 'Rolo de Pergaminho', cat: 'habilidade', custo: 400, st: { ap: 25 }, icone: 'iRolo' },
-  oleo: { nome: 'Óleo da Unção', cat: 'habilidade', custo: 450, st: { mana: 300, ah: 5 }, icone: 'iOleo' },
-  salmo: { nome: 'Salmo Escrito', cat: 'habilidade', custo: 400, st: { ah: 15 }, icone: 'iSalmo' },
-  sandalias: { nome: 'Sandálias do Peregrino', cat: 'defesa', custo: 500, st: { ms: .1 }, icone: 'iSandalia', lore: 'As sandálias não se gastaram em quarenta anos (Dt 29:5).' },
+  espadaCurta: { fn: ['lutador','assassino','atirador'], nome: 'Espada Curta de Bronze', cat: 'ataque', custo: 400, st: { ad: 15 }, icone: 'iEspada' },
+  aljava: { fn: ['atirador'], nome: 'Aljava de Benjamim', cat: 'ataque', custo: 450, st: { as: .2 }, icone: 'iAljava', lore: 'Os benjamitas atiravam com precisão (Jz 20:16).' },
+  luvas: { fn: ['atirador','assassino'], nome: 'Luvas de Couro de Cabra', cat: 'ataque', custo: 450, st: { crit: .15 }, icone: 'iLuvas', lore: 'Como as peles de cabrito nas mãos de Jacó (Gn 27:16).' },
+  cota: { fn: ['tanque','lutador'], nome: 'Cota de Escamas', cat: 'defesa', custo: 450, st: { arm: 30 }, icone: 'iCota' },
+  manto: { fn: ['tanque','mago','suporte'], nome: 'Manto de Lã', cat: 'defesa', custo: 450, st: { rm: 30 }, icone: 'iManto' },
+  cinto: { fn: ['tanque','lutador','suporte'], nome: 'Cinto de Couro', cat: 'defesa', custo: 400, st: { hp: 250 }, icone: 'iCinto', lore: 'Como o cinto de couro de Elias (2Rs 1:8).' },
+  rolo: { fn: ['mago'], nome: 'Rolo de Pergaminho', cat: 'habilidade', custo: 400, st: { ap: 25 }, icone: 'iRolo' },
+  oleo: { fn: ['mago','suporte'], nome: 'Óleo da Unção', cat: 'habilidade', custo: 450, st: { mana: 300, ah: 5 }, icone: 'iOleo' },
+  salmo: { fn: ['mago','suporte','lutador'], nome: 'Salmo Escrito', cat: 'habilidade', custo: 400, st: { ah: 15 }, icone: 'iSalmo' },
+  sandalias: { fn: ['atirador','mago','tanque','lutador','assassino','suporte'], nome: 'Sandálias do Peregrino', cat: 'defesa', custo: 500, st: { ms: .1 }, icone: 'iSandalia', lore: 'As sandálias não se gastaram em quarenta anos (Dt 29:5).' },
   // completos
-  espadaGolias: { nome: 'Espada de Golias', cat: 'ataque', custo: 2700, receita: ['espadaCurta', 'espadaCurta', 'cinto'], st: { ad: 65, hp: 300, penA: .25 }, icone: 'iEspadaG', passiva: 'Não há outra semelhante (1Sm 21:9): +8% de dano contra alvos com mais vida máxima.' },
-  arcoJonatas: { nome: 'Arco de Jônatas', cat: 'ataque', custo: 2500, receita: ['aljava', 'espadaCurta'], st: { ad: 40, as: .4 }, icone: 'iArco', passiva: 'O arco de Jônatas nunca voltava atrás (2Sm 1:22): ataques causam 15 de dano mágico extra.' },
-  laminaEude: { nome: 'Lâmina de Eúde', cat: 'ataque', custo: 2600, receita: ['espadaCurta', 'luvas'], st: { ad: 55, crit: .25, ls: .1, let: 12 }, icone: 'iLamina', passiva: 'Espada de dois gumes (Jz 3:16): 10% de roubo de vida.' },
-  armaduraSaul: { nome: 'Armadura de Saul', cat: 'defesa', custo: 2500, receita: ['cota', 'cinto'], st: { arm: 60, hp: 400 }, icone: 'iArmadura', passiva: 'Pesada (1Sm 17:39): reflete 10% do dano de ataques recebidos.' },
-  escudoFe: { nome: 'Escudo da Fé', cat: 'defesa', custo: 2500, receita: ['manto', 'cinto'], st: { rm: 55, hp: 350 }, icone: 'iEscudo', passiva: 'Apaga os dardos inflamados (Ef 6:16): escudo de 200 ao cair abaixo de 30% de vida (recarga de 60 s).' },
-  couracaJustica: { nome: 'Couraça da Justiça', cat: 'defesa', custo: 2900, receita: ['cota', 'manto', 'cinto'], st: { arm: 40, rm: 40, hp: 300 }, icone: 'iCouraca', passiva: 'Firmes, vestidos da couraça da justiça (Ef 6:14): +2% de vida regenerada por 5 s após receber dano de herói.' },
-  cajadoArao: { nome: 'Cajado de Arão', cat: 'habilidade', custo: 2800, receita: ['rolo', 'rolo', 'oleo'], st: { ap: 110, mana: 300, ah: 5, penMp: .3 }, icone: 'iCajado', passiva: 'O cajado floresceu (Nm 17:8): +15% de poder de habilidade.' },
-  cetroEster: { nome: 'Cetro de Ester', cat: 'habilidade', custo: 2500, receita: ['rolo', 'salmo'], st: { ap: 75, ah: 20, penM: 12 }, icone: 'iCetro', passiva: 'O rei estendeu o cetro de ouro (Et 5:2): habilidades deixam o alvo 10% mais lento.' },
-  harpaDavi: { nome: 'Harpa de Davi', cat: 'habilidade', custo: 2600, receita: ['oleo', 'salmo', 'cinto'], st: { ap: 65, hp: 250, mana: 300, ah: 15 }, icone: 'iHarpa', passiva: 'Acalmava o espírito de Saul (1Sm 16:23): regenera 1% da vida máxima por segundo fora de combate.' },
+  espadaGolias: { fn: ['lutador'], nome: 'Espada de Golias', cat: 'ataque', custo: 2700, receita: ['espadaCurta', 'espadaCurta', 'cinto'], st: { ad: 65, hp: 300, penA: .25 }, icone: 'iEspadaG', passiva: 'Não há outra semelhante (1Sm 21:9): +8% de dano contra alvos com mais vida máxima.' },
+  arcoJonatas: { fn: ['atirador'], nome: 'Arco de Jônatas', cat: 'ataque', custo: 2500, receita: ['aljava', 'espadaCurta'], st: { ad: 40, as: .4 }, icone: 'iArco', passiva: 'O arco de Jônatas nunca voltava atrás (2Sm 1:22): ataques causam 15 de dano mágico extra.' },
+  laminaEude: { fn: ['assassino','atirador'], nome: 'Lâmina de Eúde', cat: 'ataque', custo: 2600, receita: ['espadaCurta', 'luvas'], st: { ad: 55, crit: .25, ls: .1, let: 12 }, icone: 'iLamina', passiva: 'Espada de dois gumes (Jz 3:16): 10% de roubo de vida.' },
+  armaduraSaul: { fn: ['tanque'], nome: 'Armadura de Saul', cat: 'defesa', custo: 2500, receita: ['cota', 'cinto'], st: { arm: 60, hp: 400 }, icone: 'iArmadura', passiva: 'Pesada (1Sm 17:39): reflete 10% do dano de ataques recebidos.' },
+  escudoFe: { fn: ['tanque','suporte'], nome: 'Escudo da Fé', cat: 'defesa', custo: 2500, receita: ['manto', 'cinto'], st: { rm: 55, hp: 350 }, icone: 'iEscudo', passiva: 'Apaga os dardos inflamados (Ef 6:16): escudo de 200 ao cair abaixo de 30% de vida (recarga de 60 s).' },
+  couracaJustica: { fn: ['tanque'], nome: 'Couraça da Justiça', cat: 'defesa', custo: 2900, receita: ['cota', 'manto', 'cinto'], st: { arm: 40, rm: 40, hp: 300 }, icone: 'iCouraca', passiva: 'Firmes, vestidos da couraça da justiça (Ef 6:14): +2% de vida regenerada por 5 s após receber dano de herói.' },
+  cajadoArao: { fn: ['mago'], nome: 'Cajado de Arão', cat: 'habilidade', custo: 2800, receita: ['rolo', 'rolo', 'oleo'], st: { ap: 110, mana: 300, ah: 5, penMp: .3 }, icone: 'iCajado', passiva: 'O cajado floresceu (Nm 17:8): +15% de poder de habilidade.' },
+  cetroEster: { fn: ['mago','suporte'], nome: 'Cetro de Ester', cat: 'habilidade', custo: 2500, receita: ['rolo', 'salmo'], st: { ap: 75, ah: 20, penM: 12 }, icone: 'iCetro', passiva: 'O rei estendeu o cetro de ouro (Et 5:2): habilidades deixam o alvo 10% mais lento.' },
+  // ---- itens da época (Antiguidade: Egito, Grécia, Roma, Assíria) ----
+  couroCurtido: { nome: 'Armadura de Couro', cat: 'defesa', custo: 450, st: { arm: 20, hp: 100 }, icone: 'iCouro', fn: ['tanque', 'lutador', 'suporte'] },
+  mirra: { nome: 'Unguento de Mirra', cat: 'habilidade', custo: 450, st: { hp: 150, ah: 8 }, icone: 'iMirra', fn: ['suporte', 'mago'], lore: 'Ouro, incenso e mirra (Mt 2:11).' },
+  fundaPastor: { nome: 'Funda de Pastor', cat: 'ataque', custo: 400, st: { as: .12, ms: .03 }, icone: 'iFunda', fn: ['atirador'] },
+  pedraAmolar: { nome: 'Pedra de Amolar', cat: 'ataque', custo: 450, st: { ad: 10, let: 6 }, icone: 'iAmolar', fn: ['assassino', 'lutador'], lore: 'O ferro com o ferro se afia (Pv 27:17).' },
+  botasCarro: { nome: 'Botas do Carro de Guerra', cat: 'defesa', custo: 1100, receita: ['sandalias'], st: { ms: .14, as: .2 }, icone: 'iBotaCarro', fn: ['atirador', 'lutador'] },
+  sandaliasPapiro: { nome: 'Sandálias de Papiro do Nilo', cat: 'defesa', custo: 1000, receita: ['sandalias'], st: { ms: .14, ah: 15 }, icone: 'iBotaPapiro', fn: ['mago', 'suporte', 'assassino'] },
+  grevasBronze: { nome: 'Grevas de Bronze', cat: 'defesa', custo: 1050, receita: ['sandalias'], st: { ms: .14, arm: 20 }, icone: 'iGrevas', fn: ['tanque', 'lutador'], lore: 'Golias trazia grevas de bronze nas pernas (1Sm 17:6).' },
+  espadaBronze: { nome: 'Espada de Bronze de Micenas', cat: 'ataque', custo: 2700, receita: ['espadaCurta', 'aljava', 'luvas'], st: { ad: 45, as: .3, crit: .2 }, icone: 'iEspadaBronze', fn: ['atirador', 'lutador'] },
+  escudoRomano: { nome: 'Escudo Romano (Scutum)', cat: 'defesa', custo: 2600, receita: ['cota', 'cinto', 'salmo'], st: { arm: 50, hp: 350, ah: 10 }, icone: 'iScutum', fn: ['tanque', 'suporte'] },
+  arcoEgipcio: { nome: 'Arco Composto Egípcio', cat: 'ataque', custo: 2600, receita: ['aljava', 'luvas', 'fundaPastor'], st: { ad: 30, as: .4, crit: .2 }, icone: 'iArcoEgito', fn: ['atirador'], lore: 'Os arqueiros do Faraó usavam arcos de chifre e madeira colados.' },
+  fundaBalear: { nome: 'Funda de Guerra Balear', cat: 'ataque', custo: 2400, receita: ['fundaPastor', 'espadaCurta', 'pedraAmolar'], st: { ad: 35, as: .2, ms: .05, let: 10 }, icone: 'iFundaGuerra', fn: ['atirador', 'assassino'] },
+  couracaCouro: { nome: 'Couraça de Couro Cozido', cat: 'defesa', custo: 2400, receita: ['couroCurtido', 'manto'], st: { arm: 35, rm: 30, hp: 250 }, icone: 'iCouraca2', fn: ['tanque', 'lutador', 'suporte'] },
+  unguentoAloes: { nome: 'Unguento de Mirra e Aloés', cat: 'habilidade', custo: 2500, receita: ['mirra', 'cinto', 'rolo'], st: { hp: 450, ap: 35, ah: 15 }, icone: 'iUnguento', fn: ['suporte'], lore: 'Mirra e aloés, cerca de cem libras (Jo 19:39).' },
+  lancaHoplita: { nome: 'Lança de Hoplita', cat: 'ataque', custo: 2700, receita: ['espadaCurta', 'cinto', 'salmo'], st: { ad: 40, hp: 350, ah: 15 }, icone: 'iHoplita', fn: ['lutador', 'tanque'] },
+  incensario: { nome: 'Incensário de Olíbano', cat: 'habilidade', custo: 2600, receita: ['rolo', 'oleo'], st: { ap: 85, mana: 250, ah: 15 }, icone: 'iIncenso', fn: ['mago', 'suporte'] },
+  tabuasUr: { nome: 'Tábuas de Argila de Ur', cat: 'habilidade', custo: 2500, receita: ['rolo', 'manto'], st: { ap: 60, rm: 30, hp: 200 }, icone: 'iArgila', fn: ['mago'] },
+  capaceteAssirio: { nome: 'Capacete Assírio', cat: 'ataque', custo: 2600, receita: ['pedraAmolar', 'couroCurtido', 'cinto'], st: { ad: 30, let: 8, hp: 300, arm: 20 }, icone: 'iCapacete', fn: ['lutador', 'assassino'] },
+  harpaDavi: { fn: ['suporte','mago'], nome: 'Harpa de Davi', cat: 'habilidade', custo: 2600, receita: ['oleo', 'salmo', 'cinto'], st: { ap: 65, hp: 250, mana: 300, ah: 15 }, icone: 'iHarpa', passiva: 'Acalmava o espírito de Saul (1Sm 16:23): regenera 1% da vida máxima por segundo fora de combate.' },
 };
 export const CATS = { ataque: 'Ataque', defesa: 'Defesa', habilidade: 'Habilidade' };
 export const NOMES_ST = { let: 'Letalidade', penA: 'Penetração de armadura', penM: 'Penetração mágica', penMp: 'Penetração mágica', ad: 'Dano de ataque', ap: 'Poder de habilidade', hp: 'Vida', mana: 'Mana', arm: 'Armadura', rm: 'Resistência mágica', as: 'Vel. de ataque', ms: 'Vel. de movimento', ah: 'Aceleração de habilidade', crit: 'Chance de crítico', ls: 'Roubo de vida' };

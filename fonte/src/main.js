@@ -17,7 +17,10 @@ import { iniciarSelva, atualizarSelva, monstroMorreu, multDano, aoAtacar, aoCria
 import { Unidade, anelHeroi, auraSombra } from './units.js';
 import { montarVariante } from './equip.js';
 import { VISUAL, CABELOS } from './herois3d.js';
-import { HEROIS, LUZ, TREVAS, ITENS, svg, custoEfetivo, fmtSt, CATS , FUNCOES, crescimento } from './dados.js';
+import { HEROIS, LUZ, TREVAS, ITENS, svg, custoEfetivo, fmtSt, CATS , FUNCOES, crescimento, ROTAS } from './dados.js';
+// escolhe um herói pela rota (estilo Wild Rift); sem ninguém da rota, sorteia entre todos
+const porRota = (lista, rota) => { const r = lista.filter(x => HEROIS[x].rota === rota); const l = r.length ? r : lista; return l[Math.floor(Math.random() * l.length)]; };
+let filtroRota = '';
 import { Particulas, Aneis, colunaLuz, Textos } from './vfx.js';
 import { criarPoderes } from './poderes.js';
 import { som, destravarSom, ouvinteSom, somLigado, estadoSom } from './som.js';
@@ -1674,10 +1677,12 @@ function escolherLado(lado, h0) {
   selLado = lado; const lista = lado === 'luz' ? LUZ : TREVAS;
   $('selLados').hidden = true; $('selHerois').hidden = false; $('selecao').dataset.lado = lado;
   $('selPasso').innerHTML = lado === 'luz' ? 'Escolha seu herói da <b class="al">Luz</b>' : 'Escolha seu vilão das <b class="in">Trevas</b>';
-  $('selCards').innerHTML = lista.map(id => `<button class="card" data-id="${id}"><img src="${toURL(retratosCorpo[id])}"><b>${HEROIS[id].nome}</b><small>${HEROIS[id].papel}</small></button>`).join('');
+  $('selCards').innerHTML = `<div id="selFiltro">${[['', 'Todas'], ...Object.entries(ROTAS)].map(([k, n]) => `<button class="fr ${filtroRota === k ? 'sel' : ''}" data-r="${k}">${n}</button>`).join('')}</div>` + lista.map(id => `<button class="card" data-id="${id}" ${filtroRota && HEROIS[id].rota !== filtroRota ? 'hidden' : ''}><img src="${toURL(retratosCorpo[id])}"><b>${HEROIS[id].nome}</b><small>${HEROIS[id].papel}</small><i class="rotaTag">${ROTAS[HEROIS[id].rota] || ''}</i></button>`).join('');
   $('selCards').querySelectorAll('.card').forEach(b => b.addEventListener('click', () => verHeroi(b.dataset.id)));
+  $('selCards').querySelectorAll('.fr').forEach(b => b.addEventListener('click', () => { filtroRota = b.dataset.r; escolherLado(lado, selHeroi); }));
   $('selAdv').innerHTML = `Adversário: um herói <b>${lado === 'luz' ? 'das Trevas' : 'da Luz'}</b> controlado pelo computador`;
-  verHeroi(h0 && lista.includes(h0) ? h0 : lista[0]);
+  const vis = lista.filter(x => !filtroRota || HEROIS[x].rota === filtroRota);
+  verHeroi(h0 && vis.includes(h0) ? h0 : (vis[0] || lista[0]));
 }
 function verHeroi(id) {
   selHeroi = id; const d = HEROIS[id];
@@ -1726,13 +1731,13 @@ function iconeItem(id, extra = '') { const it = ITENS[id]; const n = TRIPO ? ICO
   return `<span class="it ${it.cat} ${it.receita ? 'comp' : ''} ${extra}" data-id="${id}">${svg(it.icone)}</span>`; }
 function desenharLoja() {
   const h = jogador; lojaChave = Math.floor(h.ouro) + '|' + podeComprar(h) + '|' + h.itens.join(); const el = $('lojaPainel'); const pode = podeComprar(h);
-  const abas = [['rec', 'Recomendado'], ['ataque', 'Ataque'], ['defesa', 'Defesa'], ['habilidade', 'Habilidade']];
+  const abas = [['rec', 'Recomendado'], ['funcao', (FUNCOES[h.def.funcao] || {}).nome || 'Função'], ['ataque', 'Ataque'], ['defesa', 'Defesa'], ['habilidade', 'Habilidade']];
   let grade = '';
   if (lojaAba === 'rec') {
     grade = `<div class="rotulo">Build recomendada · ${h.def.nome}</div><div class="build">${h.def.build.map((id, i) => `${i ? '<i class="seta">›</i>' : ''}<button class="item ${h.itens.includes(id) ? 'tem' : ''} ${lojaSel === id ? 'sel' : ''}" data-id="${id}">${iconeItem(id)}<small>${ITENS[id].nome}</small>${precoHtml(id, h)}</button>`).join('')}</div>`;
     const prox = proximoRecomendado(h); if (prox && ITENS[prox].receita) grade += `<div class="rotulo">Componentes do próximo item</div><div class="grade">${[...new Set(ITENS[prox].receita)].map(c => btnItem(c)).join('')}</div>`;
   } else {
-    const ids = Object.keys(ITENS).filter(id => ITENS[id].cat === lojaAba);
+    const ids = Object.keys(ITENS).filter(id => lojaAba === 'funcao' ? (ITENS[id].fn || []).includes(h.def.funcao) : ITENS[id].cat === lojaAba);
     grade = `<div class="rotulo">Itens completos</div><div class="grade">${ids.filter(i => ITENS[i].receita).map(btnItem).join('')}</div><div class="rotulo">Componentes</div><div class="grade">${ids.filter(i => !ITENS[i].receita).map(btnItem).join('')}</div>`;
   }
   const it = ITENS[lojaSel]; const { custo, usa } = custoEfetivo(lojaSel, h.itens);
@@ -2160,7 +2165,8 @@ window.__pedirFuncao = pedirFuncao;
 async function comecarPartida(id, vs, funcao) {
   const d = HEROIS[id]; _timeJogador = d.time; recolorirBarras();
   const lista = d.time === 'luz' ? TREVAS : LUZ;
-  const vsId = vs && HEROIS[vs] && HEROIS[vs].time !== d.time ? vs : lista[Math.floor(Math.random() * lista.length)];
+  const fnJog = funcao || P.get('funcao') || 'meio';
+  const vsId = vs && HEROIS[vs] && HEROIS[vs].time !== d.time ? vs : porRota(lista, SELVA_ON && P.get('modo') !== '1v1' ? 'meio' : HEROIS[id].rota || 'meio');
   const vid = vesteEquipada(id);
   // veste: textura + retratos antes da tela VS (a tela já mostra a veste)
   if (vid) { const r = await retratosDaVeste(id, vid); if (r) retratos[id] = r.rosto; }
@@ -2169,8 +2175,8 @@ async function comecarPartida(id, vs, funcao) {
   jogador = criarHeroi(id, d.time, false); bot = criarHeroi(vsId, inimigo(d.time), true);
   if (SELVA_ON && P.get('modo') !== '1v1') { // 2v2: você + aliado (PC) contra caçador + meio (PC)
     const meus = (d.time === 'luz' ? LUZ : TREVAS).filter(x => x !== id), deles = lista.filter(x => x !== vsId);
-    const aId = HEROIS[P.get('aliado')] && meus.includes(P.get('aliado')) ? P.get('aliado') : meus[Math.floor(Math.random() * meus.length)];
-    const cId = HEROIS[P.get('cacador')] && deles.includes(P.get('cacador')) ? P.get('cacador') : deles[Math.floor(Math.random() * deles.length)];
+    const aId = HEROIS[P.get('aliado')] && meus.includes(P.get('aliado')) ? P.get('aliado') : porRota(meus, fnJog === 'selva' ? 'meio' : 'selva');
+    const cId = HEROIS[P.get('cacador')] && deles.includes(P.get('cacador')) ? P.get('cacador') : porRota(deles, 'selva');
     aliado = criarHeroi(aId, d.time, true); cacador = criarHeroi(cId, inimigo(d.time), true);
     funcao = funcao || P.get('funcao') || 'meio'; jogador.funcao = funcao; aliado.funcao = funcao === 'selva' ? 'meio' : 'selva'; bot.funcao = 'meio'; cacador.funcao = 'selva';
   }

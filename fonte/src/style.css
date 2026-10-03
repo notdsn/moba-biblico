@@ -258,7 +258,7 @@ body[data-time=trevas] .hab.ult{background:radial-gradient(circle at 50% 30%,#8a
 .hb.pas b em{background:#b0a0ff}
 #selHerois .acoes{grid-column:1/3;display:flex;align-items:center;gap:calc(2*var(--u));justify-content:flex-end}
 #selAdv{margin-right:auto;font-size:calc(1.8*var(--u));color:#e0d6c0}
-#selOk,#selVoltar,#selGaleria,#fim button{border-radius:calc(4*var(--u));padding:calc(1.2*var(--u)) calc(5*var(--u));font-family:'Cinzel';font-weight:900;font-size:calc(2.4*var(--u));border:2px solid #ffe08a;background:linear-gradient(#e9b949,#9a6a1a);color:#1e1204;box-shadow:0 0 calc(2*var(--u)) rgba(255,200,80,.5)}
+#selOk,#selVoltar,#selGaleria,#selMissoes,#selTreino,#fim button{border-radius:calc(4*var(--u));padding:calc(1.2*var(--u)) calc(5*var(--u));font-family:'Cinzel';font-weight:900;font-size:calc(2.4*var(--u));border:2px solid #ffe08a;background:linear-gradient(#e9b949,#9a6a1a);color:#1e1204;box-shadow:0 0 calc(2*var(--u)) rgba(255,200,80,.5)}
 button.sec{background:rgba(20,18,30,.8)!important;color:#f0e6d0!important;border-color:rgba(255,255,255,.3)!important;box-shadow:none!important}
 
 /* ===== loja ===== */
@@ -758,3 +758,10 @@ html.android #girarBtn{display:block}
 #missoesTela button{margin-top:calc(1.4*var(--u))}
 
 #fim .linhaD{display:flex;gap:calc(1.6*var(--u));align-items:center}#fim .linhaD>.gr{flex:1.3;min-width:0;margin:0}#fim .linhaD>.gr svg{height:calc(9*var(--u))}#fim .linhaD>.barrasD{flex:1;margin:0}
+/* filtro de rota (estilo Wild Rift) na escolha de herói */
+#selCards{grid-template-rows:auto;grid-auto-rows:minmax(0,1fr)}
+#selFiltro{grid-column:1/-1;align-self:start;display:flex;flex-wrap:nowrap;gap:calc(.8*var(--u));overflow-x:auto}
+#selFiltro .fr{flex:0 0 auto;font:700 calc(1.6*var(--u)) system-ui;padding:calc(.5*var(--u)) calc(1.6*var(--u));border-radius:calc(3*var(--u));border:1px solid #ffffff40;background:#0007;color:#dde;min-height:0}
+#selFiltro .fr.sel{background:#ffd66b;color:#2a1a00;border-color:#ffd66b}
+#selCards .card .rotaTag{display:block;font-style:normal;font-size:calc(1.3*var(--u));color:#ffd66b;opacity:.85}
+#selCards .card[hidden]{display:none!important}
