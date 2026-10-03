@@ -395,7 +395,7 @@ function onda(time, n = 4) {
   const s = time === 'luz' ? 1 : -1; const x0 = NUCLEO[time].x + s * 4.5;
   for (let i = 0; i < n; i++) { const x = x0 - s * Math.floor(i / 2) * 1.8, off = (i % 2 ? 1 : -1) * 1.1; novoMinion(time, x, laneZ(x) + off, i === n - 1); }
 }
-function iniciarStatus(u) { u.lento = 0; u.lentoT = 0; u.atord = 0; u.escudos = []; u.dots = []; u.buffs = []; u.invis = 0; u.provoc = null; u.combateT = 99; u.vooT = 0; u.voo = 0; u.vooH = 0; u.medo = null; u.encanto = null; u.raiz = 0; u.empurrao = null; }
+function iniciarStatus(u) { u.lento = 0; u.lentoT = 0; u.atord = 0; u.escudos = []; u.dots = []; u.buffs = []; u.invis = 0; u.provoc = null; u.combateT = 99; u.vooT = 0; u.voo = 0; u.vooH = 0; u.medo = null; u.encanto = null; u.raiz = 0; u.empurrao = null; u.imparavel = 0; u.confuso = null; u.corrente = null; u.cego = 0; u.antiCura = null; u.silencio = 0; u.aterrado = 0; u.jaula = null; }
 
 // ================= heróis =================
 function criarHeroi(id, time, ehBot) {
@@ -424,6 +424,7 @@ function recalcular(h, cheio = false) {
   for (const it of h.itens) for (const [k, v] of Object.entries(ITENS[it].st)) st[k] += v;
   if (h.itens.includes('cajadoArao')) st.ap *= 1.15;
   st.adBase = b.ad + b.adN * (FUNCOES[h.def.funcao] || FUNCOES.lutador).ad * crescimento(h.nivel);
+  if (h.babilonia) st.ad += 3 * h.babilonia;
   const hpAnt = h.maxHp, manaAnt = h.manaMax;
   h.st = st; h.maxHp = st.hp; h.manaMax = st.mana; h.alcance = b.alcance;
   if (cheio || hpAnt === undefined) { h.hp = h.maxHp; h.mana = h.manaMax; } else { h.hp = Math.min(h.maxHp, h.hp + Math.max(0, h.maxHp - hpAnt)); h.mana = Math.min(h.manaMax, h.mana + Math.max(0, h.manaMax - manaAnt)); }
@@ -431,9 +432,10 @@ function recalcular(h, cheio = false) {
 const buff = (u, tipo) => u.buffs.reduce((s, b) => s + (b.tipo === tipo ? b.v : 0), 0);
 const intervaloAtaque = (h) => h.def.base.cad / (1 + h.st.as + buff(h, 'as'));
 const _olhar = new THREE.Vector3();
-const velocidade = (u) => { const ms = u.st && u.st.ms !== undefined ? u.st.ms : 0; return u.vel * (1 + ms + buff(u, 'ms')) * (1 - u.lento); };
-const arm = (u) => (u.st ? u.st.arm : 15) + buff(u, 'arm');
-const rmag = (u) => (u.st ? u.st.rm : 15) + buff(u, 'arm');
+const velocidade = (u) => { const ms = (u.st && u.st.ms !== undefined ? u.st.ms : 0) + (u.velo === 'seco' ? .06 + .02 * ((u.hab && u.hab.e && u.hab.e.nv) || 1) : 0); return u.vel * (1 + ms + buff(u, 'ms')) * (1 - u.lento); };
+const veloArm = (u) => u.velo === 'molhado' ? 12 + 4 * ((u.hab && u.hab.e && u.hab.e.nv) || 1) : 0; // Gideão: velo molhado = +armadura/RM
+const arm = (u) => (u.st ? u.st.arm : 15) + buff(u, 'arm') + veloArm(u);
+const rmag = (u) => (u.st ? u.st.rm : 15) + buff(u, 'arm') + buff(u, 'rm') + veloArm(u) + (u.id === 'farao' ? 4 * (u.coracao || 0) : 0);
 const XP_NIVEL = (n) => MODO2 ? 190 + 130 * (n - 1) : 100 + 60 * (n - 1); // 2v2 com selva: curva mais lenta (nível 11–13 aos 15 min)
 function darXp(h, v) {
   if (!h || h.nivel >= 15) return; h.xp += v;
@@ -521,7 +523,7 @@ function danificar(fonte, alvo, valor, o = {}) {
   else if (alvo === jogador) textos.add(alvo.obj.position, '-' + v, 'mal');
   // passivas defensivas
   if (alvo.tipo === 'heroi' && alvo.hp > 0) {
-    if (alvo.id === 'farao' && alvo.hp < alvo.maxHp * .4 && alvo.cdPassiva <= 0) { alvo.cdPassiva = 40; darEscudo(alvo, 150 + 15 * alvo.nivel, 4); textoInfo(alvo, 'Coração Endurecido'); }
+    if (alvo.id === 'farao' && o.hab && fonte && fonte.tipo === 'heroi') { alvo.coracao = Math.min(8, (alvo.coracao || 0) + 1); alvo.coracaoT = 5; }
     if (alvo.itens.includes('escudoFe') && alvo.hp < alvo.maxHp * .3 && alvo.cdEscudoFe <= 0) { alvo.cdEscudoFe = 60; darEscudo(alvo, 200, 4); textoInfo(alvo, 'Escudo da Fé'); }
   }
   if (alvo.hp <= 0) { alvo.hp = 0; morrer(alvo, fonte); return true; }
@@ -544,19 +546,27 @@ function danoEstrutura(fonte, e, valor) {
   if (e.hp <= 0) { e.hp = 0; destruirEstrutura(e, fonte); return true; }
   return false;
 }
-function curarU(u, v, mostrar = true, fonte = null) { if (!u.vivo) return; const a = Math.min(u.maxHp - u.hp, v); u.hp += a; const quem = fonte || (u.tipo === 'heroi' ? u : null); if (quem && quem.stats && a > 0) quem.stats.cura += a; if (mostrar && a > 5 && (u === jogador)) textos.add(u.obj.position, '+' + Math.round(a), 'cura'); }
+function curarU(u, v, mostrar = true, fonte = null) { if (!u.vivo) return; if (u.antiCura) v *= 1 - u.antiCura.v; const a = Math.min(u.maxHp - u.hp, v); u.hp += a; const quem = fonte || (u.tipo === 'heroi' ? u : null); if (quem && quem.stats && a > 0) quem.stats.cura += a; if (mostrar && a > 5 && (u === jogador)) textos.add(u.obj.position, '+' + Math.round(a), 'cura'); }
 function darEscudo(u, v, t) { u.escudos.push({ v, t }); aneis.add(u.obj.position, new THREE.Color(1, .9, .5), .5, 2, .5); }
 function aplicarLento(u, v, t) { if (!u.vivo) return; if (v >= u.lento || u.lentoT < t) { u.lento = Math.max(u.lento, v); u.lentoT = Math.max(u.lentoT, t); } }
-function atordoar(u, t) { if (!u.vivo || t <= 0) return; u.atord = Math.max(u.atord, t); if (u.canal) u.canal = null; if (u.tipo === 'heroi') textos.add(u.obj.position, 'Atordoado', 'info'); }
+function atordoar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.atord = Math.max(u.atord, t); if (u.canal) u.canal = null; if (u.tipo === 'heroi') textos.add(u.obj.position, 'Atordoado', 'info'); }
 // controle de grupo com identidade própria (arremesso, empurrão, medo, encanto, raiz)
-function arremessar(u, t, hA = 2.2) { if (!u.vivo || t <= 0) return; atordoar(u, t); u.voo = t; u.vooT = t; u.vooH = hA * (u.tipo === 'heroi' && u.def && u.def.esc > 1.2 ? .75 : 1); u.dash = null; if (u.tipo === 'heroi') textoInfo(u, 'Arremessado!'); const p = u.obj.position; for (let j = 0; j < 14; j++) fxD.emit(p.x + (Math.random() - .5), .3, p.z + (Math.random() - .5), { vel: [(Math.random() - .5) * 3, 2 + Math.random() * 3, (Math.random() - .5) * 3], cor: [.55, .45, .32], vida: .8, t0: .6, t1: 1.6, alpha: .7 }); }
-function empurrar(u, dir, dist, t = .25) { if (!u.vivo || dist <= 0) return; u.empurrao = { dir: dir.clone().setY(0).normalize(), v: dist / t, t }; u.dash = null; }
-function amedrontar(u, fonte, t) { if (!u.vivo || t <= 0) return; u.medo = { de: fonte.clone(), t }; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Amedrontado!'); }
-function encantar(u, fonte, t) { if (!u.vivo || t <= 0) return; u.encanto = { por: fonte, t }; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Encantado!'); }
-function enraizar(u, t) { if (!u.vivo || t <= 0) return; u.raiz = Math.max(u.raiz, t); u.dash = null; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Enraizado!'); }
-const controlado = (u) => u.atord > 0 || !!u.medo || !!u.encanto;
+const imune = (u) => u.imparavel > 0;
+function arremessar(u, t, hA = 2.2) { if (!u.vivo || t <= 0 || imune(u)) return; atordoar(u, t); u.voo = t; u.vooT = t; u.vooH = hA * (u.tipo === 'heroi' && u.def && u.def.esc > 1.2 ? .75 : 1); u.dash = null; if (u.tipo === 'heroi') textoInfo(u, 'Arremessado!'); const p = u.obj.position; for (let j = 0; j < 14; j++) fxD.emit(p.x + (Math.random() - .5), .3, p.z + (Math.random() - .5), { vel: [(Math.random() - .5) * 3, 2 + Math.random() * 3, (Math.random() - .5) * 3], cor: [.55, .45, .32], vida: .8, t0: .6, t1: 1.6, alpha: .7 }); }
+function empurrar(u, dir, dist, t = .25) { if (!u.vivo || dist <= 0 || imune(u)) return; u.empurrao = { dir: dir.clone().setY(0).normalize(), v: dist / t, t }; u.dash = null; }
+function amedrontar(u, fonte, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.medo = { de: fonte.clone(), t }; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Amedrontado!'); }
+function encantar(u, fonte, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.encanto = { por: fonte, t }; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Encantado!'); }
+function enraizar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.raiz = Math.max(u.raiz, t); u.dash = null; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Enraizado!'); }
+// controles novos (cada um de um herói só): confusão (Gideão R), corrente (Golias Q), cegueira (Faraó E), anticura (Faraó R), silêncio (Jezabel Q), aterrar (Débora R)
+function confundir(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.confuso = { t, dir: new THREE.Vector3(Math.random() - .5, 0, Math.random() - .5).normalize(), troca: .4 }; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Confuso!'); }
+function acorrentar(u, fonte, raio, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.corrente = { ancora: fonte.obj.position.clone().lerp(u.obj.position, .5), raio, t }; if (u.tipo === 'heroi') textoInfo(u, 'Acorrentado!'); }
+function cegar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.cego = Math.max(u.cego, t); if (u.tipo === 'heroi') textoInfo(u, 'Cego!'); }
+function silenciar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.silencio = Math.max(u.silencio, t); if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Silenciado!'); }
+function aterrar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.aterrado = Math.max(u.aterrado, t); u.dash = null; if (u.tipo === 'heroi') textoInfo(u, 'Aterrado!'); }
+const controlado = (u) => u.atord > 0 || !!u.medo || !!u.encanto || !!u.confuso;
 // movimento forçado por medo/encanto; devolve true se a unidade está sob efeito
 function moverForcado(u, dt) {
+  if (u.confuso && !u.medo && !u.encanto) { const c = u.confuso; c.troca -= dt; if (c.troca <= 0) { c.troca = .4 + Math.random() * .3; c.dir.set(Math.random() - .5, 0, Math.random() - .5).normalize(); } const p = u.obj.position; if (!(u.raiz > 0)) { p.addScaledVector(c.dir, velocidade(u) * .7 * dt); if (u.tipo === 'heroi') limitar(p); } u.olharPara(p.clone().add(c.dir), dt, 10); if (Math.random() < dt * 10) fx.emit(p.x, (u.alturaBarra || 2.6) - .2, p.z, { vel: [(Math.random() - .5) * 2, .8, (Math.random() - .5) * 2], cor: [.9, .9, 1], vida: .5, t0: .4, t1: 0 }); if (u.anim && u.anim.correr) u.tocar(u.anim.correr, .15, false, u.anim.velCorrer || 1); return true; }
   const c = u.medo || u.encanto; if (!c) return false;
   const p = u.obj.position; const alvo = u.medo ? p.clone().multiplyScalar(2).sub(c.de) : c.por.obj.position;
   const d = alvo.clone().sub(p).setY(0); if (d.length() > .3) { d.normalize(); const v = velocidade(u) * (u.medo ? .85 : .6); if (!(u.raiz > 0)) { p.addScaledVector(d, v * dt); if (u.tipo === 'heroi') limitar(p); } u.olharPara(p.clone().add(d), dt, 14); u.tocar(u.anim.correr, .15, false, u.anim.velCorrer || 1); }
@@ -595,7 +605,7 @@ function morrer(u, fonte) {
     if (!estado.anunciou) avisoAbate(matador, u); estado.anunciou = false; feedAbate(matador, u, bonus);
     if (u === jogador) aviso(`Você foi derrotado! Renasce em ${Math.ceil(u.morteT)} s`, true);
   }
-  if (heroiFonte && heroiFonte.id === 'nabuco') darEscudo(heroiFonte, 40 + 8 * heroiFonte.nivel, 4);
+  if (u.tipo === 'heroi') for (const n of herois) if (n.id === 'nabuco' && n.time !== u.time && (n === heroiFonte || (n.vivo && n.obj.position.distanceTo(u.obj.position) < 15)) && (n.babilonia || 0) < 10) { n.babilonia = (n.babilonia || 0) + 1; recalcular(n); n.obj.scale.multiplyScalar(1.02); textoInfo(n, 'Babilônia ' + n.babilonia + '/10'); }
 }
 // material escurecido da ruína: um por material original (cache), criado no carregamento em prepararRuinas()
 const RUINA = new Map();
@@ -731,6 +741,7 @@ function atacar(h) {
   agendar(atraso, () => {
     if (h === jogador && !AUTO) h.travado = 0; // o golpe já saiu: o jogador pode andar na hora (cancelar a animação)
     if (!h.vivo || !alvo.vivo) return;
+    if (h.cego > 0 && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') { textos.add(alvo.obj.position, 'Errou!', 'info'); return; }
     let dano = h.st.ad, crit = false, mag = 0;
     if (h.st.crit && Math.random() < h.st.crit) { dano *= 1.75; crit = true; }
     let lento = 0;
@@ -764,11 +775,12 @@ function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (!u.vivo) return;
   let v = dano;
   if (d.antiGigante && u.maxHp > h.maxHp) v *= 1 + d.antiGigante;
+  if (d.kHpAlvo) v += d.kHpAlvo[Math.min(d.kHpAlvo.length, nv) - 1] * Math.min(u.maxHp, u.tipo === 'heroi' ? 1e9 : 2500); // Davi R: % da vida máxima do alvo
   if (d.kPerdida) v += d.kPerdida * (u.maxHp - u.hp);
   if (u.tipo === 'torre' || u.tipo === 'nucleo') return;
   danificar(h, u, v, { mag: d.mag, hab: true, cura: d.rouba, ult: d === h.def.hab.r });
   if (!u.vivo) return;
-  if (u.tipo === 'heroi' && h.stats && (d.lento || d.atordoa || d.raiz || d.medo || d.encanta || d.arremessa || d.provoca || d.atordoaLonge)) h.stats.controles++;
+  if (u.tipo === 'heroi' && h.stats && (d.lento || d.atordoa || d.raiz || d.medo || d.encanta || d.arremessa || d.provoca || d.atordoaLonge || d.confunde || d.corrente || d.cega || d.silencia || (d.aterra && extra.ultimo))) h.stats.controles++;
   if (d.lento) aplicarLento(u, d.lento[0], d.lento[1]);
   if (d.atordoa && !extra.semAtordoar) atordoar(u, d.atordoa);
   if (d.veneno) u.dots.push({ dps: v * d.veneno[0] / d.veneno[1], t: d.veneno[1], fonte: h, mag: true });
@@ -779,6 +791,13 @@ function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (d.medo && !extra.semAtordoar) amedrontar(u, h.obj.position, u.tipo === 'heroi' ? d.medo : Math.min(.3, d.medo)); // tropas só se espalham um instante (senão o Gideão perdia a onda inteira)
   if (d.encanta) encantar(u, h, d.encanta);
   if (d.raiz) enraizar(u, d.raiz);
+  if (d.confunde && !extra.semAtordoar) confundir(u, u.tipo === 'heroi' ? d.confunde : Math.min(.4, d.confunde));
+  if (d.corrente && u.tipo === 'heroi') acorrentar(u, h, d.corrente[0], d.corrente[1]);
+  if (d.cega) cegar(u, d.cega);
+  if (d.silencia && u.tipo === 'heroi') silenciar(u, d.silencia);
+  if (d.antiCura) u.antiCura = { v: d.antiCura[0], t: d.antiCura[1] };
+  if (d.aterra && extra.ultimo) aterrar(u, d.aterra);
+  if (d.asPorAcerto && h.buffs.filter(b => b.queixada).length < 5) h.buffs.push({ tipo: 'as', v: d.asPorAcerto, t: 3, queixada: true });
   if (d.atordoaLonge && extra.frac !== undefined && extra.frac >= d.atordoaLonge[1]) { atordoar(u, d.atordoaLonge[0]); aneis.add(u.obj.position, new THREE.Color(1, .9, .4), .3, 2.2, .5); if (h === jogador) aviso('Tiro Certeiro! Atordoou'); }
 }
 // retângulo à frente (skillshot instantâneo tipo estocada/linha)
@@ -795,7 +814,8 @@ function usarHab(h, k) {
   if (!h.vivo || estado.fim) return false;
   if (H.nv === 0) { if (h === jogador) aviso(h.pontos > 0 ? 'Toque em + para aprender esta habilidade' : 'Habilidade ainda não aprendida', true); return false; }
   if (H.cd > 0 || controlado(h) || h.dash) return false;
-  if (h.raiz > 0 && (d.tipo === 'dash' || d.tipo === 'salto')) { if (h === jogador) aviso('Enraizado: não pode avançar', true); return false; }
+  if (h.silencio > 0) { if (h === jogador) aviso('Silenciado: sem habilidades', true); return false; }
+  if ((h.raiz > 0 || h.aterrado > 0) && (d.tipo === 'dash' || d.tipo === 'salto')) { if (h === jogador) aviso(h.raiz > 0 ? 'Enraizado: não pode avançar' : 'Aterrado: não pode avançar', true); return false; }
   const nv = H.nv, mana = d.mana[nv - 1];
   if (h.mana < mana) { if (h === jogador) aviso('Mana insuficiente', true); return false; }
   const m = mirar(h, d);
@@ -830,7 +850,7 @@ function usarHab(h, k) {
       const c = segue ? h.obj.position.clone() : centro.clone(); if (n > 2) { const a = Math.random() * 6.28, r = Math.random() * d.raio * .6; c.x += Math.cos(a) * r; c.z += Math.sin(a) * r; }
       const rr = n > 2 ? d.raio * .55 : d.raio;
       if (!PZ.area(d, c, rr, h, i)) visualArea(d.visual, c, rr, cor, h);
-      for (const u of inimigosEm(c, h.time, rr)) acertarHab(h, u, d, nv, dano, { semAtordoar: n > 1 && i > 0, centro: c });
+      for (const u of inimigosEm(c, h.time, rr)) acertarHab(h, u, d, nv, dano, { semAtordoar: n > 1 && i > 0, centro: c, ultimo: i === n - 1 });
     });
     if (d.visual === 'coluna') ultColuna(centro);
   } else if (T === 'zona') {
@@ -838,6 +858,7 @@ function usarHab(h, k) {
     if (d.armBuff) h.buffs.push({ tipo: 'arm', v: d.armBuff[0], t: d.armBuff[1] });
     if (d.ms) h.buffs.push({ tipo: 'ms', v: d.ms, t: d.msDur });
     const vis = objetoZona(d.visual, centro, d.raio); PZ.zonaIni(d, centro);
+    if (d.jaula) for (const u of inimigosEm(centro, h.time, d.raio)) if (!imune(u)) { u.jaula = { c: centro.clone(), r: d.raio - .4, t: d.dur }; if (u.tipo === 'heroi') textoInfo(u, 'Na fornalha!'); }
     let tick = 0;
     efeitos.push({ t: 0, vida: d.dur, up: (e, dt) => {
       const c = d.segue ? h.obj.position : centro; if (vis) vis.position.set(c.x, 0, c.z);
@@ -863,6 +884,9 @@ function usarHab(h, k) {
     if (d.escudo) darEscudo(h, d.escudo[nv - 1] + (d.kEscudoHp || 0) * h.maxHp, d.dur || 3);
     if (d.as) h.buffs.push({ tipo: 'as', v: d.as, t: d.asDur });
     if (d.ms) h.buffs.push({ tipo: 'ms', v: d.ms, t: d.msDur });
+    if (d.armBuff) h.buffs.push({ tipo: 'arm', v: d.armBuff[0], t: d.armBuff[1] });
+    if (d.imparavel) { h.imparavel = d.imparavel; h.atord = 0; h.medo = null; h.encanto = null; h.confuso = null; h.raiz = 0; h.provoc = null; h.corrente = null; h.jaula = null; h.lento = 0; h.lentoT = 0; textoInfo(h, 'Imparável!'); }
+    if (d.postura) { h.velo = h.velo === 'molhado' ? 'seco' : 'molhado'; textoInfo(h, h.velo === 'molhado' ? 'Velo molhado: +defesa' : 'Velo seco: +velocidade'); if (h.velo === 'seco') h.buffs.push({ tipo: 'ms', v: .2, t: 1.5 }); else h.buffs.push({ tipo: 'arm', v: 15, t: 1.5 }); }
     if (d.invis) { h.invis = d.invis; h.buffs.push({ tipo: 'ms', v: 0, t: 0 }); for (const u of unidades) if (u.alvoU === h) u.alvoU = null; }
     if (d.proxAtaqueMag) h.proxMag = d.proxAtaqueMag[nv - 1] + .5 * h.st.ap;
     if (d.aliados) for (const u of unidades) if (u.vivo && u !== h && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < d.aliados) { if (d.escudoAliados) darEscudo(u, d.escudoAliados[nv - 1] + .3 * h.st.ap, 3); if (d.cura) curarU(u, (d.cura[nv - 1] + (d.kCura || 0) * escC) * .5, false); }
@@ -1140,7 +1164,7 @@ function pensar(h, dt) {
     const L = avaliarLuta(h, inim, inimSobTorre, hpF, inimHp);
     // Gideão: com o inimigo amedrontado pela Trombeta, parte para cima (é a janela de abate dele)
     const aliadoLuta = herois.some(a => a !== h && a.vivo && a.time === h.time && a.obj.position.distanceTo(inim.obj.position) < 9 && a.hp / a.maxHp > .3); // briga em grupo
-    const favoravel = (h.atacarAte > estado.tempo && hpF > .35 && !inimSobTorre) || !(h.desisteT > estado.tempo) && (L.score + (aliadoLuta ? .25 : 0) > DIF.limiar && (!inimSobTorre || L.abate)) || (h.id === 'gideao' && inim && inim.medo && hpF > .35 && !inimSobTorre);
+    const favoravel = (h.atacarAte > estado.tempo && hpF > .35 && !inimSobTorre) || !(h.desisteT > estado.tempo) && (L.score + (aliadoLuta ? .25 : 0) > DIF.limiar && (!inimSobTorre || L.abate)) || (h.id === 'gideao' && inim && (inim.medo || inim.confuso) && hpF > .35 && !inimSobTorre);
     if (favoravel || L.abate) {
       h.lutaT = (h.lutaT || 0) + dt;
       const reage = Math.random() < dt * DIF.reflexo;
@@ -1209,6 +1233,15 @@ function atualizarStatus(u, dt) {
   if (u.encanto) { u.encanto.t -= dt; if (u.encanto.t <= 0 || !u.encanto.por.vivo) u.encanto = null; }
   if (u.raiz > 0) { u.raiz -= dt; if (Math.random() < dt * 10) fxD.emit(u.obj.position.x + (Math.random() - .5) * 1.2, .2, u.obj.position.z + (Math.random() - .5) * 1.2, { vel: [0, .5, 0], cor: [.12, .04, .2], vida: .7, t0: .5, t1: 1, alpha: .8 }); }
   if (u.invis > 0) u.invis -= dt;
+  if (u.imparavel > 0) { u.imparavel -= dt; if (Math.random() < dt * 8) fx.emit(u.obj.position.x + (Math.random() - .5), .4 + Math.random() * 1.5, u.obj.position.z + (Math.random() - .5), { vel: [0, 2, 0], cor: [1, .85, .4], vida: .5, t0: .5, t1: 0 }); }
+  if (u.confuso) { u.confuso.t -= dt; if (u.confuso.t <= 0) u.confuso = null; }
+  if (u.cego > 0) u.cego -= dt;
+  if (u.silencio > 0) u.silencio -= dt;
+  if (u.aterrado > 0) u.aterrado -= dt;
+  if (u.antiCura) { u.antiCura.t -= dt; if (u.antiCura.t <= 0) u.antiCura = null; }
+  if (u.coracaoT > 0) { u.coracaoT -= dt; if (u.coracaoT <= 0) u.coracao = 0; }
+  if (u.corrente) { const c = u.corrente; c.t -= dt; const p = u.obj.position; const dx = p.x - c.ancora.x, dz = p.z - c.ancora.z, L = Math.hypot(dx, dz); if (L > c.raio) { p.x = c.ancora.x + dx / L * c.raio; p.z = c.ancora.z + dz / L * c.raio; } if (Math.random() < dt * 12) { const k = Math.random(); fx.emit(c.ancora.x + (p.x - c.ancora.x) * k, .5 + k * .6, c.ancora.z + (p.z - c.ancora.z) * k, { vel: [0, .2, 0], cor: [.75, .75, .8], vida: .3, t0: .35, t1: .2 }); } if (c.t <= 0 || !u.vivo) u.corrente = null; }
+  if (u.jaula) { const j = u.jaula; j.t -= dt; const p = u.obj.position; const dx = p.x - j.c.x, dz = p.z - j.c.z, L = Math.hypot(dx, dz); if (L > j.r) { p.x = j.c.x + dx / L * j.r; p.z = j.c.z + dz / L * j.r; u.dash = null; } if (j.t <= 0 || !u.vivo) u.jaula = null; }
   if (u.provoc) { u.provoc.t -= dt; if (u.provoc.t <= 0 || !u.provoc.por.vivo) u.provoc = null; }
   for (const e of u.escudos) e.t -= dt; if (u.escudos.length) u.escudos = u.escudos.filter(e => e.t > 0 && e.v > 0);
   for (const b of u.buffs) b.t -= dt; if (u.buffs.length) u.buffs = u.buffs.filter(b => b.t > 0);
@@ -1242,6 +1275,7 @@ function atualizarHeroi(h, dt) {
   if (h.saltando) return;
   if (h.dash) {
     h.dash.t -= dt; h.obj.position.addScaledVector(h.dash.dir, h.dash.vel * dt); limitar(h.obj.position);
+    if (h.dash.d && h.dash.d.carrega) { const fr = h.obj.position.clone().addScaledVector(h.dash.dir, 1.4); h.dash.levados = h.dash.levados || new Set(); for (const u of inimigosEm(fr, h.time, 1.7)) if (!imune(u) && u.tipo !== 'monstro') h.dash.levados.add(u); for (const u of h.dash.levados) if (u.vivo) { u.obj.position.x = fr.x + (u.obj.position.x - fr.x) * .5; u.obj.position.z = fr.z + (u.obj.position.z - fr.z) * .5; limitar(u.obj.position); u.dash = null; } }
     const p = h.obj.position; if (!(h.dash.d && PZ.dash(h, h.dash.d, p))) { fxD.emit(p.x, .3, p.z, { vel: [(Math.random() - .5) * 2, 1, (Math.random() - .5) * 2], cor: [.55, .45, .32], vida: .6, t0: .7, t1: 1.6, alpha: .6 }); fx.emit(p.x, 1.2, p.z, { cor: h.def.cor, vida: .3, t0: 1.1, t1: 0, alpha: .5 }); }
     if (h.dash.t <= 0) { const f = h.dash.fim; h.dash = null; if (f) f(); }
     return;
@@ -2244,7 +2278,7 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar };
+window.__jogo = { usarHab, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);

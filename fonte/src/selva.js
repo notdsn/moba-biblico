@@ -240,7 +240,7 @@ function atualizarMonstro(m, dt, t, camAlvo) {
     return;
   }
   // imune a medo/encanto/empurrão/arremesso (como monstros épicos); sofre lentidão e atordoamento
-  m.medo = m.encanto = m.provoc = m.empurrao = null; m.vooT = 0; m.raiz = 0;
+  m.medo = m.encanto = m.provoc = m.empurrao = null; m.vooT = 0; m.raiz = 0; m.confuso = m.corrente = m.jaula = m.antiCura = null; m.cego = m.silencio = m.aterrado = m.imparavel = 0;
   D.atualizarStatus(m, dt); if (!m.vivo) return;
   m.fase += dt; m.atkCd -= dt; if (m.flash > 0) m.flash -= dt;
   const longe = Math.abs(p.x - camAlvo.x) > 30 || Math.abs(p.z - camAlvo.z) > 26;
