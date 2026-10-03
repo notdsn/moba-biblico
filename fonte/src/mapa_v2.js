@@ -10,11 +10,14 @@ export function layoutBase(base, nuc) {
   const centro = base.clone().addScaledVector(f, dist * .5); const R = dist * .5 + 7.5;
   return { f, centro, R, ang: Math.atan2(f.x, f.z), portao: centro.clone().addScaledVector(f, R), meiaAbertura: Math.PI / MURO_N * 1.05 };
 }
+// celular: só a cor (sem mapa normal e de metal/rugosidade): menos memória de textura e menos amostras no shader.
+// No iPhone, com a memória de textura estourada, os props do mapa (os últimos a subir) eram desenhados pretos.
+function magro(mt) { if (!mt) return; for (const k of ['normalMap', 'metalnessMap', 'roughnessMap', 'aoMap']) { const t = mt[k]; if (t && t !== mt.map) { t.dispose(); if (t.image && t.image.close) t.image.close(); } mt[k] = null; } mt.metalness = 0; mt.roughness = .85; mt.needsUpdate = true; }
 export async function mapaV2(scene, loader, POS, MAPA_C, portoes) {
   const lod = matchMedia('(pointer:coarse)').matches ? '_lod1' : '';
   const carregar = (n) => new Promise((ok) => loader.load(BASE + n + lod + '.glb', (g) => ok(g.scene), undefined, () => ok(null)));
   const nomes = Object.keys(ALT); const M = {};
-  (await Promise.all(nomes.map(carregar))).forEach((m, i) => { if (!m) return; const b = new THREE.Box3().setFromObject(m); const s = ALT[nomes[i]] / Math.max(.01, b.max.y - b.min.y); m.scale.setScalar(s); m.position.y = -b.min.y * s; m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); const g = new THREE.Group(); g.add(m); M[nomes[i]] = g; });
+  (await Promise.all(nomes.map(carregar))).forEach((m, i) => { if (!m) return; const b = new THREE.Box3().setFromObject(m); const s = ALT[nomes[i]] / Math.max(.01, b.max.y - b.min.y); m.scale.setScalar(s); m.position.y = -b.min.y * s; m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (lod) magro(o.material); } }); const g = new THREE.Group(); g.add(m); M[nomes[i]] = g; });
   const g = new THREE.Group(); g.name = 'mapaV2'; scene.add(g);
   const por = (n, x, z, rot = 0, esc = 1, pai = g) => { if (!M[n]) return null; const o = M[n].clone(); o.position.set(x, 0, z); o.rotation.y = rot; o.scale.setScalar(esc); pai.add(o); return o; };
   const muros = {};

@@ -334,7 +334,7 @@ const naFonte = (h, r = 8.5) => h.obj.position.distanceTo(FONTE[h.time]) < r;
 // ================= Davi do Grok Build =================
 // ajusta altura ao Davi atual (mesma escala de jogo), mantém materiais/texturas próprios do modelo
 function montarGrok(g, ref) {
-  const root = g.scene; root.updateMatrixWorld(true); ref.updateMatrixWorld(true); reduzirTexturas(root, 1024, renderer);
+  const root = g.scene; root.updateMatrixWorld(true); ref.updateMatrixWorld(true); reduzirTexturas(root, Q.mobile ? 512 : 1024, renderer); /* celular: 20 heróis em 1024 estouravam a memória de textura do iPhone e os props do mapa, os últimos a subir, ficavam pretos */
   root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = !Q.baixa; o.frustumCulled = false; const m = o.material; if (m.map) { m.map.anisotropy = Q.baixa ? 1 : 4; } } });
   const hRef = new THREE.Box3().setFromObject(ref, true).getSize(new THREE.Vector3()).y;
   const hG = new THREE.Box3().setFromObject(root, true).getSize(new THREE.Vector3()).y || 1.8;
@@ -345,7 +345,7 @@ function montarGrok(g, ref) {
 // ================= heróis do Tripo =================
 // modelo ~1 m de altura (rig Mixamo "mixamorig"), olhando para +Z. Ajusta à altura do herói atual e prepara materiais.
 function montarTripo(g, ref, id, escJogo = null) {
-  const root = g.scene; root.updateMatrixWorld(true); ref.updateMatrixWorld(true); reduzirTexturas(root, 1024, renderer);
+  const root = g.scene; root.updateMatrixWorld(true); ref.updateMatrixWorld(true); reduzirTexturas(root, Q.mobile ? 512 : 1024, renderer); /* celular: 20 heróis em 1024 estouravam a memória de textura do iPhone e os props do mapa, os últimos a subir, ficavam pretos */
   root.traverse(o => { if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = !Q.baixa; const m = o.material;
     // estilo pintado à mão: o PBR do Tripo vem com metal 1 + mapa; suaviza reflexo para não ficar "plástico/cromado"
     m.side = THREE.FrontSide; m.metalness = Math.min(m.metalness, .85); m.envMapIntensity = .8;
