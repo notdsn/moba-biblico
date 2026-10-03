@@ -375,20 +375,22 @@ function feedObjetivo(h, ico) {
 export function feedFala(h, txt) { const al = h.time === D.jogadorTime(); const d = feedLinha(`<canvas width="48" height="48" class="${al ? 'al' : 'in'}"></canvas><span class="fala"><b>${h.def.nome}:</b> ${txt}</span>`, !al); if (d) { const img = D.retratos[h.id]; if (img) d.querySelector('canvas').getContext('2d').drawImage(img, 0, 0, 48, 48); d.classList.add('txt'); } }
 
 // ---- pings (roda de comandos) ----
-export const PINGS = { dragao: 'Vamos no Dragão', leviata: 'Vamos no Leviatã', recuar: 'Recuar', ajuda: 'Me ajuda' };
-const RESP = { dragao: 'Indo para o Dragão!', leviata: 'Vamos pegar o Leviatã!', recuar: 'Certo, recuando.', ajuda: 'Estou indo te ajudar!' };
+export const PINGS = { dragao: 'Vamos no Dragão', leviata: 'Vamos no Leviatã', recuar: 'Recuar', ajuda: 'Ajuda', atacar: 'Atacar', dragao30: 'Dragão em 30s' };
+const RESP = { dragao: 'Indo para o Dragão!', leviata: 'Vamos pegar o Leviatã!', recuar: 'Certo, recuando.', ajuda: 'Estou indo te ajudar!', atacar: 'Vamos pra cima!', dragao30: 'Vou me posicionar no Dragão.' };
 const POCO = () => CAMPOS.find(c => c.tipo === 'poco'), DRAG = () => CAMPOS.find(c => c.tipo === 'dragao');
 export function ping(h, tipo) {
-  const t = D.estado.tempo; const pos = tipo === 'dragao' ? new THREE.Vector3(DRAG().x, 0, DRAG().z) : tipo === 'leviata' ? new THREE.Vector3(POCO().x, 0, POCO().z) : h.obj.position.clone();
-  selva.ordens[h.time] = { tipo, pos, por: h, ate: t + (tipo === 'recuar' ? 8 : 25) };
+  const t = D.estado.tempo; let alvoA = null; if (tipo === 'atacar') { let bd = 22; for (const e of D.herois) { if (!e.vivo || e.time === h.time || !D.visivel(e, h.time)) continue; const d = e.obj.position.distanceTo(h.obj.position); if (d < bd) { bd = d; alvoA = e; } } }
+  const pos = alvoA ? alvoA.obj.position.clone() : tipo === 'dragao' || tipo === 'dragao30' ? new THREE.Vector3(DRAG().x, 0, DRAG().z) : tipo === 'leviata' ? new THREE.Vector3(POCO().x, 0, POCO().z) : h.obj.position.clone();
+  selva.ordens[h.time] = { tipo, pos, por: h, ate: t + (tipo === 'recuar' ? 8 : tipo === 'atacar' ? 10 : tipo === 'dragao30' ? 35 : 25), alvoA };
+  if (tipo === 'atacar') for (const o of D.herois) if (o.bot && o.time === h.time) o.atacarAte = t + 10;
   if (h.time === D.jogadorTime()) selva.marcas.push({ tipo, pos, ate: t + 6, t0: t });
-  feedFala(h, PINGS[tipo] + (tipo === 'ajuda' ? '!' : '!')); D.som('ping', null, .6);
+  feedFala(h, PINGS[tipo] + (tipo === 'dragao30' ? '' : '!')); D.som('ping', null, .6);
   for (const o of D.herois) if (o !== h && o.bot && o.time === h.time && o.vivo) setTimeout(() => { if (o.vivo) feedFala(o, RESP[tipo]); }, 700);
 }
 function iaTime() { // bots se agrupam para objetivos por conta própria (o time do jogador segue os pings dele)
   const t = D.estado.tempo;
   for (const tm of ['luz', 'trevas']) {
-    const hs = D.herois.filter(h => h.time === tm); if (!hs.length || hs.some(h => !h.bot) || selva.ordens[tm]) continue;
+    const hs = D.herois.filter(h => h.time === tm); if (!hs.length || hs.some(h => !h.bot) || selva.ordens[tm]) continue; if (Math.random() > (D.DIF ? D.DIF.chamadas : 1)) continue; // dificuldade: com que frequência o time chama objetivos
     const vivos = hs.filter(h => h.vivo && h.hp > h.maxHp * .55); if (vivos.length < hs.length) continue; const nv = vivos.reduce((s, h) => s + h.nivel, 0) / vivos.length;
     const dr = monstros.find(m => m.sub === 'dragao' && m.vivo), lv = monstros.find(m => m.sub === 'leviata' && m.vivo);
     const tipo = lv && nv >= 9 && Math.random() < .5 ? 'leviata' : dr && nv >= 5 && Math.random() < .4 ? 'dragao' : null;
@@ -413,12 +415,14 @@ export function botSelva(h, dt, c) {
   const segue = o && (o.por !== h || o.auto) && (h.funcao !== 'meio' || !o.por.bot || !cac || (o.tipo !== 'dragao' && o.tipo !== 'leviata') || cacPerto(alvoVivo(o.tipo) || { casa: o.pos }));
   if (segue) {
     if (o.tipo === 'recuar') { const tr = D.estruturas.filter(e => e.vivo && e.time === h.time && e.tipo === 'torre').sort((a, b) => Math.abs(a.obj.position.x - pos.x) - Math.abs(b.obj.position.x - pos.x))[0]; D.mover2(h, tr ? tr.obj.position : D.FONTE[h.time]); return true; }
+    if (o.tipo === 'atacar') { const p = o.alvoA && o.alvoA.vivo && D.visivel(o.alvoA, h.time) ? o.alvoA.obj.position : o.pos; if (pos.distanceTo(p) > 7 && c.hpF > .35) { D.mover2(h, p); return true; } return false; }
+    if (o.tipo === 'dragao30') { const m = alvoVivo('dragao'); if (m && m.vivo) { if (pos.distanceTo(m.casa) > m.T.alc + 4) { D.mover2(h, m.casa); return true; } lutarMonstro(h, m, dt); return true; } if (pos.distanceTo(o.pos) > 9) { D.mover2(h, o.pos.clone().add(new THREE.Vector3(h.time === 'luz' ? -6 : 6, 0, 0))); return true; } return false; }
     if (o.tipo === 'ajuda') { const p = o.por.vivo ? o.por.obj.position : o.pos; if (pos.distanceTo(p) > 5) { D.mover2(h, p); return true; } return false; }
     const m = alvoVivo(o.tipo); if (m && c.hpF > .35) { if (c.inim && c.dInim < 8) return false; if (pos.distanceTo(m.casa) > 7 || o.por.obj.position.distanceTo(m.casa) < 9 || o.auto) { if (pos.distanceTo(m.casa) > m.T.alc + 4) { D.mover2(h, m.casa); return true; } lutarMonstro(h, m, dt); return true; } }
   }
   if (h.funcao === 'selva') {
     // emboscada: inimigo do meio com pouca vida
-    for (const e of D.herois) { if (!e.vivo || e.time === h.time || e.invis > 0) continue; const d = e.obj.position.distanceTo(pos); if (e.hp < e.maxHp * .45 && d < 30 && c.hpF > .5 && !torreInimigaPerto(h, e.obj.position)) { h.forcarAlvo = e; if (d > h.alcance + e.raio) D.mover2(h, e.obj.position); else D.atacar(h); if (!h._gank || t - h._gank > 20) { h._gank = t; if (h.time === D.jogadorTime() && h.bot) feedFala(h, 'Emboscada no meio!'); } return true; } }
+    for (const e of D.herois) { if (!e.vivo || e.time === h.time || e.invis > 0 || (D.visivel && !D.visivel(e, h.time))) continue; const d = e.obj.position.distanceTo(pos); if (e.hp < e.maxHp * .45 && d < 30 && c.hpF > .5 && !torreInimigaPerto(h, e.obj.position)) { h.forcarAlvo = e; if (d > h.alcance + e.raio) D.mover2(h, e.obj.position); else D.atacar(h); if (!h._gank || t - h._gank > 20) { h._gank = t; if (h.time === D.jogadorTime() && h.bot) feedFala(h, 'Emboscada no meio!'); } return true; } }
     const m = campoMaisPerto(h, true); if (m) { if (m.estadoM !== 'luta' && pos.distanceTo(m.obj.position) > m.T.alc + 3) D.mover2(h, m.obj.position); else lutarMonstro(h, m, dt); return true; }
     if (t < 60) { const c0 = CAMPOS.find(k => k.tipo === 'rocha' && k.lado === h.time); D.mover2(h, new THREE.Vector3(c0.x + (h.time === 'luz' ? 3 : -3), 0, c0.z + (c0.z < 0 ? 2 : -2))); return true; }
     return false;
@@ -450,7 +454,7 @@ export function desenharSelvaMM(g, mmPos) {
   if (!SELVA_ON || !selva.ico || !selva.ico.complete) return; const t = D.estado.tempo;
   for (const c of CAMPOS) { if (!c.m) continue; const m = c.m.find(x => x.vivo) || (c.tipo === 'poco' ? (t < T_LEV ? c.m[0] : c.m[1]) : c.m[0]); const vivo = m.vivo; const r = m.T.obj ? 10 : 7.5; const [x, y] = mmPos(c.x, c.z);
     g.globalAlpha = vivo ? 1 : .35; g.drawImage(selva.ico, m.T.ico * 64, 0, 64, 64, x - r, y - r, r * 2, r * 2);
-    if (!vivo && m.nasceEm != null && m.nasceEm - t < 60 && m.nasceEm > t) { g.globalAlpha = 1; g.fillStyle = '#fff'; g.font = 'bold 10px sans-serif'; g.textAlign = 'center'; g.fillText(Math.ceil(m.nasceEm - t), x, y + 4); } }
+    if (!vivo && m.nasceEm != null && m.nasceEm > t && (m.T.obj || m.nasceEm - t < 60)) { const r2 = Math.ceil(m.nasceEm - t); g.globalAlpha = 1; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 3; g.font = 'bold 10px sans-serif'; g.textAlign = 'center'; const tx = m.T.obj ? Math.floor(r2 / 60) + ':' + String(r2 % 60).padStart(2, '0') : '' + r2; g.strokeText(tx, x, y + 4); g.fillText(tx, x, y + 4); } }
   g.globalAlpha = 1;
   for (const mk of selva.marcas) { const [x, y] = mmPos(mk.pos.x, mk.pos.z); const k = ((t - mk.t0) % 1); g.strokeStyle = mk.tipo === 'recuar' ? '#ff5050' : mk.tipo === 'ajuda' ? '#ffd040' : '#6fd0ff'; g.lineWidth = 2.5; g.globalAlpha = 1 - k * .7; g.beginPath(); g.arc(x, y, 7 + k * 10, 0, 7); g.stroke(); g.globalAlpha = 1; g.fillStyle = g.strokeStyle; g.font = 'bold 13px sans-serif'; g.textAlign = 'center'; g.fillText(mk.tipo === 'recuar' ? '✕' : mk.tipo === 'ajuda' ? '!' : '⚑', x, y + 5); }
 }
