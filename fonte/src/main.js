@@ -34,7 +34,7 @@ const DAVI_GROK = P.get('davi') === 'grok'; // modelo alternativo do Davi feito 
 const ANEIS_TODOS = P.has('aneis');         // depuração/prints: mostra o alcance de todas as torres
 const MEDIR = P.has('medir');
 // dificuldade do Computador: ?dif=facil|normal|dificil (ou Configurações)
-const DIFS = { facil: { nome: 'Fácil', limiar: .25, reflexo: 2.5, poke: .6, abate: 1.25, margem: 400, clarao: false }, normal: { nome: 'Normal', limiar: -.04, reflexo: 6, poke: 1.5, abate: .9, margem: 150, clarao: true }, dificil: { nome: 'Difícil', limiar: -.1, reflexo: 9, poke: 2.2, abate: .85, margem: 50, clarao: true } };
+const DIFS = { facil: { nome: 'Fácil', limiar: .25, reflexo: 2.5, desvio: .2, poke: .6, abate: 1.25, margem: 400, clarao: false }, normal: { nome: 'Normal', limiar: -.04, reflexo: 6, desvio: .45, poke: 1.5, abate: .9, margem: 150, clarao: true }, dificil: { nome: 'Difícil', limiar: -.1, reflexo: 9, desvio: .7, poke: 2.2, abate: .85, margem: 50, clarao: true } };
 let DIF_ID = DIFS[P.get('dif')] ? P.get('dif') : (DIFS[localStorage.getItem('mobaDif')] ? localStorage.getItem('mobaDif') : 'normal'); let DIF = DIFS[DIF_ID];
 // configurações do aparelho (menu da engrenagem)
 const CFG = { joyFixo: localStorage.getItem('mobaJoyFixo') === '1', tremor: localStorage.getItem('mobaTremor') !== '0' };
@@ -523,7 +523,8 @@ function danificar(fonte, alvo, valor, o = {}) {
   return false;
 }
 // a partir de 6:00 as muralhas enfraquecem (+40% de dano em estruturas por minuto; +100%/min a mais depois de 9:00): a partida fecha entre 8 e 12 min
-const muralhas = () => 1 + Math.max(0, (estado.tempo - 360) / 60) * .4 + Math.max(0, (estado.tempo - 540) / 60) * 1.0;
+// cerco tardio: acelera um pouco o fim da partida. Antes não tinha teto (x4 aos 12 min, x10 aos 15) e as torres caíam num golpe
+const muralhas = () => 1 + Math.min(.6, Math.max(0, (estado.tempo - 420) / 60) * .1);
 function danoEstrutura(fonte, e, valor) {
   if (!e.vivo || protegida(e)) { if (fonte === jogador && protegida(e)) aviso(e.tipo === 'nucleo' ? 'Destrua as torres antes do Núcleo' : 'Destrua a torre externa primeiro', true); return false; }
   // fortificação (estilo WR): até 4:00 as torres recebem 45% menos dano de heróis; de 4:00 a 5:00 o bônus some aos poucos
@@ -1067,6 +1068,24 @@ function comprarBuild(h) {
   }
 }
 function estruturaInimigaProxima(h, raio) { let best = null, bd = raio; for (const e of estruturas) { if (!e.vivo || e.time === h.time || e.tipo !== 'torre') continue; const d = e.obj.position.distanceTo(h.obj.position); if (d < bd) { bd = d; best = e; } } return best; }
+// alvo de foco: inimigo visível com menos vida (ponderado pela distância), não só o mais perto
+function focoInimigo(h, alc) { let best = null, bs = 1e9; for (const u of herois) { if (!u.vivo || u.time === h.time || !visivelPara(u, h.time)) continue; const d = u.obj.position.distanceTo(h.obj.position) - u.raio; if (d > alc) continue; const sc = d + 9 * u.hp / u.maxHp; if (sc < bs) { bs = sc; best = u; } } return best; }
+// desviar de skillshot: projétil inimigo com direção vindo na minha linha → passo lateral (chance pela dificuldade)
+function desviar(h, dt) {
+  if (h.desvioT > 0) { h.desvioT -= dt; mover2(h, h.desvioP); return true; }
+  const pos = h.obj.position, ch = DIF.desvio;
+  for (const p of projeteis) { if (!p.dir || p.time === h.time) continue; const q = p.m.position, rx = pos.x - q.x, rz = pos.z - q.z, al = rx * p.dir.x + rz * p.dir.z; if (al < 0 || al > 9) continue;
+    const px = rx - p.dir.x * al, pz = rz - p.dir.z * al; if (px * px + pz * pz > 2.2) continue; (p.desv || (p.desv = new Set())); if (p.desv.has(h)) continue; p.desv.add(h); if (Math.random() > ch) continue;
+    let sx = -p.dir.z, sz = p.dir.x; if (sx * px + sz * pz < 0) { sx = -sx; sz = -sz; } if (px * px + pz * pz < .01 && Math.random() < .5) { sx = -sx; sz = -sz; }
+    h.desvioP = pos.clone().add(new THREE.Vector3(sx * 2.6, 0, sz * 2.6)); h.desvioT = .32; mover2(h, h.desvioP); return true; }
+  return false;
+}
+// dano de um ataque básico meu nessa tropa (para o último golpe)
+const golpeEm = (h, u) => mitigar(h, u, h.st.ad, { ataque: true });
+// fuga: usa dash/clarão para longe do inimigo
+function fugir(h, inim) { const pos = h.obj.position, dir = FONTE[h.time].clone().sub(pos).setY(0).normalize();
+  for (const k of ['e', 'w', 'q']) { const H = h.hab[k], d = h.def.hab[k]; if (H.nv && H.cd <= 0 && d.tipo === 'dash' && h.mana >= d.mana[H.nv - 1]) { h.olharPara(pos.clone().add(dir), 1, 1); h.ctrl.x = dir.x; h.ctrl.y = dir.z; h.ctrl.len = 1; if (usarHab(h, k)) return true; } }
+  if (inim && h.feit.clarao <= 0 && h.hp / h.maxHp < .2) { clarao(h, dir); return true; } return false; }
 function pensar(h, dt) {
   const c = h.ctrl; c.x = c.y = c.len = 0; h.forcarAlvo = null;
   if (!h.vivo) { comprarBuild(h); return; }
@@ -1074,11 +1093,15 @@ function pensar(h, dt) {
   if (h.pontos > 0) autoPontos(h);
   if (naFonte(h)) { comprarBuild(h); h.recuando = false; if (hpF < .92 || h.mana < h.manaMax * .5) { if (h.obj.position.distanceTo(FONTE[h.time]) > 5) mover2(h, FONTE[h.time]); return; } }
   if (h.canal) return;
-  const inim = heroiInimigoProximo(h, 13);
+  if (desviar(h, dt)) return;
+  const inim = focoInimigo(h, 13);
   const dInim = inim ? inim.obj.position.distanceTo(pos) : 99;
   // recuar com pouca vida
-  if ((hpF < .3 && !(inim && dInim < 8 && avaliarLuta(h, inim, false, hpF, inim.hp / inim.maxHp).abate)) || h.recuando) {
-    h.recuando = true;
+  let nInim = 0, nAmig = 0; for (const u of herois) { if (!u.vivo) continue; const d = u.obj.position.distanceTo(pos); if (u.time !== h.time && d < 12) nInim++; else if (u.time === h.time && u !== h && d < 12) nAmig++; }
+  const emDesvantagem = nInim >= 2 && nAmig === 0 && hpF < .6 && !(inim && inim.hp / inim.maxHp < .2);
+  if ((hpF < .3 && !(inim && dInim < 8 && avaliarLuta(h, inim, false, hpF, inim.hp / inim.maxHp).abate)) || h.recuando || emDesvantagem) {
+    h.recuando = h.recuando || !emDesvantagem;
+    if (inim && dInim < 6 && hpF < .35 && fugir(h, inim)) return;
     if (hpF < .25 && h.feit.curar <= 0) curar(h);
     if (inim && dInim < 4 && hpF < .18 && h.feit.clarao <= 0) clarao(h, FONTE[h.time].clone().sub(pos).setY(0).normalize());
     if (dInim > 11 && h.combateT > 2.5 && !naFonte(h, 20)) { recuar(h); return; }
@@ -1105,7 +1128,8 @@ function pensar(h, dt) {
   if (inim && (dInim < 10 || (dInim < 13 && inim.hp < inim.maxHp * .3))) {
     const L = avaliarLuta(h, inim, inimSobTorre, hpF, inimHp);
     // Gideão: com o inimigo amedrontado pela Trombeta, parte para cima (é a janela de abate dele)
-    const favoravel = (L.score > DIF.limiar && (!inimSobTorre || L.abate)) || (h.id === 'gideao' && inim && inim.medo && hpF > .35 && !inimSobTorre);
+    const aliadoLuta = herois.some(a => a !== h && a.vivo && a.time === h.time && a.obj.position.distanceTo(inim.obj.position) < 9 && a.hp / a.maxHp > .3); // briga em grupo
+    const favoravel = !(h.desisteT > estado.tempo) && (L.score + (aliadoLuta ? .25 : 0) > DIF.limiar && (!inimSobTorre || L.abate)) || (h.id === 'gideao' && inim && inim.medo && hpF > .35 && !inimSobTorre);
     if (favoravel || L.abate) {
       h.lutaT = (h.lutaT || 0) + dt;
       const reage = Math.random() < dt * DIF.reflexo;
@@ -1115,11 +1139,16 @@ function pensar(h, dt) {
         if (!reage && k !== 'r') continue;
         const alc = d.alc || d.comp || (d.centro === 'frente' ? (d.dist || 2) + d.raio * .8 : 0) || d.raio || d.dist || 6;
         if (d.tipo === 'dash' && dInim < h.alcance * .8 && h.def.distancia) continue;
+        if (d.tipo === 'dash' && hpF < .45 && !L.abate) continue; // guarda o dash para fugir
         if (d.tipo === 'buff' || d.tipo === 'invocar' ? (hpF < .8 || dInim < 5) : dInim < alc + (d.centro === 'self' ? 0 : .5)) { if (usarHab(h, k)) break; }
       }
       if (hpF < .25 && h.feit.curar <= 0) curar(h);
       if (L.abate && dInim > h.alcance + 1.5 && dInim < 7 && h.feit.clarao <= 0 && DIF.clarao) clarao(h, inim.obj.position.clone().sub(pos).setY(0).normalize());
       h.forcarAlvo = inim;
+      // perseguição com limite: desiste se o alvo foge para a torre dele ou a caça já dura demais sem chance de abate
+      if (dInim > h.alcance + 2 && ((h.lutaT > 7 && !L.abate) || (inimSobTorre && !L.abate))) { h.lutaT = 0; h.desisteT = estado.tempo + 3; mover2(h, pos.clone().add(new THREE.Vector3(-s * 4, 0, 0))); return; }
+      // kite: quem ataca à distância bate e recua entre ataques quando o inimigo encosta
+      if (h.def.distancia && h.atkCd > .12 && dInim < h.alcance * .65 && !inim.def.distancia) { mover2(h, pos.clone().add(pos.clone().sub(inim.obj.position).setY(0).normalize().multiplyScalar(3))); return; }
       if (dInim > h.alcance + inim.raio) mover2(h, inim.obj.position); else atacar(h);
       return;
     }
@@ -1132,9 +1161,14 @@ function pensar(h, dt) {
   if (torre && tanqueTorre >= (pressao ? 1 : 2) && !protegida(torre) && hpF > .45 && !(inim && dInim < 7)) { const d = torre.obj.position.distanceTo(pos); h.forcarAlvo = torre; if (d > h.alcance + torre.raio) mover2(h, torre.obj.position); else atacar(h); return; }
   { const nuc = estruturas.find(e => e.vivo && e.tipo === 'nucleo' && e.time !== h.time && !protegida(e)); if (nuc && nuc.obj.position.distanceTo(pos) < 14 && hpF > .4 && !(inim && dInim < 6)) { h.forcarAlvo = nuc; if (nuc.obj.position.distanceTo(pos) > h.alcance + nuc.raio) mover2(h, nuc.obj.position); else atacar(h); return; } }
   if (SELVA_ON) { botUsarOlho(h); if (botSelva(h, dt, { hpF, inim, dInim })) return; }
+  // agrupar: aliado brigando com herói inimigo perto → vai ajudar (rotação), sem entrar em torre inimiga
+  if (hpF > .5 && !inim) for (const a of herois) { if (a === h || !a.vivo || a.time !== h.time) continue; const e = focoInimigo(a, 9); if (!e) continue; const d = a.obj.position.distanceTo(pos); if (d < 26 && d > 6 && !estruturas.some(t => t.vivo && t.tipo === 'torre' && t.time !== h.time && t.obj.position.distanceTo(e.obj.position) < t.alcance)) { mover2(h, a.obj.position); return; } }
   // farmar: tropa inimiga com menos vida por perto
   let alvo = null, melhor = 1e9;
-  for (const u of unidades) { if (!u.vivo || u.time === h.time || u.tipo !== 'minion') continue; const d = u.obj.position.distanceTo(pos); if (d > 10) continue; if (torre && u.obj.position.distanceTo(torre.obj.position) < torre.alcance && tanqueTorre === 0) continue; const sc = u.hp + d * 25; if (sc < melhor) { melhor = sc; alvo = u; } }
+  let segurar = null; // tropa quase no ponto de último golpe: espera em alcance em vez de bater antes (não "empurra" à toa)
+  for (const u of unidades) { if (!u.vivo || u.time === h.time || u.tipo !== 'minion') continue; const d = u.obj.position.distanceTo(pos); if (d > 10) continue; if (torre && u.obj.position.distanceTo(torre.obj.position) < torre.alcance && tanqueTorre === 0) continue;
+    const g = golpeEm(h, u), sc = u.hp <= g * 1.05 ? -1e4 + d : u.hp + d * 25; if (u.hp > g * 1.05 && u.hp < g * 2.2 && nAliados > 0 && !pressao) { if (!segurar || u.hp < segurar.hp) segurar = u; continue; } if (sc < melhor) { melhor = sc; alvo = u; } }
+  if (!alvo && segurar) { const d = segurar.obj.position.distanceTo(pos); if (d > h.alcance + segurar.raio - .3) mover2(h, segurar.obj.position); return; }
   if (alvo) {
     // habilidade em grupo de tropas
     const qq = h.hab.q, dq = h.def.hab.q; if (qq.nv && qq.cd <= 0 && h.mana > h.manaMax * .65 && dq.tipo !== 'buff' && inimigosEm(alvo.obj.position, h.time, 3).length >= 3 && Math.random() < dt) usarHab(h, 'q');

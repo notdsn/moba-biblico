@@ -35,13 +35,22 @@ let geoSombra, matSombra, geoAnel, matAnel = {};
 async function carregarMolde(n) {
   if (moldes[n]) return moldes[n];
   const lo = await D.carregar('selva/' + n + '_lod1').catch(() => null);
-  const hi = D.Q.baixa ? null : await D.carregar('selva/' + (RIG[n] ? n + '_rig' : n)).catch(() => null); // Dragão: modelo com esqueleto (Blender) e clipes
+  // Tripo (tools externos): public/models/selva/tripo_anim/<nome>_anim.glb com clipes idle/walk/attack/hit/death. Preferido quando ligado
+  // (?tripo=1 para prévia, ou TRIPO[nome] = true depois de aprovado); se o arquivo faltar, cai no modelo atual
+  const tri = !D.Q.baixa && (TRIPO[n] || qs.get('tripo') === '1') ? await D.carregar('selva/tripo_anim/' + n + '_anim').catch(() => null) : null;
+  const hi = tri || (D.Q.baixa ? null : await D.carregar('selva/' + (RIG[n] || n)).catch(() => null)); // modelo com esqueleto + clipes (Blender ou Tripo), senão o estático
   const base = (hi || lo).scene; const bb = new THREE.Box3().setFromObject(base); const sz = bb.getSize(new THREE.Vector3());
   const prep = (g) => { if (!g) return null; const s = g.scene; s.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; if (o.geometry.attributes.color && !o.material.map) o.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .8, metalness: .05 }); } }); return s; };
-  moldes[n] = { clipes: hi && hi.animations && hi.animations.length ? hi.animations : null, hi: prep(hi), lo: prep(lo), dim: Math.max(sz.x, sz.y, sz.z), alt: sz.y, cx: (bb.min.x + bb.max.x) / 2, cz: (bb.min.z + bb.max.z) / 2, y0: bb.min.y };
+  moldes[n] = { tripo: !!(tri && tri.animations && tri.animations.length), clipes: hi && hi.animations && hi.animations.length ? hi.animations : null, hi: prep(hi), lo: prep(lo), dim: Math.max(sz.x, sz.y, sz.z), alt: sz.y, cx: (bb.min.x + bb.max.x) / 2, cz: (bb.min.z + bb.max.z) / 2, y0: bb.min.y };
   return moldes[n];
 }
-const RIG = { dragao: true, leviata: true, beemote: true, gigante_pedra: true, lobo: true }; // modelos com esqueleto (tools/rig_*_blender.py)
+// modelo animado de cada monstro (public/models/selva/<arquivo>.glb). Para trocar por um GLB do Tripo: salve como <nome>_tripo.glb e
+// aponte aqui. Os clipes são reconhecidos pelo nome (Idle/Walk/Attack/Hit/Death/Spawn, ou idle/walk/run/attack/bite/hurt/die/roar...)
+const RIG = { dragao: 'dragao_rig', leviata: 'leviata_rig', beemote: 'beemote_rig', gigante_pedra: 'gigante_pedra_rig', lobo: 'lobo_rig', sarca: null, rocha: null };
+const NOMES_CLIPE = [['Idle', /idle|parad|breath|respir/i], ['Walk', /walk|run|move|trot|andar|corr/i], ['Attack', /attack|atk|bite|slam|strike|spit|ataq|mord/i], ['Hit', /hit|hurt|damage|impact|dano|golpe/i], ['Death', /death|die|dead|morte|morr/i], ['Spawn', /spawn|roar|appear|intro|rugi|surg/i]];
+function nomeClipe(n) { const b = n.split(/[|/]/).pop(); for (const [k, re] of NOMES_CLIPE) if (b === k || re.test(b)) return k; return b; }
+// GIRO: rig Blender já vem girado; o GLB do Tripo usa a malha original (de lado) e gira aqui
+const TRIPO = { dragao: false, leviata: false, beemote: false, gigante_pedra: false, lobo: false, sarca: false, rocha: false };
 const GIRO = { lobo: Math.PI / 2, leviata: Math.PI / 2 }; // modelos Tripo de lado (cabeça em -X): o rig já vem girado; o LOD simples gira aqui
 function clonarMats(root, mats) { root.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); mats.push(o.material); } }); }
 // ---- deformação por vértice (sem esqueleto): as partes saem da posição do vértice no modelo normalizado
@@ -99,7 +108,7 @@ function criarMonstro(tipo, campo, dx = 0, dz = 0, time = 'neutro') {
   const U = { uT: { value: 0 }, uAtk: { value: 0 }, uMove: { value: 0 }, uHit: { value: 0 }, uPasso: { value: 0 } };
   let rig = null;
   const montar = (src) => { const esq = src === M.hi && M.clipes; const g = esq ? clonarEsq(src) : src.clone(); g.scale.setScalar(k); g.position.set(-M.cx * k, -M.y0 * k, -M.cz * k); clonarMats(g, mats);
-    if (esq) { g.traverse(o => { if (o.isSkinnedMesh) o.frustumCulled = false; }); rig = criarRig(g, M.clipes); } else aplicarDeform(g, T.mod, U); if (!D.Q.mobile && src === M.hi) g.traverse(o => { if (o.isMesh) o.castShadow = true; }); const w = new THREE.Group(); w.add(g); if (!esq && GIRO[T.mod] && M.clipes) w.rotation.y = GIRO[T.mod]; return w; };
+    if (esq) { g.traverse(o => { if (o.isSkinnedMesh) o.frustumCulled = false; }); rig = criarRig(g, M.clipes); } else aplicarDeform(g, T.mod, U); if (!D.Q.mobile && src === M.hi) g.traverse(o => { if (o.isMesh) o.castShadow = true; }); const w = new THREE.Group(); w.add(g); if (GIRO[T.mod] && M.clipes && (M.tripo || !esq)) w.rotation.y = GIRO[T.mod] + (M.tripo && esq ? +(qs.get('tripoGiro') || 0) : 0); return w; };
   if (M.hi && dist > 0) { lod.addLevel(montar(M.hi), 0); if (M.lo) lod.addLevel(montar(M.lo), dist); } else lod.addLevel(montar(M.lo || M.hi), 0);
   corpo.add(lod); if (T.afunda) lod.position.y = -T.afunda * M.alt * k; // Leviatã: corpo dentro d'água (o chão opaco esconde a parte de baixo)
   const sh = new THREE.Mesh(geoSombra, matSombra); sh.rotation.x = -Math.PI / 2; sh.position.y = .04; sh.scale.setScalar(T.raio * 2.4); obj.add(sh);
@@ -299,14 +308,15 @@ function cabecaBarao(m, dt) { const o = m.rig.ossos; if (!o.cabeca) return; cons
   m.pitH = aprox(m.pitH || 0, rec, 18, dt); const br = Math.sin(f * 1.3) * .04; // boca: respira/rosna no ocioso; no cuspe recua entreabrindo, escancara, cospe e fecha num estalo
   let jaw = t < 0 ? .07 + .05 * Math.sin(f * 1.3) + .22 * Math.pow(Math.max(0, Math.sin(f * .37)), 8) : t < .45 ? .25 * ss(0, .45, t) : t < .55 ? .25 + .8 * ss(.45, .55, t) : t < .68 ? 1.05 * (1 - ss(.58, .68, t)) : .08 * ss(.68, 1.1, t);
   if (m.rugeT > 0) { m.rugeT -= dt; const e = ss(0, .35, 1.8 - m.rugeT) * (1 - ss(1.4, 1.8, 1.8 - m.rugeT)); jaw = Math.max(jaw, 1.1 * e); m.pitH -= e * .9 * Math.min(1, dt * 12); rot0 = .05 * Math.sin(f * 40) * e; } else rot0 = 0; // rugido ao surgir
-  const rot = (b, x, y) => { if (!b) return; if (!m.rig.anim.has(b.name)) b.quaternion.copy(m.rig.rest[b.name]); _e.set(x, y, 0); b.quaternion.multiply(_q.setFromEuler(_e)); };
+  const rot = (b, x, y) => { if (!b) return; _e.set(x, y, 0); b.quaternion.multiply(_q.setFromEuler(_e)); };
   rot(o.col3, br * .5 + m.pitH * .12, m.yawH * .2); rot(o.col4, br + m.pitH * .22, m.yawH * .35); rot(o.col5, br + m.pitH * .3, m.yawH * .45); rot(o.cabeca, m.pitH * .35 - br + rot0, rot0); rot(o.mandibula, jaw, 0); }
 function ss(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
 // ---- esqueleto: AnimationMixer com crossfade (Idle em loop; Attack/Hit/Spawn uma vez e voltam ao Idle; Death trava no fim) ----
 function criarRig(g, clipes) { const mixer = new THREE.AnimationMixer(g), acts = {};
-  for (const c of clipes) { const a = mixer.clipAction(c); if (c.name !== 'Idle' && c.name !== 'Walk') { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } acts[c.name] = a; }
+  for (const c of clipes) { const nm = nomeClipe(c.name); if (acts[nm]) continue; const a = mixer.clipAction(c); if (nm !== 'Idle' && nm !== 'Walk') { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } else a.setLoop(THREE.LoopRepeat, Infinity); acts[nm] = a; }
+  if (!acts.Idle) { const k = Object.keys(acts)[0]; if (k) { acts.Idle = acts[k]; acts.Idle.setLoop(THREE.LoopRepeat, Infinity); } }
   const ossos = {}, rest = {}, anim = new Set(); g.traverse(o => { if (o.isBone) { ossos[o.name] = o; rest[o.name] = o.quaternion.clone(); } });
-  for (const c of clipes) if (c.name === 'Idle') for (const tr of c.tracks) if (tr.name.endsWith('.quaternion')) anim.add(tr.name.split('.')[0]);
+  for (const c of clipes) for (const tr of c.tracks) if (tr.name.endsWith('.quaternion')) anim.add(tr.name.split('.')[0]);
   const r = { mixer, acts, ossos, rest, anim, atual: null, fimT: 0 }; rigTocar(r, 'Idle', 0); return r; }
 function rigTocar(r, nome, fade, inicio = 0, vel = 1) { const a = r.acts[nome]; if (!a || (r.atual === a && nome !== 'Attack' && nome !== 'Hit')) return; a.reset(); a.time = inicio; a.timeScale = vel; a.setEffectiveWeight(1); a.play();
   if (r.atual && r.atual !== a) r.atual.crossFadeTo(a, fade, false); else if (!r.atual) a.fadeIn(fade); r.atual = a; r.nome = nome; r.fimT = nome === 'Idle' || nome === 'Walk' ? 1e9 : (a.getClip().duration - inicio) / vel; }
@@ -314,12 +324,15 @@ function animarRig(m, dt, mv) { const r = m.rig, c = m.corpo; c.scale.setScalar(
   if (m.surgeT > 0) { if (m.surgeT >= .69) { rigTocar(r, 'Spawn', .1); m.rugeT = 1.8; } m.surgeT -= dt; }
   m.movK = aprox(m.movK || 0, mv ? 1 : 0, 5, dt);
   if (r.acts.Walk) { if (m.movK > .35 && r.nome === 'Idle') rigTocar(r, 'Walk', .25); else if (m.movK < .2 && r.nome === 'Walk') rigTocar(r, 'Idle', .3); if (r.nome === 'Walk') r.atual.timeScale = .6 + .6 * m.movK * (m.estadoM === 'volta' ? 1.4 : 1); }
-  if (m.investida > 0) { if (!m._atkOn) { if (m.T.mod === 'leviata') rigTocar(r, 'Attack', .15, 0, 1.3); else rigTocar(r, 'Attack', .12, .1, 1.6); m._atkOn = true; } m.investida -= dt; } else m._atkOn = false; // bote cai em ~.28 s = quando o dano entra
-  if (m.flash > .1 && !m._golpe) { m._golpe = true; if (r.nome === 'Idle' || r.nome === 'Walk') rigTocar(r, 'Hit', .08); } else if (m.flash <= .1) m._golpe = false;
+  if (m.investida > 0) { if (!m._atkOn) { if (m.T.cuspe && r.ossos.cabeca) { /* cuspe procedural */ } else if (m.T.mod === 'leviata') rigTocar(r, 'Attack', .15, 0, 1.3); else rigTocar(r, 'Attack', .12, .1, 1.6); m._atkOn = true; } m.investida -= dt; } else m._atkOn = false; // bote cai em ~.28 s = quando o dano entra
+  if (m.flash > .1 && !m._golpe) { m._golpe = true; if ((r.nome === 'Idle' || r.nome === 'Walk') && !(m.T.cuspe && m.cuspeT >= 0)) rigTocar(r, 'Hit', m.T.cuspe ? .15 : .08); } else if (m.flash <= .1) m._golpe = false;
   r.fimT -= dt; if (r.fimT <= .2 && r.nome !== 'Idle' && r.nome !== 'Walk' && r.nome !== 'Death') rigTocar(r, r.acts.Walk && m.movK > .35 ? 'Walk' : 'Idle', .35);
   // curva: continua com a suavização procedural (inclina com a velocidade angular)
   m.rotV = (m.rotV || 0) * Math.exp(-dt * 2); const sp = m.sp || (m.sp = { bank: 0 }); sp.bank = aprox(sp.bank, Math.max(-.25, Math.min(.25, -m.rotV * .12)), 6, dt); c.rotation.z = sp.bank;
+  // pescoço procedural do Leviatã: volta à pose de repouso antes do mixer (osso que o clipe atual não mexe não acumula giro)
+  if (m.T.cuspe) for (const k of PESCOCO) { const b = r.ossos[k]; if (b) b.quaternion.copy(r.rest[k]); }
   r.mixer.update(dt); if (m.T.cuspe) cabecaBarao(m, dt); }
+const PESCOCO = ['col3', 'col4', 'col5', 'cabeca', 'mandibula'];
 function animarCorpo(m, dt, mv) {
   if (m.rig && m.lod.getCurrentLevel() === 0) return animarRig(m, dt, mv);
   const c = m.corpo, U = m.U, A = AN2[m.T.mod] || AN2.lobo, d = Math.min(dt, 1 / 20);
