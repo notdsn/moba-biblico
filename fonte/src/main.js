@@ -243,7 +243,7 @@ async function iniciar() {
   const h0 = P.get('heroi');
   if (h0 && HEROIS[h0] && CENA !== 'sel' && CENA !== 'perfil' && CENA !== 'nome') comecarPartida(h0, P.get('vs'));
   else abrirSelecao();
-  aquecerShaders();
+  if (!(Q.mobile && h0 && HEROIS[h0] && CENA !== 'sel' && CENA !== 'perfil' && CENA !== 'nome')) aquecerShaders(); // celular com partida direta: comecarPartida aquece só a escalação
   if (!CAPTURA) { relogio.start(); requestAnimationFrame(loop); }
   if (!(h0 && HEROIS[h0] && CENA !== 'sel')) window.__pronto = true; // com herói na URL, comecarPartida avisa quando estiver pronto
 }
@@ -452,7 +452,7 @@ function iniciarStatus(u) { u.lento = 0; u.lentoT = 0; u.atord = 0; u.escudos = 
 function criarHeroi(id, time, ehBot, baseK = null) {
   const d = HEROIS[id]; const b = BASES[baseK || id];
   const u = new Unidade(b.cena, b.clips || clips, { time, tipo: 'heroi', nome: d.nome, escala: ESC_HEROI * d.esc, raio: d.esc > 1.2 ? .95 : .75, hp: d.base.hp, vel: d.base.vel, alcance: d.base.alcance, dano: d.base.ad, cadencia: d.base.cad, anim: { ...d.anim } });
-  Object.assign(u, { id, def: d, bot: ehBot, nivel: 1, xp: 0, pontos: 1, ouro: 500, itens: [], abates: 0, mortes: 0, assist: 0, cs: 0, atkCd: 0, travado: 0, contAtaque: 0, proxBonus: 0, proxMag: 0, ctrl: { x: 0, y: 0, len: 0 }, canal: null, dash: null, morteT: 0, feit: { curar: 0, clarao: 0 }, cdPassiva: 0, cdEscudoFe: 0 });
+  Object.assign(u, { baseK: baseK || id, id, def: d, bot: ehBot, nivel: 1, xp: 0, pontos: 1, ouro: 500, itens: [], abates: 0, mortes: 0, assist: 0, cs: 0, atkCd: 0, travado: 0, contAtaque: 0, proxBonus: 0, proxMag: 0, ctrl: { x: 0, y: 0, len: 0 }, canal: null, dash: null, morteT: 0, feit: { curar: 0, clarao: 0 }, cdPassiva: 0, cdEscudoFe: 0 });
   u.mago = ['debora', 'farao', 'jezabel'].includes(id);
   u.hab = { q: { nv: 0, cd: 0 }, w: { nv: 0, cd: 0 }, e: { nv: 0, cd: 0 }, r: { nv: 0, cd: 0 } };
   u.stats = { danoHerois: 0, danoSofrido: 0, danoEstr: 0, danoTropas: 0, torres: 0, cura: 0, controles: 0, primeiro: false, mortes: 0, maiorSerie: 0, ouroTotal: 500, historico: [500] }; u.sequencia = 0;
@@ -1850,7 +1850,7 @@ if (SELVA_ON) {
 }
 for (const k of ['q', 'w', 'e', 'r']) ligarMira(k);
 $('inimInfo').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); travarInimigo(); });
-$('compraRapida').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); tocarCompraRapida(); });
+$('compraRapida').addEventListener('pointerdown', seguro('compraRapida', (e) => { e.preventDefault(); e.stopPropagation(); tocarCompraRapida(); }));
 for (const [id, f] of Object.entries(botoes)) {
   if (['bQ', 'bW', 'bE', 'bR'].includes(id)) continue;
   const el = $(id);
@@ -1858,10 +1858,10 @@ for (const [id, f] of Object.entries(botoes)) {
   const up = () => { el.classList.remove('press'); if (id === 'bAtaque' || id === 'bTropa' || id === 'bTorre') { segurandoAtaque = false; segurandoModo = null; } };
   el.addEventListener('pointerup', up); el.addEventListener('pointerleave', up); el.addEventListener('pointercancel', up);
 }
-function addMais(k) { const m = document.createElement('b'); m.className = 'mais'; m.textContent = '+'; $('b' + k.toUpperCase()).appendChild(m); m.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (jogador) subirHab(jogador, k); }); }
+function addMais(k) { const m = document.createElement('b'); m.className = 'mais'; m.textContent = '+'; $('b' + k.toUpperCase()).appendChild(m); m.addEventListener('pointerdown', seguro('subirHab', (e) => { e.preventDefault(); e.stopPropagation(); if (jogador) subirHab(jogador, k); })); }
 addEventListener('touchend', (e) => { if (e.touches.length === 0) { segurandoAtaque = false; document.querySelectorAll('.press').forEach(b => b.classList.remove('press')); if (joyId !== null) soltar({ pointerId: joyId }); } });
 addEventListener('blur', () => { segurandoAtaque = false; teclas.clear(); });
-$('loja').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (jogador) abrirLoja(); });
+$('loja').addEventListener('pointerdown', seguro('abrirLoja', (e) => { e.preventDefault(); e.stopPropagation(); if (jogador) abrirLoja(); }));
 const teclas = new Set();
 addEventListener('keydown', (e) => {
   if (!jogador || lojaAberta) { if (e.code === 'Escape' || e.code === 'KeyB') fecharLoja(); return; }
@@ -2047,8 +2047,21 @@ function ajustarQualidade(fps) {
 }
 
 // compila de antemão os shaders de tudo que pode aparecer (LOD1, tropas, heróis ainda fora de cena): sem tranco na 1ª aparição
+// celular: só os heróis da partida ficam na GPU. Os outros 13+ (e as vestes lendárias) tinham as texturas e malhas enviadas à GPU
+// pelos retratos e pelo aquecimento e ficavam lá a partida inteira; no iPhone isso estourava a memória (Safari recarregava a página)
+const ehBaseHeroi = (k) => !!HEROIS[String(k).split('@')[0]];
+const basesEmUso = () => new Set(herois.map(h => h.baseK || h.id));
+function liberarBasesForaDeUso() {
+  if (!Q.mobile) return 0; const uso = basesEmUso(); const manter = new Set(); let n = 0;
+  const marcar = (o) => { if (!o.isMesh) return; manter.add(o.geometry); for (const m of [].concat(o.material)) if (m) for (const p in m) { const t = m[p]; if (t && t.isTexture) manter.add(t); } };
+  for (const [k, b] of Object.entries(BASES)) if (b && b.cena && (!ehBaseHeroi(k) || uso.has(k))) b.cena.traverse(marcar);
+  for (const u of unidades) if (u.obj) u.obj.traverse(marcar);
+  for (const [k, b] of Object.entries(BASES)) { if (!b || !b.cena || !ehBaseHeroi(k) || uso.has(k)) continue;
+    b.cena.traverse(o => { if (!o.isMesh) return; if (o.geometry && !manter.has(o.geometry)) { o.geometry.dispose(); n++; } for (const m of [].concat(o.material)) if (m) for (const p in m) { const t = m[p]; if (t && t.isTexture && !manter.has(t)) { t.dispose(); n++; } } }); } // three.js reenvia sozinho se a base voltar a ser usada
+  return n;
+}
 function aquecerShaders() {
-  const tmp = new THREE.Group(); for (const b of Object.values(BASES)) if (b && b.cena) tmp.add(skClone(b.cena)); scene.add(tmp);
+  const uso = basesEmUso(); const tmp = new THREE.Group(); for (const [k, b] of Object.entries(BASES)) if (b && b.cena && (!Q.mobile || !ehBaseHeroi(k) || uso.has(k))) tmp.add(skClone(b.cena)); scene.add(tmp);
   const ocultos = []; scene.traverse(o => { if (!o.visible) { ocultos.push(o); o.visible = true; } });
   // variantes que só nascem no meio da luta (coroa dos guardas = básico sem textura; sombras dos objetos dos poderes)
   const coroa = new THREE.Mesh(new THREE.TorusGeometry(.5, .1, 4, 8), new THREE.MeshBasicMaterial({ color: 0xffc040 })); coroa.castShadow = true; tmp.add(coroa);
@@ -2063,6 +2076,7 @@ function aquecerShaders() {
   tmp.position.copy(camAlvo || new THREE.Vector3());
   try { renderer.compile(scene, camera); renderer.shadowMap.needsUpdate = true; composer.render(0); for (const pr of renderer.info.programs || []) { pr.getUniforms(); pr.getAttributes(); } } catch (e) { console.warn('[aquecer]', e && e.message); } // 1 quadro completo (inclui o passe de sombra)
   for (const o of ocultos) o.visible = false; scene.remove(tmp); coroa.geometry.dispose();
+  const n = liberarBasesForaDeUso(); if (n && Q.mobile) console.log('[memoria] liberados da GPU:', n);
 }
 
 // ================= retratos (renderizados dos próprios modelos 3D) =================
@@ -2205,8 +2219,8 @@ function desenharLoja() {
   el.querySelector('.fechar').onclick = fecharLoja;
   el.querySelectorAll('.aba').forEach(b => b.onclick = () => { lojaAba = b.dataset.aba; desenharLoja(); });
   el.querySelectorAll('[data-id]').forEach(b => { if (b.classList.contains('it')) return; b.onclick = (e) => { e.stopPropagation(); lojaSel = b.dataset.id; desenharLoja(); }; });
-  const bc = el.querySelector('.bComprar'); if (bc) bc.onclick = () => { const erro = comprar(h, lojaSel); if (erro) aviso(erro, true); else { aviso('Comprado: ' + it.nome); const n = proximoRecomendado(h); if (lojaAba === 'rec' && n) lojaSel = n; } desenharLoja(); };
-  const bv = el.querySelector('.bVender'); if (bv) bv.onclick = () => { vender(h, lojaSel); desenharLoja(); };
+  const bc = el.querySelector('.bComprar'); if (bc) bc.onclick = seguro('comprar', () => { const erro = comprar(h, lojaSel); if (erro) aviso(erro, true); else { aviso('Comprado: ' + it.nome); const n = proximoRecomendado(h); if (lojaAba === 'rec' && n) lojaSel = n; } desenharLoja(); });
+  const bv = el.querySelector('.bVender'); if (bv) bv.onclick = seguro('vender', () => { vender(h, lojaSel); desenharLoja(); });
 }
 // preço com desconto de receita (estilo WR): total − componentes que você já tem; mostra o cheio riscado quando há desconto
 function precoHtml(id, h) { const { custo } = custoEfetivo(id, h.itens); const cheio = ITENS[id].custo; return custo < cheio && !h.itens.includes(id) ? `<b class="desc"><s>${fmt(cheio)}</s> ${fmt(custo)}</b>` : `<b>${fmt(cheio)}</b>`; }
@@ -2728,7 +2742,10 @@ const contador = new ContadorFPS(renderer);
 if (P.has('fps') || localStorage.getItem('mobaFps') === '1') contador.mostrar(true);
 function passo(dt) { const t0 = performance.now(); renderer.info.reset(); if (SOMBRA_ALTERNADA) renderer.shadowMap.needsUpdate = (quadroN++ & (tempoU.value < ultAtivaT ? 3 : 1)) === 0; let dtL = estado.pausado ? 0 : dt; if (paradaT > 0 && dtL) { paradaT -= dt; dtL = dt * .1; } atualizar(dtL); if (blobs) blobs.atualizar(unidades.filter(u => u.tipo === 'minion')); atualizarCamera(dt); atualizarBarras(); atualizarAneisTorre(dt); textos.update(dt, W, H); atualizarHUD(dt); if (lojaAberta && jogador) { lojaT += dt; if (lojaT > .3) { lojaT = 0; const k = Math.floor(jogador.ouro) + '|' + podeComprar(jogador) + '|' + jogador.itens.join(); if (k !== lojaChave) desenharLoja(); } } if (avisoT > 0) { avisoT -= dt; if (avisoT <= 0) avisoEl.className = ''; } if (EX.pronto) aplicarFogVisual(); composer.render(dt); if (contador.on) contador.quadro(dt, performance.now() - t0, renderer.info.render, `res ${renderer.getPixelRatio().toFixed(2)}x · ${W}×${H}<br>tropas na tela ${perfStat.visU}/${unidades.length} · projéteis ${projCriados}`); }
 window.__perf = () => ({ pr: renderer.getPixelRatio(), projCriados, visU: perfStat.visU, blobs: blobs ? blobs.m.count : 0, sombraAlternada: SOMBRA_ALTERNADA });
-function loop() { const dt = Math.min(relogio.getDelta(), 1 / 20); passo(dt); requestAnimationFrame(loop); }
+// um erro num quadro nunca pode parar o jogo: registra (uma vez por mensagem) e segue no próximo quadro
+function relatarErro(onde, e) { const V = relatarErro.vistos || (relatarErro.vistos = new Map()); const m = onde + ': ' + (e && e.message || e); const n = (V.get(m) || 0) + 1; V.set(m, n); if (n === 1) console.error('[erro]', m, e && e.stack); }
+function seguro(onde, fn) { return function (...a) { try { return fn.apply(this, a); } catch (e) { relatarErro(onde, e); } }; } // declaração de função: vale antes desta linha (os botões são ligados no início do arquivo)
+function loop() { requestAnimationFrame(loop); const dt = Math.min(relogio.getDelta(), 1 / 20); try { passo(dt); } catch (e) { relatarErro('passo', e); } }
 window.__info = () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geos: renderer.info.memory.geometries, tex: renderer.info.memory.textures, progs: renderer.info.programs.length });
 window.__atualizar = (dt = 1 / 60) => { atualizar(dt); atualizarCamera(dt); };
 window.__tick = (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) { if (i < n - 1) { atualizar(dt); atualizarCamera(dt); } else passo(dt); } return true; };
