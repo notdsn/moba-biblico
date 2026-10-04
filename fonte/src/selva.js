@@ -405,6 +405,10 @@ function lutarMonstro(h, m, dt) {
   if (d > h.alcance) D.mover2(h, m.obj.position); else { D.atacar(h); for (const k of ['q', 'w', 'e']) { const H = h.hab[k], dd = h.def.hab[k]; if (H.nv && H.cd <= 0 && h.mana > h.manaMax * .45 && ['proj', 'linha', 'area', 'zona'].includes(dd.tipo) && Math.random() < dt * 1.5) { D.usarHab(h, k); break; } } }
   h.ultimoAlvoMonstroT = D.estado.tempo;
 }
+// time ajuda no objetivo épico (Dragão/Leviatã) quando o caçador está nele ou o monstro já luta com o time
+export function ajudarEpico(h, dt) { const pos = h.obj.position; for (const sub of ['dragao', 'leviata']) { const m = alvoVivo(sub); if (!m) continue; const d = pos.distanceTo(m.casa); if (d > 40) continue;
+  const nosso = (m.estadoM === 'luta' && m.alvo && m.alvo.time === h.time) || D.herois.some(a => a.vivo && a !== h && a.time === h.time && a.funcao === 'selva' && a.jgAlvo === m && a.obj.position.distanceTo(m.casa) < 16); if (!nosso) continue;
+  if (d > m.T.alc + 4) D.mover2(h, m.casa); else lutarMonstro(h, m, dt); return true; } return false; }
 export function botSelva(h, dt, c) {
   if (!SELVA_ON || !D) return false; const t = D.estado.tempo, pos = h.obj.position;
   // disputa: inimigo batendo no Dragão/Leviatã perto → vai contestar
@@ -423,7 +427,7 @@ export function botSelva(h, dt, c) {
   if (h.funcao === 'selva') {
     // emboscada: inimigo do meio com pouca vida
     for (const e of D.herois) { if (!e.vivo || e.time === h.time || e.invis > 0 || (D.visivel && !D.visivel(e, h.time))) continue; const d = e.obj.position.distanceTo(pos); if (e.hp < e.maxHp * .45 && d < 30 && c.hpF > .5 && !torreInimigaPerto(h, e.obj.position)) { h.forcarAlvo = e; if (d > h.alcance + e.raio) D.mover2(h, e.obj.position); else D.atacar(h); if (!h._gank || t - h._gank > 20) { h._gank = t; if (h.time === D.jogadorTime() && h.bot) feedFala(h, 'Emboscada no meio!'); } return true; } }
-    const m = campoMaisPerto(h, true); if (m) { if (m.estadoM !== 'luta' && pos.distanceTo(m.obj.position) > m.T.alc + 3) D.mover2(h, m.obj.position); else lutarMonstro(h, m, dt); return true; }
+    const m = campoMaisPerto(h, true); h.jgAlvo = m; if (m) { if (m.estadoM !== 'luta' && pos.distanceTo(m.obj.position) > m.T.alc + 3) D.mover2(h, m.obj.position); else lutarMonstro(h, m, dt); return true; }
     if (t < 60) { const c0 = CAMPOS.find(k => k.tipo === 'rocha' && k.lado === h.time); D.mover2(h, new THREE.Vector3(c0.x + (h.time === 'luz' ? 3 : -3), 0, c0.z + (c0.z < 0 ? 2 : -2))); return true; }
     return false;
   }

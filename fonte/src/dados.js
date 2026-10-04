@@ -45,6 +45,16 @@ export const ICONES = {
   golpeReal: L('M12 52 48 16', '#e8ecf2', 6) + L('M10 18a30 30 0 0 1 36 36', '#ffd66b', 3) + F('M22 4l4 6 6-6 4 6 6-6v10H22z', '#ffd66b'),
   estatua: F('M26 6h12v8H26zM24 14h16l-2 34H26zM18 48h28v8H18z', '#e6b85a'),
   carga: L('M8 20h30M8 32h38M8 44h30', '#ffb080', 4) + F('M42 12l18 20-18 20z', '#e6b85a'),
+  janela: F('M14 10h36v44H14z', '#6a4a2a') + F('M18 14h12v18H18zM34 14h12v18H34z', '#9ad0ff') + F('M18 36h28v14H18z', '#ffe8a0') + L('M32 14v36', '#6a4a2a', 3),
+  cova: F('M6 44c6-22 46-22 52 0z', '#4a3020') + Ci(22, 40, 4, '#d8a24a') + Ci(32, 36, 4, '#d8a24a') + Ci(42, 40, 4, '#d8a24a') + Ci(21, 39, 1.2, '#3a2210') + Ci(43, 39, 1.2, '#3a2210'),
+  jejum: F('M10 34h44c0 12-10 20-22 20S10 46 10 34z', '#c89a5a') + Ci(24, 30, 5, '#6ad06a') + Ci(34, 28, 5, '#9ad040') + Ci(42, 31, 4, '#e0c040'),
+  chuva: F('M12 26a12 12 0 0 1 22-8 10 10 0 0 1 18 8z', '#c8d8e8') + L('M18 34l-4 10M28 34l-4 10M38 34l-4 10M48 34l-4 10', '#4a8aff', 4),
+  pomba: F('M10 34c10-14 26-14 34-6l10-6-4 12c-6 10-22 14-40 0z', '#f4f4f4') + Ci(42, 28, 1.6, '#202020') + L('M44 40q6 6 12 2', '#4a9a3a', 3),
+  arca: F('M6 36h52l-8 14H14z', '#8a5a2a') + F('M18 22h28v14H18z', '#a8743a') + F('M26 14h12v8H26z', '#6a4220') + L('M10 42h44', '#5a3818', 2),
+  flechas: L('M10 54L50 14M16 54L54 24M10 48L44 10', '#e0c890', 3) + F('M50 14l-8 0 8-8zM54 24l-6-3 7-6zM44 10l-7 1 6-7z', '#d8d8d8') + Ci(30, 34, 5, '#ff5a40'),
+  penhasco: F('M8 58L24 16l10 14 8-10 14 38z', '#8a7058') + L('M40 8q-10 8-14 20', '#ffe07a', 4) + F('M36 6l8 0-2 8z', '#ffe07a'),
+  mantoArco: F('M18 14h28l6 40H12z', '#a02838') + L('M44 10q14 22 0 44', '#c89a5a', 4) + L('M44 10v44', '#f0e0c0', 1.5),
+  alianca: Ci(24, 32, 12, 'none') + L('M14 32a10 10 0 1 0 20 0a10 10 0 1 0-20 0M30 32a10 10 0 1 0 20 0a10 10 0 1 0-20 0', '#ffd060', 4) + L('M6 52L58 12', '#ff6050', 3),
   fornalha: F('M32 4c-4 12-16 16-16 32a16 16 0 0 0 32 0c0-16-12-20-16-32z', '#ff7a2a') + F('M32 26c-2 6-8 8-8 16a8 8 0 0 0 16 0c0-8-6-10-8-16z', '#ffe07a'),
   // itens
   iEspada: L('M18 46 48 16', '#e8ecf2', 6) + L('M14 36l14 14', '#c8903a', 5) + L('M10 54l6-6', '#6a4424', 6),
@@ -407,8 +417,53 @@ export const HEROIS = {
     },
     build: ['sandalias', 'espadaGolias', 'laminaEude', 'armaduraSaul', 'escudoFe'],
   },
+  daniel: {
+    rota: 'meio', nome: 'Daniel', titulo: 'O Profeta da Babilônia', time: 'luz', papel: 'Mago', corpo: 'm', esc: 1, distancia: true, projetil: 'luz', cor: [1, .78, .35],
+    funcao: 'mago', refWR: 'Annie',
+    base: { hp: 580, hpN: 108, mana: 460, manaN: 50, ad: 50, adN: 3, ap: 0, arm: 31, armN: 4.3, rm: 34, rmN: 1.2, cad: .8, alcance: 7, vel: 5.9 },
+    anim: { idle: 'Idle_Loop', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Spell_Simple_Shoot', velAtaque: 1.6, morte: 'Death01', atrasoAtaque: .2 },
+    icone: 'ataqueMagia',
+    passiva: { nome: 'Revelador de Segredos', desc: 'Deus revela o profundo e o escondido (Dn 2:22): cada ataque ou habilidade de Daniel que acerta um herói o REVELA no mapa por 3 s.' },
+    hab: {
+      q: { nome: 'Investida do Leão', icone: 'leao', desc: 'Um leão corre em linha reta à frente: dano mágico e DERRUBA os inimigos atingidos (caem no chão por 0,6 s e são jogados para trás).', tipo: 'linha', comp: 10, larg: 1.8, atraso: .3, cd: [9, 8.5, 8, 7.5, 7], mana: [55, 60, 65, 70, 75], dano: [75, 115, 155, 195, 235], k: .7, esc: 'ap', mag: true, derruba: .6, cor: [1, .7, .25], visual: 'leao', anim: 'Spell_Simple_Shoot', velAnim: 1.1 },
+      w: { nome: 'Janelas Abertas', icone: 'janela', desc: 'Ora com as janelas abertas para Jerusalém (Dn 6:10): zona de proteção por 4 s; os aliados dentro ficam IMUNES a lentidão (e a lentidão que tinham some).', tipo: 'zona', centro: 'self', raio: 4.2, dur: 4, semLento: true, cd: [18, 17, 16, 15, 14], mana: [60, 60, 60, 60, 60], cor: [.7, .85, 1], visual: 'janela', anim: 'Spell_Simple_Shoot', velAnim: .9 },
+      e: { nome: 'Jejum de Legumes', icone: 'jejum', desc: 'Só legumes e água por dez dias (Dn 1:12-15): recupera vida e mana e ganha +15% de velocidade por 2 s. (provisória: aguarda aprovação)', tipo: 'buff', cd: [16, 15, 14, 13, 12], mana: [0, 0, 0, 0, 0], cura: [60, 85, 110, 135, 160], kCura: .3, manaVolta: [40, 55, 70, 85, 100], ms: .15, msDur: 2, anim: 'Spell_Simple_Shoot', velAnim: .9 },
+      r: { nome: 'Cova dos Leões', icone: 'cova', desc: 'A cova dos leões (Dn 6:16-22): abre uma cova na área por 2,5 s; os inimigos dentro ficam ENRAIZADOS (1,5 s) enquanto 3 leões atacam quem estiver lá.', tipo: 'zona', centro: 'alvo', alc: 9, raio: 3.8, dur: 2.5, raizZona: 1.5, leoes: 3, cd: [75, 65, 55], mana: [100, 100, 100], dps: [30, 45, 60], k: .15, esc: 'ap', mag: true, cor: [1, .65, .2], visual: 'cova', anim: 'Spell_Simple_Shoot', velAnim: .7 },
+    },
+    build: ['sandalias', 'cajadoArao', 'cetroEster', 'tabuasUr', 'escudoFe'],
+  },
+  noe: {
+    rota: 'barao', nome: 'Noé', titulo: 'O Construtor da Arca', time: 'luz', papel: 'Tanque', corpo: 'm', esc: 1.04, distancia: false, cor: [.75, .55, .3],
+    funcao: 'tanque', refWR: 'Braum',
+    base: { hp: 700, hpN: 124, mana: 320, manaN: 36, ad: 60, adN: 3.8, ap: 0, arm: 42, armN: 4.6, rm: 36, rmN: 2.1, cad: .86, alcance: 2.4, vel: 6.0 },
+    anim: { idle: 'Sword_Idle', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Sword_Regular_A', velAtaque: 1.3, morte: 'Death01', atrasoAtaque: .28 },
+    icone: 'ataqueEspada',
+    passiva: { nome: 'Madeira de Gofer', desc: 'Faz para ti uma arca de madeira de gofer (Gn 6:14): guarda 15% do dano recebido; a cada 4 s converte o guardado em ESCUDO por 3 s (até 12% da vida máxima).' },
+    hab: {
+      q: { nome: 'Quarenta Dias de Chuva', icone: 'chuva', desc: 'Chuva sobre a terra (Gn 7:12): nuvem de chuva na área por 3 s; inimigos dentro sofrem dano e ficam LENTOS (35%).', tipo: 'zona', centro: 'alvo', alc: 8, raio: 3.4, dur: 3, dps: [20, 30, 40, 50, 60], k: .2, esc: 'ad', mag: true, lento: [.35, .6], cd: [10, 9.5, 9, 8.5, 8], mana: [50, 55, 60, 65, 70], cor: [.45, .65, 1], visual: 'chuva', anim: 'Spell_Simple_Shoot', velAnim: 1 },
+      w: { nome: 'A Pomba e o Ramo', icone: 'pomba', desc: 'A pomba volta com a folha de oliveira (Gn 8:11): voa até o aliado mais ferido por perto (ou o próprio Noé), CURA e dá +30% de velocidade por 2 s.', tipo: 'buff', pomba: 10, curaAlvo: [70, 100, 130, 160, 190], kCuraHp: .03, cd: [14, 13, 12, 11, 10], mana: [60, 65, 70, 75, 80], cor: [.95, .95, 1], anim: 'Spell_Simple_Shoot', velAnim: 1 },
+      e: { nome: 'Entrai na Arca', icone: 'investida', desc: 'Avança para embarcar o povo (Gn 7:7): no fim, dano em volta e lentidão de 30% por 1,5 s. (provisória: aguarda aprovação)', tipo: 'dash', cd: [13, 12.5, 12, 11.5, 11], mana: [50, 50, 50, 50, 50], dist: 5.5, vel: 18, danoFim: [50, 80, 110, 140, 170], k: .4, esc: 'adb', raioFim: 2.3, lento: [.3, 1.5], visualFim: 'poeira', anim: 'Shield_Dash', velAnim: 1.4 },
+      r: { nome: 'A Arca', icone: 'arca', desc: 'O Senhor fechou a porta da arca (Gn 7:16): o casco envolve Noé e BLOQUEIA TODO o dano por 2 s; ao fechar, EMPURRA para longe os inimigos em volta, com dano.', tipo: 'buff', arca: 2, raioArca: 4.5, empurraHab: 3.5, dano: [100, 170, 240], k: .6, esc: 'ad', cd: [80, 70, 60], mana: [100, 100, 100], cor: [.7, .48, .25], anim: 'Spell_Simple_Shoot', velAnim: .8 },
+    },
+    build: ['sandalias', 'armaduraSaul', 'couracaJustica', 'escudoFe', 'escudoRomano'],
+  },
+  jonatas: {
+    rota: 'atirador', nome: 'Jônatas', titulo: 'O Príncipe Arqueiro', time: 'luz', papel: 'Atirador', corpo: 'm', esc: 1, distancia: true, projetil: 'flecha', cor: [1, .7, .4],
+    funcao: 'atirador', refWR: 'Ashe',
+    base: { hp: 590, hpN: 122, mana: 330, manaN: 40, ad: 55, adN: 4.5, ap: 0, arm: 32, armN: 4.4, rm: 30, rmN: 1.4, cad: .78, alcance: 7, vel: 6.0 },
+    anim: { idle: 'Idle_Loop', correr: 'Jog_Fwd_Loop', velCorrer: 1.2, ataque: 'Spell_Simple_Shoot', velAtaque: 1.6, morte: 'Death01', atrasoAtaque: .2 },
+    icone: 'ataqueFunda',
+    passiva: { nome: 'Escudeiro Fiel', desc: 'Faze tudo o que tens no coração; eis-me contigo (1Sm 14:7): com um herói aliado a até 8 m, Jônatas ganha +20% de velocidade de ataque.' },
+    hab: {
+      q: { nome: 'Flechas do Sinal', icone: 'flechas', desc: 'As flechas do sinal combinado com Davi (1Sm 20:20-22): dispara um leque de 3 flechas; cada inimigo atingido sofre dano e fica MARCADO por 4 s.', tipo: 'proj', leque: 3, alc: 11, vel: 36, cd: [8, 7.5, 7, 6.5, 6], mana: [45, 50, 55, 60, 65], dano: [60, 95, 130, 165, 200], k: .7, esc: 'ad', marcaSinal: 4, tam: 1, cor: [1, .75, .4], anim: 'OverhandThrow', velAnim: 1.6, atraso: .2 },
+      w: { nome: 'Escalada do Penhasco', icone: 'penhasco', desc: 'Sobe o penhasco de Micmás com as mãos e os pés (1Sm 14:13): salta para trás, para longe do inimigo mais próximo, e ganha +30% de velocidade por 2 s.', tipo: 'dash', cd: [13, 12, 11, 10, 9], mana: [45, 45, 45, 45, 45], dist: 5.5, vel: 20, recuo: true, msFim: [.3, 2], anim: 'Roll', velAnim: 2.2 },
+      e: { nome: 'Manto e Arco a Davi', icone: 'mantoArco', desc: 'Jônatas deu a Davi a capa, a espada e o arco (1Sm 18:4): o herói aliado mais próximo (ou ele mesmo) recebe um escudo por 3 s. (provisória: aguarda aprovação)', tipo: 'buff', mantoAliado: 8, escudo: [70, 105, 140, 175, 210], cd: [16, 15, 14, 13, 12], mana: [50, 50, 50, 50, 50], cor: [1, .5, .45], anim: 'Spell_Simple_Shoot', velAnim: 1 },
+      r: { nome: 'Aliança de Sangue', icone: 'alianca', desc: 'A aliança de Jônatas com Davi (1Sm 18:3): flecha que cruza o MAPA INTEIRO em linha reta; cura o herói aliado mais próximo e causa +50% de dano nos inimigos MARCADOS pelas Flechas do Sinal.', tipo: 'linha', comp: 130, alc: 45, larg: 2.2, atraso: .6, cd: [75, 65, 55], mana: [100, 100, 100], dano: [200, 310, 420], k: .9, esc: 'adb', bonusMarca: .5, curaAliado: [150, 240, 330], cor: [1, .45, .35], anim: 'OverhandThrow', velAnim: 1 },
+    },
+    build: ['sandalias', 'arcoJonatas', 'espadaBronze', 'laminaEude', 'armaduraSaul'],
+  },
 };
-export const LUZ = ['davi', 'sansao', 'debora', 'gideao', 'josue', 'elias', 'ester', 'sarai', 'moises'];
+export const LUZ = ['davi', 'sansao', 'debora', 'gideao', 'josue', 'elias', 'ester', 'sarai', 'moises', 'daniel', 'noe', 'jonatas'];
 export const TREVAS = ['golias', 'farao', 'jezabel', 'nabuco', 'acabe', 'dalila', 'herodes', 'hama', 'balaao', 'ninrode', 'golias2'];
 
 // ---------- itens ----------

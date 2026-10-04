@@ -26,7 +26,7 @@ function andarNaRota(R, p, time, k) { // projeta p no trecho mais próximo e and
 }
 function progressoRota(R, p, time) { let mi = 0, md = 1e9; for (let i = 0; i < R.length; i++) { const d = R[i].distanceToSquared(p); if (d < md) { md = d; mi = i; } } return time === 'luz' ? mi : R.length - 1 - mi; }
 import { SELVA_ON, SELVA_LARG, SELVA_SUL, empurrarCova, desvioCova, MAPA_WR, MAPA_C, MAPA_FOLGA, ROTA_TOPO, ROTA_BAIXO, TORRES_LATERAIS, POCO_XZ, DRAG_XZ } from './selva_mapa.js';
-import { iniciarSelva, atualizarSelva, monstroMorreu, multDano, aoAtacar, aoCriarMinion, botSelva, botUsarOlho, desenharSelvaMM, invocarBeemote, ping, PINGS, selva as SELVA, nascerTudo } from './selva.js';
+import { iniciarSelva, atualizarSelva, monstroMorreu, multDano, aoAtacar, aoCriarMinion, botSelva, botUsarOlho, ajudarEpico, desenharSelvaMM, invocarBeemote, ping, PINGS, selva as SELVA, nascerTudo } from './selva.js';
 import { Unidade, anelHeroi, auraSombra } from './units.js';
 import { montarVariante } from './equip.js';
 import { VISUAL, CABELOS } from './herois3d.js';
@@ -55,12 +55,12 @@ const ANEIS_TODOS = P.has('aneis');         // depuração/prints: mostra o alca
 const MEDIR = P.has('medir');
 // dificuldade do Computador: ?dif=facil|normal|dificil (ou Configurações)
 const DIFS = { facil: { nome: 'Fácil', limiar: .25, reflexo: 2.5, desvio: .2, poke: .6, abate: 1.25, margem: 400, clarao: false, sentinela: 0, rotacao: false, chamadas: 0 }, normal: { nome: 'Normal', limiar: -.04, reflexo: 6, desvio: .45, poke: 1.5, abate: .9, margem: 150, clarao: true, sentinela: .5, rotacao: true, chamadas: .6 }, dificil: { nome: 'Difícil', limiar: -.1, reflexo: 9, desvio: .7, poke: 2.2, abate: .85, margem: 50, clarao: true, sentinela: 1, rotacao: true, chamadas: 1 } };
-const REACAO = { facil: [.16, .22], normal: [.09, .16], dificil: [.05, .1] }; // intervalo entre decisões dos bots (s): base + aleatório
+const REACAO = { facil: [.15, .1], normal: [.1, .08], dificil: [.08, .06] }; // intervalo entre decisões dos bots (s): base + aleatório
 let DIF_ID = DIFS[P.get('dif')] ? P.get('dif') : (DIFS[localStorage.getItem('mobaDif')] ? localStorage.getItem('mobaDif') : 'normal'); let DIF = DIFS[DIF_ID];
 // configurações do aparelho (menu da engrenagem)
 const CFG = { joyFixo: localStorage.getItem('mobaJoyFixo') === '1', tremor: localStorage.getItem('mobaTremor') !== '0', atkContinuo: localStorage.getItem('mobaAtkCont') !== '0', menorVida: localStorage.getItem('mobaMenorVida') === '1' };
 const TRIPO = P.get('modelos') !== 'antigos';   // modelos novos do Tripo (heróis da Luz); ?modelos=antigos volta aos Quaternius
-const TRIPO_IDS = ['davi', 'sansao', 'debora', 'gideao', 'golias', 'farao', 'jezabel', 'nabuco', 'josue', 'elias', 'acabe', 'dalila', 'herodes', 'hama', 'balaao', 'ester', 'ninrode', 'sarai', 'moises', 'golias2']; // heróis + vilões
+const TRIPO_IDS = ['davi', 'sansao', 'debora', 'gideao', 'golias', 'farao', 'jezabel', 'nabuco', 'josue', 'elias', 'acabe', 'dalila', 'herodes', 'hama', 'balaao', 'ester', 'ninrode', 'sarai', 'moises', 'daniel', 'noe', 'jonatas', 'golias2']; // heróis + vilões
 const TRIPO_MINIONS = ['guardiao', 'sombra'];
 const PROPS_TRIPO = ['torre_luz', 'torre_trevas', 'nucleo_luz', 'nucleo_trevas', 'fonte', 'arvore', 'arvore_lod1', 'arvore_lod2', 'pedra', 'pedra_lod1', 'coluna'];               // medição de desempenho headless: usa as mesmas otimizações do celular
 const mobile = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -160,7 +160,8 @@ man.onProgress = (u, a, b) => { progBarra.style.width = (a / b * 100).toFixed(0)
 { const vt = document.getElementById('carVerso'); if (vt) { const troca = () => { vt.innerHTML = `<b>${sortear(VERSOS)}</b><p>Dica: ${sortear(DICAS.geral)}</p>`; }; troca(); const iv = setInterval(() => { if (document.getElementById('carregando').classList.contains('fora')) clearInterval(iv); else troca(); }, 3500); } }
 const loader = new GLTFLoader(man); loader.setMeshoptDecoder(MeshoptDecoder); configurarKTX2(loader, renderer);
 const NOMES_PROPS = ['tree_single_A', 'tree_single_B', 'trees_A_medium', 'trees_B_medium', 'trees_B_large', 'tree_pine_yellow_large', 'tree_pine_orange_medium', 'tree_dead_large', 'tree_dead_medium', 'rock_single_A', 'rock_single_B', 'rock_single_C', 'rock_single_D', 'rock_single_E', 'lantern_standing', 'pillar', 'fence_broken', 'post_lantern', 'arch'];
-const carregar = (n) => new Promise((res, rej) => loader.load('models/' + n + '.glb', res, undefined, rej));
+const carregar = (n, v) => new Promise((res, rej) => loader.load('models/' + n + '.glb' + (v ? '?v=' + v : ''), res, undefined, rej));
+const VER_LENDA = '2'; // subir quando trocar o arquivo da veste lendária (fura o cache do navegador/CDN)
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.round(n).toLocaleString('pt-BR');
 const esperar = (ms) => new Promise(r => setTimeout(r, ms));
@@ -172,7 +173,7 @@ let jogador = null, bot = null, aliado = null, cacador = null; let selvaIni = nu
 const estado = { luz: 0, trevas: 0, tempo: 0, fim: null, iniciado: false };
 
 const suportaWebp = () => new Promise(r => { const i = new Image(); i.onload = () => r(i.width === 1); i.onerror = () => r(false); i.src = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA'; });
-const VAR_BASE = { josue: 'sansao', elias: 'davi', acabe: 'nabuco', dalila: 'jezabel', herodes: 'farao', hama: 'nabuco', balaao: 'farao', ester: 'debora', ninrode: 'nabuco', sarai: 'debora', moises: 'davi', golias2: 'golias' }; // heróis novos só têm o modelo do Tripo: o boneco antigo (referência de escala) vem de um parecido
+const VAR_BASE = { josue: 'sansao', elias: 'davi', acabe: 'nabuco', dalila: 'jezabel', herodes: 'farao', hama: 'nabuco', balaao: 'farao', ester: 'debora', ninrode: 'nabuco', sarai: 'debora', moises: 'davi', daniel: 'davi', noe: 'sansao', jonatas: 'davi', golias2: 'golias' }; // heróis novos só têm o modelo do Tripo: o boneco antigo (referência de escala) vem de um parecido
 async function iniciar() {
   if (TRIPO && !(await suportaWebp())) { const u = new URL(location.href); u.searchParams.set('modelos', 'antigos'); location.replace(u.toString()); return; }
   const [heroiG, heroiF, soldadoG, ...cabs] = await Promise.all(['heroi', 'heroi_f', 'soldado', ...CABELOS.map(c => 'cabelo_' + c)].map(carregar));
@@ -510,7 +511,7 @@ function podeSubir(h, k) {
   return nv < 5 && nv < Math.ceil(h.nivel / 2);
 }
 function subirHab(h, k) { if (!podeSubir(h, k)) return false; h.hab[k].nv++; h.pontos--; if (h === jogador) { $('b' + k.toUpperCase()).classList.add('evoluiu'); setTimeout(() => $('b' + k.toUpperCase()).classList.remove('evoluiu'), 500); } return true; }
-function autoPontos(h) { const ordem = ['r', 'q', 'e', 'w']; let g = 0; while (h.pontos > 0 && g++ < 20) { let ok = false; for (const k of ordem) if (subirHab(h, k)) { ok = true; break; } if (!ok) break; } }
+function autoPontos(h) { const ordem = ['r', 'q', 'e', 'w']; let g = 0; while (h.pontos > 0 && g++ < 20) { let ok = false; for (const k of ['q', 'w', 'e']) if (!h.hab[k].nv && subirHab(h, k)) { ok = true; break; } /* como no WR: as três básicas no nível 1-3, depois R > Q > E > W (antes o W ficava zerado) */ if (!ok) for (const k of ordem) if (subirHab(h, k)) { ok = true; break; } if (!ok) break; } }
 function renascer(h, inicio = false) {
   const f = FONTE[h.time]; const s = h.time === 'luz' ? 1 : -1;
   h.obj.position.set(f.x + s * 4, 0, laneZ(f.x + s * 4) + (inicio ? 0 : (Math.random() - .5) * 2));
@@ -550,8 +551,9 @@ function medirDano(f, a) {
 function danificar(fonte, alvo, valor, o = {}) {
   if (!alvo || !alvo.vivo || estado.fim) return false;
   if (alvo.invulneravel || alvo.estase > 0) return false; // Elias E: intocável
+  if (alvo.arcaT > estado.tempo) { if (Math.random() < .3) textoInfo(alvo, 'Bloqueado!'); return false; } // Noé R: a Arca bloqueia todo o dano
   if (fonte && fonte.disfarceT > estado.tempo) { fonte.disfarceT = 0; textoInfo(fonte, 'Disfarce revelado'); } // Sarai E
-  if (fonte && (fonte.tipo === 'heroi' || fonte.tipo === 'minion') && (alvo.time === 'luz' || alvo.time === 'trevas')) { fonte.revelado = estado.tempo + 1.2; fonte.revelaPara = alvo.time; } // quem ataca aparece para o time atacado (mesmo na moita)
+  if (fonte && (fonte.tipo === 'heroi' || fonte.tipo === 'minion') && (alvo.time === 'luz' || alvo.time === 'trevas')) { if (!(fonte.revelado > estado.tempo + 1.2 && fonte.revelaPara === alvo.time)) { fonte.revelado = estado.tempo + 1.2; fonte.revelaPara = alvo.time; } } // quem ataca aparece para o time atacado (mesmo na moita)
   if (SELVA_ON) valor *= multDano(fonte);
   if (alvo.tipo === 'torre' || alvo.tipo === 'nucleo') return danoEstrutura(fonte, alvo, valor);
   let v = Math.max(1, Math.round(mitigar(fonte, alvo, valor, o)));
@@ -561,6 +563,7 @@ function danificar(fonte, alvo, valor, o = {}) {
   let resto = v; for (const e of alvo.escudos) { const a = Math.min(e.v, resto); e.v -= a; resto -= a; if (resto <= 0) break; }
   alvo.escudos = alvo.escudos.filter(e => e.v > 0 && e.t > 0);
   alvo.hp -= resto; alvo.flash = .12; alvo.combateT = 0;
+  if (alvo.id === 'noe' && resto > 0) alvo.gofer = Math.min(alvo.maxHp * .12, (alvo.gofer || 0) + resto * .15); // Noé P: Madeira de Gofer
   if (fonte && fonte.stats) { if (alvo.tipo === 'heroi') fonte.stats.danoHerois += resto; else fonte.stats.danoTropas += resto; }
   if (alvo.stats && fonte && fonte.tipo === 'heroi') alvo.stats.danoSofrido += resto;
   if (fonte === jogador || alvo === jogador) { alvo.flashCor = alvo === jogador ? 'mal' : o.crit ? 'crit' : o.mag ? 'mag' : 'fis'; alvo.flash = o.crit ? .2 : .14; }
@@ -596,7 +599,7 @@ function danoEstrutura(fonte, e, valor) {
   if (!e.vivo || protegida(e)) { if (fonte === jogador && protegida(e)) aviso(e.tipo === 'nucleo' ? 'Destrua as torres antes do Núcleo' : 'Destrua a torre externa primeiro', true); return false; }
   // fortificação (estilo WR): até 4:00 as torres recebem 45% menos dano de heróis; de 4:00 a 5:00 o bônus some aos poucos
   const fort = fonte && fonte.tipo === 'heroi' && e.tipo === 'torre' ? 1 - .45 * Math.min(1, Math.max(0, (300 - estado.tempo) / 60)) : 1;
-  const v = Math.round(valor * fort * (fonte && fonte.tipo === 'minion' ? 1.1 : 1) * muralhas()); e.hp -= v; e.flash = .12;
+  const v = Math.round(valor * fort * (fonte && fonte.tipo === 'minion' ? 1.1 : 1) * muralhas()); e.hp -= v; e.flash = .12; e.atacadaT = estado.tempo;
   if (fonte && fonte.tipo === 'heroi') fonte.stats.danoEstr += v;
   if (e.placas !== undefined && estado.tempo < 300) {
     const n = Math.min(4, Math.floor((1 - Math.max(0, e.hp) / e.maxHp) / .2));
@@ -608,7 +611,7 @@ function danoEstrutura(fonte, e, valor) {
 }
 function curarU(u, v, mostrar = true, fonte = null) { if (!u.vivo) return; if (u.maldicao && u.maldicao.t > estado.tempo && v >= 10) { danificar(u.maldicao.fonte, u, v, { mag: true }); textoInfo(u, 'Cura amaldiçoada!'); return; } /* Balaão Q */ if (u.antiCura) v *= 1 - u.antiCura.v; const a = Math.min(u.maxHp - u.hp, v); u.hp += a; const quem = fonte || (u.tipo === 'heroi' ? u : null); if (quem && quem.stats && a > 0) quem.stats.cura += a; if (mostrar && a > 5 && (u === jogador)) textos.add(u.obj.position, '+' + Math.round(a), 'cura'); }
 function darEscudo(u, v, t) { u.escudos.push({ v, t }); aneis.add(u.obj.position, new THREE.Color(1, .9, .5), .5, 2, .5); }
-function aplicarLento(u, v, t) { if (!u.vivo) return; if (v >= u.lento || u.lentoT < t) { u.lento = Math.max(u.lento, v); u.lentoT = Math.max(u.lentoT, t); } }
+function aplicarLento(u, v, t) { if (!u.vivo || u.semLentoT > estado.tempo) return; /* Daniel W */ if (v >= u.lento || u.lentoT < t) { u.lento = Math.max(u.lento, v); u.lentoT = Math.max(u.lentoT, t); } }
 function atordoar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.atord = Math.max(u.atord, t); if (u.canal) u.canal = null; if (u.tipo === 'heroi') textos.add(u.obj.position, 'Atordoado', 'info'); }
 // controle de grupo com identidade própria (arremesso, empurrão, medo, encanto, raiz)
 const imune = (u) => u.imparavel > 0;
@@ -640,10 +643,14 @@ function morrer(u, fonte) {
   u.vivo = false; u.morteT = 0; u.tocar(u.anim.morte, .1, true); u.canal = null; u.dash = null;
   const heroiFonte = fonte && fonte.tipo === 'heroi' ? fonte : null;
   if (u.tipo === 'heroi') for (const s of herois) if (s.vivo && s.promessaT > estado.tempo && s.time !== u.time && (s === heroiFonte || s.obj.position.distanceTo(u.obj.position) < 12)) { for (const k of ['q', 'w', 'e', 'r']) { s.hab[k].cd = 0; s.hab[k].cargasRest = undefined; } textoInfo(s, 'Promessa cumprida!'); aneis.add(s.obj.position, new THREE.Color(1, .9, .5), .4, 2.4, .6); } // Sarai R
+  if (u.tipo === 'heroi') marcarEmpurrar(inimigo(u.time), u.obj.position);
   if (u.tipo === 'minion') {
     if (heroiFonte && heroiFonte.time !== u.time) { ganharOuro(heroiFonte, u.ouro, u.obj.position); heroiFonte.cs++; }
     // quem estava perto e não deu o último golpe leva 40% (como no Wild Rift)
-    for (const h of herois) if (h.vivo && h !== heroiFonte && h.time !== u.time && h.obj.position.distanceTo(u.obj.position) < 11) ganharOuro(h, Math.round(u.ouro * .4), u.obj.position, true);
+    // item de suporte (como no Wild Rift): último golpe do suporte com o atirador aliado perto → o atirador recebe o ouro inteiro também
+    const adcSup = heroiFonte && heroiFonte.funcao === 'suporte' && heroiFonte.time !== u.time ? herois.find(a => a.vivo && a !== heroiFonte && a.time === heroiFonte.time && a.funcao === 'atirador' && a.obj.position.distanceTo(u.obj.position) < 13) : null;
+    if (adcSup) { ganharOuro(adcSup, u.ouro, u.obj.position, true); adcSup.cs++; }
+    for (const h of herois) if (h.vivo && h !== heroiFonte && h !== adcSup && h.time !== u.time && h.obj.position.distanceTo(u.obj.position) < 11) ganharOuro(h, Math.round(u.ouro * .4), u.obj.position, true);
     for (const h of herois) if (h.vivo && h.time !== u.time && h.obj.position.distanceTo(u.obj.position) < 14) darXp(h, u.xpV);
     if (u.fumaca) for (let k = 0; k < 24; k++) fxD.emit(u.obj.position.x + (Math.random() - .5), .6 + Math.random(), u.obj.position.z + (Math.random() - .5), { vel: [(Math.random() - .5) * 2, 1 + Math.random() * 2, (Math.random() - .5) * 2], cor: [.12, .03, .12], vida: 1.2, t0: 1, t1: 2.2, drag: 1.5, alpha: .8 });
   }
@@ -674,7 +681,7 @@ function matRuina(m, k, ke = 1) { const ch = m.uuid + k; let r = RUINA.get(ch); 
 function prepararRuinas() { for (const e of estruturas) e.obj.traverse(o => { if (!o.isMesh || !o.material || !o.material.color) return; matRuina(o.material, .5); matRuina(o.material, .45, .2); }); }
 function destruirEstrutura(e, fonte) {
   if (e.secao) e = e.dono;
-  e.vivo = false; tremer(.6);
+  e.vivo = false; tremer(.6); marcarEmpurrar(inimigo(e.time), e.obj.position);
   if (e.portao) { derrubarPortao(e.time, e, POS, fxD, agendar, efeitos); estado.portaoCaiuT = estado.tempo; if (LAY) LAY[e.time].aberta = true; aviso(e.nome + ' desabou! A base está aberta por todos os lados'); }
   const p = e.obj.position; const cor = e.time === 'luz' ? [.6, .85, 1] : [1, .25, .35];
   for (let k = 0; k < 90; k++) { const a = Math.random() * 6.28, s = 3 + Math.random() * 9; fx.emit(p.x, 2 + Math.random() * 5, p.z, { vel: [Math.cos(a) * s, 2 + Math.random() * 8, Math.sin(a) * s], cor, vida: 1 + Math.random(), t0: .7, t1: 0, grav: 9, drag: 1 }); }
@@ -815,6 +822,7 @@ function atacar(h) {
     if (h.id === 'golias2' && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') { h.contTear = (h.contTear || 0) + 1; if (h.contTear % 3 === 0) { const dT = alvo.obj.position.clone().sub(h.obj.position).setY(0).normalize(), dv = dano; for (const u of inimigosEmLinha(h.obj.position, dT, h.alcance + 1.5, 3.4, h.time)) if (u !== alvo) danificar(h, u, dv * .75); avisoLinha(h.obj.position.clone(), dT, h.alcance + 1.5, 3.4, new THREE.Color(1, .6, .3), .05); } } // Lami P: Haste de Tear
     if (h.id === 'davi') { h.contAtaque++; if (h.contAtaque % 4 === 0) { dano *= crit ? 1.2 : 1.8; crit = true; lento = .3; } }
     if (h.id === 'sansao') dano *= 1 + .4 * (1 - h.hp / h.maxHp);
+    if (h.id === 'daniel' && alvo.tipo === 'heroi') revelarDaniel(h, alvo);
     if (h.id === 'josue' && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') { h.marchaN = h.marchaAlvo === alvo && alvo.marcha && alvo.marcha.t > estado.tempo ? Math.min(7, h.marchaN + 1) : 1; h.marchaAlvo = alvo; alvo.marcha = { v: 4 * h.marchaN, t: estado.tempo + 3 }; }
     if (h.proxBonus) { dano *= 1 + h.proxBonus; h.proxBonus = 0; }
     if (h.gideaoBonus) { dano += 55 + .6 * h.st.ad; h.gideaoBonus = false; }
@@ -842,12 +850,14 @@ const ESC_RANK = [1, 1.14, 1.34, 1.6, 1.9], ESC_RANK_R = [1, 1.4, 1.8], K_AP = 1
 const multRank = (h, d, nv) => (d === h.def.hab.r ? ESC_RANK_R : ESC_RANK)[Math.max(0, nv - 1)] || 1;
 function valorHab(h, d, nv) { return valorHab0(h, d, nv) * (h._ecoAtivo ? .5 : 1); } // Herodes R: o clone repete com 50%
 function valorHab0(h, d, nv) { const escV = d.esc === 'ap' ? h.st.ap * K_AP : d.esc === 'adb' ? h.st.ad - h.st.adBase : h.st.ad; return (d.dano ? d.dano[nv - 1] * multRank(h, d, nv) : 0) + (d.k || 0) * escV + (d.kAd || 0) * h.st.ad + (d.kHp || 0) * h.maxHp; }
+function revelarDaniel(h, u) { if (!u.vivo) return; const novo = !(u.revelado > estado.tempo && u.revelaPara === h.time); u.revelado = estado.tempo + 3; u.revelaPara = h.time; if (novo) aneis.add(u.obj.position, new THREE.Color(1, .85, .45), .3, 1.4, .5); }
 function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (!u.vivo || u.estase > 0) return;
   let v = dano;
   if (d.antiGigante && u.maxHp > h.maxHp) v *= 1 + d.antiGigante;
   if (d.kHpAlvo) v += d.kHpAlvo[Math.min(d.kHpAlvo.length, nv) - 1] * Math.min(u.maxHp, u.tipo === 'heroi' ? 1e9 : 2500); // Davi R: % da vida máxima do alvo
   if (d.kPerdida) v += d.kPerdida * (u.maxHp - u.hp);
+  if (d.bonusMarca && u.marcaSinal && u.marcaSinal.t > estado.tempo && u.marcaSinal.por.time === h.time) { v *= 1 + d.bonusMarca; u.marcaSinal = null; if (u.tipo === 'heroi') textoInfo(u, 'Aliança!'); } // Jônatas R
   if (u.tipo === 'torre' || u.tipo === 'nucleo') return;
   const red = !extra.redir && u.tipo === 'heroi' && u.redirT > estado.tempo && u.redirPara && u.redirPara.vivo && u.redirPara !== u && u.redirPara.time === u.time ? u.redirPara : null;
   if (red && temCC(d)) { danificar(h, u, v, { mag: d.mag, hab: true, cura: d.rouba, ult: d === h.def.hab.r }); textoInfo(red, 'Se perecer, pereci!'); aneis.add(red.obj.position, new THREE.Color(1, .85, .5), .4, 2, .5); acertarHab(h, red, d, nv, 0, { ...extra, redir: true }); return; } // Ester R
@@ -856,6 +866,8 @@ function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (!u.vivo) return;
   if (u.tipo === 'heroi' && h.stats && (d.lento || d.atordoa || d.raiz || d.medo || d.encanta || d.arremessa || d.provoca || d.atordoaLonge || d.confunde || d.corrente || d.cega || d.silencia || (d.aterra && extra.ultimo))) h.stats.controles++;
   if (d.lento) aplicarLento(u, d.lento[0], d.lento[1]);
+  if (h.id === 'daniel' && u.tipo === 'heroi') revelarDaniel(h, u);
+  if (d.derruba && !extra.semAtordoar && !imune(u)) { atordoar(u, d.derruba); if (extra.dirL) empurrar(u, extra.dirL, u.tipo === 'heroi' && u.def.esc > 1.2 ? .8 : 1.5, .2); if (u.tipo === 'heroi') textoInfo(u, 'Derrubado!'); } // Daniel Q
   if (d.atordoa && !extra.semAtordoar) atordoar(u, d.atordoa);
   if (d.veneno) u.dots.push({ dps: v * d.veneno[0] / d.veneno[1], t: d.veneno[1], fonte: h, mag: true });
   if (d.provoca) { u.provoc = { por: h, t: d.provoca }; if (u.tipo === 'heroi') textoInfo(u, 'Provocado!'); }
@@ -873,6 +885,7 @@ function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (d.aterra && extra.ultimo) aterrar(u, d.aterra);
   if (h.id === 'dalila' && u.tipo === 'heroi' && h.buffs.filter(b => b.tranca).length < 7) { h.buffs.push({ tipo: 'ad', v: 4, t: 5, tranca: true }); u.buffs.push({ tipo: 'ad', v: -4, t: 5 }); }
   if (d.mutila) u.buffs.push({ tipo: 'as', v: -d.mutila[0], t: d.mutila[1] });
+  if (d.marcaSinal && u.tipo !== 'torre') { u.marcaSinal = { por: h, t: estado.tempo + d.marcaSinal }; aneis.add(u.obj.position, new THREE.Color(1, .4, .3), .3, 1.3, d.marcaSinal * .5); if (u.tipo === 'heroi') textoInfo(u, 'Marcado!'); }
   if (d.marcaPerseguir) { u.marcaAcabe = { por: h, t: estado.tempo + d.marcaPerseguir }; aneis.add(u.obj.position, new THREE.Color(1, .5, .2), .3, 1.4, d.marcaPerseguir * .5); }
   if (d.maldicao) { u.maldicao = { fonte: h, t: estado.tempo + d.maldicao }; if (u.tipo === 'heroi') textoInfo(u, 'Amaldiçoado!'); }
   if (d.conselho && u.tipo === 'heroi' && !imune(u)) { let al = null, bd = 8; for (const v of unidades) if (v.vivo && v !== u && v.time === u.time && v.obj.position.distanceTo(u.obj.position) < bd) { bd = v.obj.position.distanceTo(u.obj.position); al = v; } if (al) { encantar(u, al, d.conselho); u.conselhoT = d.conselho; u.consAtk = 0; textoInfo(u, 'Enganado!'); } else aplicarLento(u, .4, 1.5); }
@@ -939,12 +952,13 @@ function usarHab0(h, k) {
   if (T === 'proj') {
     agendar(d.atraso || .25, () => {
       if (!h.vivo) return; const de = posMao(h); de.y = Math.max(de.y, 1.3);
-      const dir = m.alvo && m.alvo.vivo && !m.manual ? m.alvo.obj.position.clone().sub(h.obj.position).setY(0).normalize() : m.dir;
+      const dir0 = m.alvo && m.alvo.vivo && !m.manual ? m.alvo.obj.position.clone().sub(h.obj.position).setY(0).normalize() : m.dir;
       const lanca = d.visual === 'lanca' || d.icone === 'lanca' || d.icone === 'adaga'; const pj = PZ.proj(d);
-      PZ.lancou(d, h, de, dir);
-      lancar(de, null, { dir, time: h.time, fonte: h, vel: d.vel || 28, max: d.alc, perfura: d.perfura, larg: .9 + (d.tam || 1) * .15, cor: d.cor || h.def.cor, geo: pj ? pj.geo : lanca ? geoLanca : (d.icone === 'funda' ? geoPedra : geoBola), mat: pj ? pj.mat : d.icone === 'funda' ? MAT_PROJ.ouro : matCor(d.cor || h.def.cor), esc: pj ? pj.esc : d.tam || 1, giro: pj ? pj.giro : !lanca,
+      PZ.lancou(d, h, de, dir0);
+      const jaLeque = new Set(); // Jônatas Q: cada inimigo leva dano de uma flecha só
+      for (const dir of (d.leque ? [-.24, 0, .24].map(a => dir0.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), a)) : [dir0])) lancar(de, null, { dir, time: h.time, fonte: h, vel: d.vel || 28, max: d.alc, perfura: d.perfura, larg: .9 + (d.tam || 1) * .15, cor: d.cor || h.def.cor, geo: pj ? pj.geo : lanca ? geoLanca : (d.icone === 'funda' ? geoPedra : geoBola), mat: pj ? pj.mat : d.icone === 'funda' ? MAT_PROJ.ouro : matCor(d.cor || h.def.cor), esc: pj ? pj.esc : d.tam || 1, giro: pj ? pj.giro : !lanca,
         trilha: (p, dt, pp) => { if (PZ.trilha(d, p, pp.dir, (performance.now() - pp.t0) / 1000)) return; trilhaHab(d, p); for (let j = 0; j < 2; j++) fx.emit(p.x + (Math.random() - .5) * .3, p.y + (Math.random() - .5) * .3, p.z + (Math.random() - .5) * .3, { vel: [(Math.random() - .5), Math.random() * 1.5, (Math.random() - .5)], cor: d.cor || h.def.cor, vida: .45, t0: .7, t1: 0, alpha: .6 }); },
-        onHit: (u, pp) => { if (d.empurra && u.tipo === 'minion') u.obj.position.addScaledVector(dir, d.empurra); acertarHab(h, u, d, nv, dano, { frac: pp ? pp.dist / pp.max : 0 }); if (PZ.acerto(d, u, h)) { if (h === jogador) tremer(.1); return; } if (d.visual === 'encanto') visualArea('encanto', u.obj.position.clone(), 1.4, cor, h); if (h === jogador) tremer(.1); } });
+        onHit: (u, pp) => { if (d.leque) { if (jaLeque.has(u)) return; jaLeque.add(u); } if (d.empurra && u.tipo === 'minion') u.obj.position.addScaledVector(dir, d.empurra); acertarHab(h, u, d, nv, dano, { frac: pp ? pp.dist / pp.max : 0 }); if (PZ.acerto(d, u, h)) { if (h === jogador) tremer(.1); return; } if (d.visual === 'encanto') visualArea('encanto', u.obj.position.clone(), 1.4, cor, h); if (h === jogador) tremer(.1); } });
       aneis.add(h.obj.position, cor, .4, 2.2, .35);
     });
   } else if (T === 'area') {
@@ -969,12 +983,17 @@ function usarHab0(h, k) {
     if (d.ms) h.buffs.push({ tipo: 'ms', v: d.ms, t: d.msDur });
     const vis = objetoZona(d.visual, centro, d.raio); PZ.zonaIni(d, centro);
     if (d.jaula) for (const u of inimigosEm(centro, h.time, d.raio)) if (!imune(u)) { u.jaula = { c: centro.clone(), r: d.raio - .4, t: d.dur }; if (u.tipo === 'heroi') textoInfo(u, 'Na fornalha!'); }
+    const raizJa = new Set(); if (d.raizZona) for (const u of inimigosEm(centro, h.time, d.raio)) { raizJa.add(u); enraizar(u, d.raizZona); }
     let tick = 0;
     efeitos.push({ t: 0, vida: d.dur, up: (e, dt) => {
       const c = d.segue ? h.obj.position : centro; if (vis) vis.position.set(c.x, 0, c.z);
       if (!PZ.zona(d, c, d.raio, dt, e.t)) particulasZona(d.visual, c, d.raio, dt);
       tick -= dt; if (tick <= 0) { tick = .5;
-        for (const u of inimigosEm(c, h.time, d.raio)) { danificar(h, u, (d.dps[nv - 1] * multRank(h, d, nv) + (d.k || 0) * (d.esc === 'ap' ? h.st.ap * K_AP : d.esc === 'adb' ? h.st.ad - h.st.adBase : h.st.ad)) * .5, { mag: d.mag, hab: true }); if (d.lento) aplicarLento(u, d.lento[0], d.lento[1]); }
+        if (d.semLento) for (const u of unidades) if (u.vivo && u.time === h.time && u.obj.position.distanceTo(c) < d.raio) { u.semLentoT = estado.tempo + .7; u.lento = 0; u.lentoT = 0; if (u.tipo === 'heroi' && Math.random() < .5) fx.emit(u.obj.position.x, 2, u.obj.position.z, { vel: [0, 1.5, 0], cor: [.7, .85, 1], vida: .6, t0: .4, t1: 0 }); }
+        if (d.raizZona) for (const u of inimigosEm(c, h.time, d.raio)) if (!raizJa.has(u)) { raizJa.add(u); enraizar(u, Math.min(d.raizZona, Math.max(.4, d.dur - e.t))); }
+        if (d.leoes) { const alvos = inimigosEm(c, h.time, d.raio).filter(u => u.tipo !== 'torre' && u.tipo !== 'nucleo'); alvos.sort((a, b) => (a.tipo === 'heroi' ? 0 : 1) - (b.tipo === 'heroi' ? 0 : 1)); const v = (d.dps[nv - 1] * multRank(h, d, nv) + (d.k || 0) * h.st.ap * K_AP) * .5;
+          if (alvos.length) for (let i = 0; i < d.leoes; i++) { const u = alvos[i % alvos.length]; danificar(h, u, v, { mag: true, hab: true, ult: true }); const p = u.obj.position, a = i * 2.1 + e.t * 3; for (let j = 0; j < 8; j++) fx.emit(p.x + Math.cos(a) * 1.1, .6 + Math.random() * .8, p.z + Math.sin(a) * 1.1, { vel: [-Math.cos(a) * 5 + (Math.random() - .5) * 2, 1 + Math.random() * 2, -Math.sin(a) * 5 + (Math.random() - .5) * 2], cor: j % 2 ? [1, .62, .18] : [.85, .5, .15], vida: .4, t0: .7, t1: 0 }); } }
+        else if (d.dps) for (const u of inimigosEm(c, h.time, d.raio)) { danificar(h, u, (d.dps[nv - 1] * multRank(h, d, nv) + (d.k || 0) * (d.esc === 'ap' ? h.st.ap * K_AP : d.esc === 'adb' ? h.st.ad - h.st.adBase : h.st.ad)) * .5, { mag: d.mag, hab: true }); if (d.lento) aplicarLento(u, d.lento[0], d.lento[1]); }
         if (d.curaSeg && h.vivo && h.obj.position.distanceTo(c) < d.raio) curarU(h, (d.curaSeg[nv - 1] + .1 * h.st.ap) * .5, true);
         if (d.curaAliados) for (const u of unidades) if (u.vivo && u !== h && u.time === h.time && u.obj.position.distanceTo(c) < d.raio) { curarU(u, (d.curaSeg[nv - 1] * .6) * .5, false, h); if (Math.random() < .5) fx.emit(u.obj.position.x, 1.6, u.obj.position.z, { vel: [0, 2, 0], cor: [.6, 1, .6], vida: .6, t0: .4, t1: 0 }); }
         if (d.queima) for (const u of inimigosEm(c, h.time, d.raio)) { const q = u.dots.find(x => x.queima && x.fonte === h); if (q) q.t = d.queima[1]; else u.dots.push({ dps: d.dps[nv - 1] * d.queima[0], t: d.queima[1], fonte: h, mag: true, queima: true }); }
@@ -987,13 +1006,14 @@ function usarHab0(h, k) {
     else if (h.ctrl.len > .2) dir = new THREE.Vector3(h.ctrl.x, 0, h.ctrl.y).normalize();
     if (d.recuo) { const ini = heroiInimigoProximo(h, 9); dir = ini ? h.obj.position.clone().sub(ini.obj.position).setY(0).normalize() : m.dir.clone().negate(); }
     h.obj.rotation.y = Math.atan2(dir.x, dir.z);
-    const fim = () => { if (d.atiraFim && h.vivo) { h.atkCd = 0; h.travado = 0; atacar(h); } PZ.dashFim(h, d); if (!h.vivo) return; if (d.danoFim) { const c = h.obj.position.clone(); if (!PZ.area(d, c, d.raioFim, h, 0)) visualArea(d.visualFim || 'golpe', c, d.raioFim, cor, h); for (const u of inimigosEm(c, h.time, d.raioFim)) acertarHab(h, u, { ...d, dano: d.danoFim }, nv, valorHab(h, { ...d, dano: d.danoFim }, nv), { centro: c }); } if (d.proxAtaque) h.proxBonus = d.proxAtaque; if (d.muroPedras) muroPedras(inicioDash, dir, d.muroPedras); if (d.blink && m.alvo) h.olharPara(m.alvo.obj.position, 1, 1); };
+    const fim = () => { if (d.msFim && h.vivo) h.buffs.push({ tipo: 'ms', v: d.msFim[0], t: d.msFim[1] }); if (d.atiraFim && h.vivo) { h.atkCd = 0; h.travado = 0; atacar(h); } PZ.dashFim(h, d); if (!h.vivo) return; if (d.danoFim) { const c = h.obj.position.clone(); if (!PZ.area(d, c, d.raioFim, h, 0)) visualArea(d.visualFim || 'golpe', c, d.raioFim, cor, h); for (const u of inimigosEm(c, h.time, d.raioFim)) acertarHab(h, u, { ...d, dano: d.danoFim }, nv, valorHab(h, { ...d, dano: d.danoFim }, nv), { centro: c }); } if (d.proxAtaque) h.proxBonus = d.proxAtaque; if (d.muroPedras) muroPedras(inicioDash, dir, d.muroPedras); if (d.blink && m.alvo) h.olharPara(m.alvo.obj.position, 1, 1); };
     if (d.blink) { const a = h.obj.position.clone(); h.obj.position.addScaledVector(dir, dist); limitar(h.obj.position); if (!PZ.blink(h, d, a, h.obj.position.clone())) for (const p of [a, h.obj.position]) { for (let j = 0; j < 20; j++) fx.emit(p.x, 1 + Math.random(), p.z, { vel: [(Math.random() - .5) * 5, (Math.random() - .5) * 5, (Math.random() - .5) * 5], cor: [.6, .3, .9], vida: .45, t0: .6, t1: 0 }); } fim(); }
     else h.dash = { dir, t: dist / d.vel, vel: d.vel, fim, d };
   } else if (T === 'buff') {
     const escC = h.mago ? h.st.ap : (h.st.ad - h.st.adBase);
     if (d.cura) curarU(h, d.cura[nv - 1] + (d.kCura || 0) * escC, true);
-    if (d.escudo) darEscudo(h, d.escudo[nv - 1] + (d.kEscudoHp || 0) * h.maxHp, d.dur || 3);
+    if (d.escudo && d.mantoAliado) { let al = null, bd = d.mantoAliado; for (const u of herois) if (u.vivo && u !== h && u.time === h.time) { const dd = u.obj.position.distanceTo(h.obj.position); if (dd < bd) { bd = dd; al = u; } } const quem = al || h; darEscudo(quem, d.escudo[nv - 1] + .25 * (h.st.ad - h.st.adBase), 3); if (al) { textoInfo(al, 'Manto de Jônatas!'); for (let j = 0; j < 10; j++) agendar(j * .03, () => { const a = h.obj.position.clone().lerp(al.obj.position, j / 9); fx.emit(a.x, 1.4, a.z, { vel: [0, 1, 0], cor: [1, .45, .4], vida: .5, t0: .5, t1: 0 }); }); } } // Jônatas E
+    else if (d.escudo) darEscudo(h, d.escudo[nv - 1] + (d.kEscudoHp || 0) * h.maxHp, d.dur || 3);
     if (d.as) h.buffs.push({ tipo: 'as', v: d.as, t: d.asDur });
     if (d.ms) h.buffs.push({ tipo: 'ms', v: d.ms, t: d.msDur });
     if (d.armBuff) h.buffs.push({ tipo: 'arm', v: d.armBuff[0], t: d.armBuff[1] });
@@ -1016,6 +1036,11 @@ function usarHab0(h, k) {
     if (d.purifica) { let alvo = null, pior = 1; for (const u of herois) if (u.vivo && u !== h && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < d.purifica && u.hp / u.maxHp < pior) { pior = u.hp / u.maxHp; alvo = u; } if (!alvo || (controlado(h) && !controlado(alvo))) alvo = h;
       limparControles(alvo); curarU(alvo, d.curaAlvo[nv - 1] + (d.kCura || 0) * h.st.ap, true, h); textoInfo(alvo, 'Purificado!'); aneis.add(alvo.obj.position, new THREE.Color(.7, 1, .8), .4, 2.4, .6); }
     if (d.estase) { limparControles(h); h.estase = d.estase; h.dots = []; textoInfo(h, 'Na cova de Horebe'); aneis.add(h.obj.position, new THREE.Color(.8, .8, 1), .5, 2, d.estase); }
+    if (d.manaVolta) h.mana = Math.min(h.manaMax, h.mana + d.manaVolta[nv - 1]); // Daniel E
+    if (d.pomba) { let alvo = null, pior = .999; for (const u of herois) if (u.vivo && u !== h && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < d.pomba && u.hp / u.maxHp < pior) { pior = u.hp / u.maxHp; alvo = u; } if (!alvo) alvo = h; // Noé W
+      const de = h.obj.position.clone(); for (let j = 0; j < 14; j++) agendar(j * .025, () => { const a = de.clone().lerp(alvo.obj.position, j / 13); fx.emit(a.x, 2 + Math.sin(j / 13 * 3.14) * 1.2, a.z, { vel: [0, .6, 0], cor: [1, 1, 1], vida: .5, t0: .6, t1: 0 }); });
+      agendar(.35, () => { if (!alvo.vivo) return; curarU(alvo, d.curaAlvo[nv - 1] + (d.kCuraHp || 0) * h.maxHp, true, h); alvo.buffs.push({ tipo: 'ms', v: .3, t: 2 }); aneis.add(alvo.obj.position, new THREE.Color(.95, 1, .85), .4, 2.2, .5); if (alvo !== h) textoInfo(alvo, 'A pomba voltou!'); }); }
+    if (d.arca) { h.arcaT = estado.tempo + d.arca; textoInfo(h, 'A Arca!'); arcaVisual(h, d.arca); const c = h.obj.position.clone(); for (const u of inimigosEm(c, h.time, d.raioArca || 4.5)) acertarHab(h, u, d, nv, dano, { centro: c }); tremer(.25); for (let i = 0; i < 3; i++) agendar(i * .12, () => aneis.add(c, new THREE.Color(.7, .48, .25), .6, (d.raioArca || 4.5) * (.6 + i * .25), .45, .15, .9)); }
     if (d.proxAtaqueMag) h.proxMag = d.proxAtaqueMag[nv - 1] + .5 * h.st.ap;
     if (d.aliados) for (const u of unidades) if (u.vivo && u !== h && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < d.aliados) { if (d.escudoAliados) darEscudo(u, d.escudoAliados[nv - 1] + .3 * h.st.ap, 3); if (d.cura) curarU(u, (d.cura[nv - 1] + (d.kCura || 0) * escC) * .5, false); }
     if (PZ.buff(d, h)) { aneis.add(h.obj.position, cor, .5, 2.6, .6, .15, .6); return true; }
@@ -1024,6 +1049,7 @@ function usarHab0(h, k) {
     for (let j = 0; j < 40; j++) agendar(j * .02, () => { const a = j * .6, r = 1 + Math.random() * .4, p = h.obj.position; fx.emit(p.x + Math.cos(a) * r, .2 + Math.random() * .4, p.z + Math.sin(a) * r, { vel: [-Math.sin(a) * 1.5, 3 + Math.random() * 2, Math.cos(a) * 1.5], cor: [cor.r, cor.g, cor.b], vida: 1, t0: .5, t1: .1, drag: .8 }); });
   } else if (T === 'linha') {
     const o = h.obj.position.clone(); const dir = m.dir.clone(); const t = d.atraso || .3;
+    if (d.curaAliado) { let al = null, bd = 1e9; for (const u of herois) if (u.vivo && u !== h && u.time === h.time) { const dd = u.obj.position.distanceTo(h.obj.position); if (dd < bd) { bd = dd; al = u; } } if (al) { curarU(al, d.curaAliado[nv - 1] + .3 * (h.st.ad - h.st.adBase), true, h); textoInfo(al, 'Aliança de Sangue!'); aneis.add(al.obj.position, new THREE.Color(1, .5, .45), .4, 2.2, .6); } } // Jônatas R
     avisoLinha(o, dir, d.comp, d.larg, cor, t); PZ.linhaIni(d, o, dir, h, t);
     if (d.visual === 'colunas') for (let i = 0; i < 5; i++) { const pp = o.clone().addScaledVector(dir, 1.6 + i * (d.comp - 1.6) / 4); pp.x += dir.z * (i % 2 ? .7 : -.7); pp.z -= dir.x * (i % 2 ? .7 : -.7); agendar(t - .3 + i * .05, () => pedraCaindo(pp, true)); }
     if (d.supressao) { h.travado = t + d.supressao; agendar(t, () => { if (h.vivo) h.tocar(h.anim.morte, .1, true, 2.5); }); }
@@ -1133,7 +1159,12 @@ const geoPlanoU = new THREE.PlaneGeometry(1, 1);
 function rachadura(c, r, vida = 2) { const m = new THREE.Mesh(geoPlanoU, new THREE.MeshBasicMaterial({ map: texRachadura(), transparent: true, depthWrite: false, opacity: .9 })); m.scale.set(r * 2.2, r * 2.2, 1); m.rotation.x = -Math.PI / 2; m.rotation.z = Math.random() * 6; m.position.set(c.x, .09, c.z); m.renderOrder = 5; scene.add(m);
   efeitos.push({ t: 0, vida, up: (e) => { m.material.opacity = .9 * Math.min(1, (e.vida - e.t) / .6); if (e.t >= e.vida) { scene.remove(m); m.material.dispose(); return false; } return true; } }); }
 // visuais das habilidades em linha
+let GEO_ARCA = null, MAT_ARCA = null;
+function arcaVisual(h, dur) { if (!GEO_ARCA) { GEO_ARCA = new THREE.CylinderGeometry(1.7, 1.25, 1.5, 14, 1, true); MAT_ARCA = new THREE.MeshStandardMaterial({ color: 0x8a5a2a, roughness: .9, side: THREE.DoubleSide, transparent: true, opacity: .92 }); }
+  const m = new THREE.Mesh(GEO_ARCA, MAT_ARCA); m.position.copy(h.obj.position).setY(.75); scene.add(m);
+  efeitos.push({ t: 0, vida: dur, up: (e) => { m.position.set(h.obj.position.x, .75, h.obj.position.z); const s = Math.min(1, e.t * 6); m.scale.set(s, s, s); if (e.t >= e.vida || !h.vivo) { scene.remove(m); return false; } return true; } }); }
 function visualLinha(tipo, o, dir, comp, larg, cor) {
+  if (tipo === 'leao') { for (let i = 0; i < 3; i++) agendar(i * .05, () => aneis.add(o, new THREE.Color(1, .6, .2), .6, 1.6 + i * .6, .3, .9, .9)); for (let j = 0; j < 40; j++) agendar(j * .008, () => { const k = j / 39 * comp; fx.emit(o.x + dir.x * k + (Math.random() - .5) * larg * .6, .4 + Math.random() * 1.2, o.z + dir.z * k + (Math.random() - .5) * larg * .6, { vel: [dir.x * 7, 1 + Math.random() * 1.5, dir.z * 7], cor: j % 3 ? [1, .66, .2] : [1, .9, .5], vida: .45, t0: .9, t1: 0 }); }); return; }
   if (tipo === 'colunas') { tremer(.6); for (let i = 0; i < 4; i++) { const p = o.clone().addScaledVector(dir, comp * (.25 + i * .22)); rachadura(p, larg * .7, 2.4); } for (let j = 0; j < 60; j++) { const k = Math.random() * comp, sd = (Math.random() - .5) * larg; const x = o.x + dir.x * k + dir.z * sd, z = o.z + dir.z * k - dir.x * sd; fxD.emit(x, .4, z, { vel: [(Math.random() - .5) * 3, 2 + Math.random() * 3, (Math.random() - .5) * 3], cor: [.55, .48, .4], vida: 1.3, t0: .9, t1: 2.2, alpha: .8 }); if (j % 2) fx.emit(x, .6, z, { vel: [(Math.random() - .5) * 4, 3 + Math.random() * 5, (Math.random() - .5) * 4], cor: [1, .8, .5], vida: .6, t0: .5, t1: 0, grav: 9 }); } return; }
   if (tipo === 'estocada') { for (let j = 0; j < 46; j++) { const k = j / 45 * comp; fx.emit(o.x + dir.x * k, 1.2, o.z + dir.z * k, { vel: [dir.x * 6 + (Math.random() - .5), Math.random(), dir.z * 6 + (Math.random() - .5)], cor: j % 3 ? [1, .72, .35] : [1, .95, .7], vida: .3 + j / 45 * .2, t0: .55, t1: .05, drag: 3 }); } const fim = o.clone().addScaledVector(dir, comp); aneis.add(fim, new THREE.Color(1, .7, .35), .2, 1.4, .35); return; }
   for (let j = 0; j < 30; j++) { const k = Math.random() * comp; fx.emit(o.x + dir.x * k, 1, o.z + dir.z * k, { vel: [0, 2, 0], cor: [cor.r, cor.g, cor.b], vida: .5, t0: .5, t1: 0 }); }
@@ -1181,7 +1212,7 @@ function prepararPalma() { if (PALMA) return; const fs = []; for (let i = 0; i <
   PALMA = { tronco: new THREE.CylinderGeometry(.12, .2, 3.2, 8), copa, mT: new THREE.MeshStandardMaterial({ color: 0x8a5a2a, roughness: .8 }), mF: new THREE.MeshStandardMaterial({ color: 0x4f9a3a, roughness: .7, emissive: 0x123a10 }) }; }
 function objetoZona(tipo, c, r) {
   const g = new THREE.Group(); g.position.set(c.x, 0, c.z);
-  const cor = { palmeira: 0x7ad060, gafanhotos: 0xa0c040, estatua: 0xffc857, fornalha: 0xff6a20 }[tipo] || 0xffffff;
+  const cor = { palmeira: 0x7ad060, gafanhotos: 0xa0c040, estatua: 0xffc857, fornalha: 0xff6a20, janela: 0x9ad0ff, cova: 0xd88a30, chuva: 0x5a8aff }[tipo] || 0xffffff;
   const disco = new THREE.Mesh(geoZona(r).anel, new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending })); disco.rotation.x = -Math.PI / 2; disco.position.y = .08; g.add(disco);
   const fundo = new THREE.Mesh(geoZona(r).disco, new THREE.MeshBasicMaterial({ map: texB, color: cor, transparent: true, opacity: .35, depthWrite: false, blending: THREE.AdditiveBlending })); fundo.rotation.x = -Math.PI / 2; fundo.position.y = .07; g.add(fundo);
   if (tipo === 'palmeira') { // tronco + copa (7 folhas fundidas numa malha só): 2 draw calls, geometria criada uma vez
@@ -1206,6 +1237,9 @@ function particulasZona(tipo, c, r, dt) {
   else if (tipo === 'fornalha') { const aa = Math.random() * 6.28; fx.emit(c.x + Math.cos(aa) * r, .3, c.z + Math.sin(aa) * r, { vel: [0, 4 + Math.random() * 3, 0], cor: Math.random() > .3 ? [1, .45, .1] : [1, .85, .4], vida: .7, t0: .9, t1: 0 }); fx.emit(c.x + Math.cos(aa + 3) * r * .95, .3, c.z + Math.sin(aa + 3) * r * .95, { vel: [0, 3, 0], cor: [1, .35, .05], vida: .6, t0: .8, t1: 0 }); }
   else if (tipo === 'palmeira') fx.emit(x, .2, z, { vel: [0, 2.5, 0], cor: [.6, 1, .6], vida: .8, t0: .35, t1: 0 });
   else if (tipo === 'estatua') fx.emit(x, .2, z, { vel: [0, 1.5, 0], cor: [1, .8, .35], vida: .8, t0: .3, t1: 0 });
+  else if (tipo === 'chuva') { for (let j = 0; j < 2; j++) { const aa = Math.random() * 6.28, dd = Math.sqrt(Math.random()) * r; fx.emit(c.x + Math.cos(aa) * dd, 4.5, c.z + Math.sin(aa) * dd, { vel: [0, -11, 0], cor: [.55, .75, 1], vida: .4, t0: .25, t1: .2, drag: 0 }); } }
+  else if (tipo === 'janela') fx.emit(x, .2, z, { vel: [0, 2.2, 0], cor: [.8, .9, 1], vida: .8, t0: .35, t1: 0 });
+  else if (tipo === 'cova') { const aa = Math.random() * 6.28; fx.emit(c.x + Math.cos(aa) * r, .2, c.z + Math.sin(aa) * r, { vel: [-Math.cos(aa) * 2, 1.2, -Math.sin(aa) * 2], cor: [.75, .5, .25], vida: .6, t0: .5, t1: .1 }); }
 }
 
 // ================= feitiços e recuo =================
@@ -1324,10 +1358,10 @@ const alcHab = (d) => d.alc || d.comp || (d.centro === 'frente' ? (d.dist || 2) 
 const habPronta = (h, k) => { const H = h.hab[k], d = h.def.hab[k]; return H.nv && H.cd <= 0 && h.mana >= d.mana[H.nv - 1] && !(h.silencio > 0); };
 // mira manual do bot num ponto (com um erro pequeno, como um jogador)
 function mirarEm(h, p, alc, erro = .25) { const v = p.clone().sub(h.obj.position).setY(0); const L = v.length() || 1; const a = Math.atan2(v.z, v.x) + (Math.random() - .5) * erro; h.mira = { dir: new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), frac: Math.min(1, L / (alc || L)) }; }
-function lancarEm(h, k, u) { const d = h.def.hab[k]; const lead = u.ctrl && u.ctrl.len > .2 && d.vel ? u.obj.position.distanceTo(h.obj.position) / d.vel * (u.st ? u.st.ms || 3.5 : 3.5) * .6 : 0; const p = u.obj.position.clone(); if (lead) p.add(new THREE.Vector3(u.ctrl.x * lead, 0, u.ctrl.y * lead)); mirarEm(h, p, alcHab(d)); const r = usarHab(h, k); h.mira = null; return r; }
+function lancarEm(h, k, u) { const d = h.def.hab[k]; mirarEm(h, predizer(h, u, d), alcHab(d), ERRO_MIRA[DIF_ID] || .26); const r = usarHab(h, k); h.mira = null; return r; }
 function pensarSuporte(h, dt, c) {
   const pos = h.obj.position, t = estado.tempo, RL = c.RL;
-  const adc = herois.find(a => a !== h && a.vivo && a.time === h.time && a.funcao === 'atirador');
+  const adc = herois.find(a => a !== h && a.vivo && a.time === h.time && a.funcao === 'atirador' && !a.canal && !naFonte(a, 30) && a.obj.position.distanceTo(pos) < 40); // atirador na rota (se ele volta à base, o suporte segura a rota sozinho)
   // personalidade da posição: lado/distância próprios, sorteados de tempos em tempos
   if (!h.sup) h.sup = { t: 0, lado: 1, atras: 2, roamAte: 0, roamProx: 100 + Math.random() * 60, harass: 0 };
   const S = h.sup; if (S.t < t) { S.t = t + 2.5 + Math.random() * 3; S.lado = (Math.random() < .5 ? -1 : 1) * (2 + Math.random() * 2); S.atras = .5 + Math.random() * 3; }
@@ -1374,10 +1408,106 @@ function pensarSuporte(h, dt, c) {
   if (t > S.roamProx && hpF > .7 && adc && adc.hp / adc.maxHp > .6 && !(inim && dInim < 14) && !herois.some(e => e.vivo && e.time !== h.time && e.obj.position.distanceTo(adc.obj.position) < 12)) { S.roamProx = t + 70 + Math.random() * 60; if (Math.random() < .6) { S.roamAte = t + 10 + Math.random() * 6; return false; } }
   // 7) posição: perto do atirador, mas com espaçamento próprio e zona morta (não copia cada passo dele)
   if (!adc) return false; // sem atirador: comportamento normal da rota
+  // último golpe: o ouro também vai para o atirador perto (item de suporte), então o suporte pega a tropa que está para morrer
+  if (!(inim && dInim < 7)) for (const u of unidades) { if (!u.vivo || u.time === h.time || u.tipo !== 'minion') continue; const d = u.obj.position.distanceTo(pos); if (d < h.alcance + u.raio + .5 && u.hp <= golpeEm(h, u) * 1.02 && h.atkCd <= 0) { h.forcarAlvo = u; if (atacar(h)) return true; } }
   const a0 = andarNaRota(RL, adc.obj.position, h.time, 0), a1 = andarNaRota(RL, adc.obj.position, h.time, 1); const fx = a1.x - a0.x, fz = a1.z - a0.z, fl = Math.hypot(fx, fz) || 1;
   const alvo = adc.obj.position.clone().add(new THREE.Vector3(-fx / fl * S.atras - fz / fl * S.lado, 0, -fz / fl * S.atras + fx / fl * S.lado));
   const dA = alvo.distanceTo(pos); if (S.andando ? dA < 1 : dA < 2.6) { S.andando = false; h.ctrl.len = 0; return true; }
   S.andando = true; mover2(h, alvo); return true;
+}
+// ================= IA dos bots (estilo Wild Rift): habilidades, time, papéis, travamento =================
+// Decisões a ~4-10 Hz (REACAO), nunca por quadro. Cada bot decide sozinho: nada copia o jogador.
+const ERRO_MIRA = { facil: .45, normal: .26, dificil: .14 }; // erro de mira (rad): justo, não perfeito
+function predizer(h, u, d) { const dist = u.obj.position.distanceTo(h.obj.position); const tImp = (d.vel ? dist / d.vel : 0) + (d.atraso || (d.vel ? .1 : .3)); const p = u.obj.position.clone(); if (u.ctrl && u.ctrl.len > .2 && !(u.raiz > 0) && !(u.atord > 0)) { const v = velocidade(u) * tImp * (.55 + Math.random() * .5); p.x += u.ctrl.x * v; p.z += u.ctrl.y * v; } return p; }
+const AUTOALVO = ['marca', 'rajada', 'cacada'];
+function inimigosPerto(p, time, r) { let n = 0; for (const e of herois) if (e.vivo && e.time !== time && e.obj.position.distanceTo(p) < r) n++; return n; }
+// usa Q/W/E/R com lógica: alcance, alvo previsto, ult para abate ou em vários, buffs só em luta; nunca no vazio
+function usarHabsIA(h, inim, o) {
+  if (h.silencio > 0 || !inim || !inim.vivo) return false; const pos = h.obj.position, dI = inim.obj.position.distanceTo(pos), iHp = inim.hp / inim.maxHp, nI = inimigosPerto(inim.obj.position, h.time, 4);
+  for (const k of (o.poke ? ['q', 'w', 'e'] : ['r', 'e', 'w', 'q'])) { if (!habPronta(h, k)) continue; const d = h.def.hab[k]; if (k !== 'r' && !o.reage) continue;
+    const alc = alcHab(d);
+    if (k === 'r') { const vale = (o.L && (o.L.abate || o.L.danoR >= inim.hp * .8)) || nI >= 2 || (o.hpF < .35 && dI < 7) || (iHp < .35 && dI < alc + 1); if (!vale) continue; }
+    if (o.poke && (d.tipo === 'dash' || !ehDano(d) || h.mana < h.manaMax * .4 || o.sobTorre)) continue;
+    if (d.tipo === 'dash') { if (dI > (d.dist || 5) + (d.paraAlvo || d.blink ? .5 : 1.5)) continue; if (o.hpF < .45 && !(o.L && o.L.abate)) continue; if (h.def.distancia && dI < h.alcance * .85) continue; if (o.sobTorre && !(o.L && o.L.abate)) continue;
+      const dir = inim.obj.position.clone().sub(pos).setY(0).normalize(); h.olharPara(inim.obj.position, 1, 1); h.ctrl.x = dir.x; h.ctrl.y = dir.z; h.ctrl.len = 1; if (usarHab(h, k)) return true; continue; }
+    if (['buff', 'invocar', 'moedas'].includes(d.tipo)) { if (d.doaVida || d.puxaAliado || d.profecia) continue; // estes o suporte decide
+      if (d.pomba && !(o.hpF < .6 || herois.some(a => a.vivo && a !== h && a.time === h.time && a.hp / a.maxHp < .55 && a.obj.position.distanceTo(pos) < d.pomba))) continue; // Noé W: só com alguém ferido
+      const luta = dI < Math.max(6, h.alcance + 2), auto = d.cura || d.escudo || d.armBuff || d.imparavel || d.redireciona || d.pomba || d.arca;
+      if (luta || (auto && o.hpF < .55 && dI < 10)) { if (usarHab(h, k)) return true; } continue; }
+    if (d.tipo === 'nuvem') continue;
+    if (d.tipo === 'zona' && !d.dps) { if (dI < Math.max(7, h.alcance + 1.5) && (o.hpF < .8 || h.lento > 0 || herois.some(a => a.vivo && a.time === h.time && a.lento > 0 && a.obj.position.distanceTo(pos) < d.raio))) { if (usarHab(h, k)) return true; } continue; } // Daniel W: zona de proteção
+    if (AUTOALVO.includes(d.tipo)) { if (dI < alc && usarHab(h, k)) return true; continue; }
+    if (d.tipo === 'torreta' || d.tipo === 'armadilha') { if (dI < alc + 1 && lancarEm(h, k, inim)) return true; continue; }
+    const lim = d.centro === 'self' ? (d.raio || 3) * .9 : d.centro === 'frente' ? (d.dist || 2) + (d.raio || 2) * .8 : alc + .3;
+    if (dI > lim) continue; // fora do alcance: não lança no vazio
+    if (d.centro === 'self' || d.centro === 'frente') { h.olharPara(inim.obj.position, 1, 1); if (usarHab(h, k)) return true; continue; }
+    if (lancarEm(h, k, inim)) return true; }
+  return false;
+}
+// eventos do time: depois de um abate ou de uma torre, quem está perto empurra junto por 20 s (depois volta para a rota)
+const EMPURRAR = { luz: null, trevas: null };
+function marcarEmpurrar(time, p) { EMPURRAR[time] = { ate: estado.tempo + 20, p: p.clone() }; }
+const torreInimigaEm = (h, p, folga = 0) => estruturas.some(tw => tw.vivo && tw.tipo === 'torre' && tw.time !== h.time && tw.alcance > 0 && tw.obj.position.distanceTo(p) < tw.alcance + folga);
+function objetivosTime(h, dt, c) {
+  const t = estado.tempo, pos = h.obj.position, hpF = c.hpF;
+  // 1) defender estrutura sob ataque de herói inimigo
+  if (hpF > .4) for (const e of estruturas) { if (!e.vivo || e.time !== h.time || e.secao || !(e.atacadaT > t - 3)) continue; if (e.obj.position.distanceTo(pos) > 32) continue;
+    const inv = herois.find(x => x.vivo && x.time !== h.time && visivelPara(x, h.time) && x.obj.position.distanceTo(e.obj.position) < (e.alcance || 6) + 5); if (!inv) continue;
+    h.atacarAte = t + 3; h.ramo = 'defender'; if (inv.obj.position.distanceTo(pos) > 11) { mover2(h, inv.obj.position); return true; } return false; }
+  // 2) luta de time: aliado brigando com herói inimigo a até 25 m → entra pelo próprio flanco
+  if (hpF > .45 && !(c.inim && c.dInim < 10)) { let alvo = null, bd = 25;
+    for (const a of herois) { if (a === h || !a.vivo || a.time !== h.time || a.combateT > 2) continue; const da = a.obj.position.distanceTo(pos); if (da > bd) continue; const e = focoInimigo(a, 9); if (!e) continue;
+      if (torreInimigaEm(h, e.obj.position) && herois.filter(x => x.vivo && x.time === h.time && x.obj.position.distanceTo(e.obj.position) < 10).length < 3) continue; bd = da; alvo = e; }
+    if (alvo) { h.atacarAte = t + 3; h.ramo = 'agrupar'; if (!h.flanco || h.flanco.t < t) h.flanco = { t: t + 3 + Math.random() * 3, a: Math.random() * 6.283, r: (h.def.distancia ? h.alcance * .8 : 1.5) + Math.random() * 1.5 };
+      mover2(h, alvo.obj.position.clone().add(new THREE.Vector3(Math.cos(h.flanco.a) * h.flanco.r, 0, Math.sin(h.flanco.a) * h.flanco.r))); return true; } }
+  // 3) Dragão / Leviatã: o caçador está no objetivo ou o monstro luta com o time → quem está perto ajuda
+  if (SELVA_ON && hpF > .5 && h.funcao !== 'selva' && ajudarEpico(h, dt)) { h.ramo = 'objetivo'; return true; }
+  // 4) empurrar junto depois de abate/torre
+  const E = EMPURRAR[h.time]; if (E && E.ate > t && hpF > .5 && E.p.distanceTo(pos) < 35) { let alvo = null, bd = 45;
+    for (const e of estruturas) { if (!e.vivo || e.time === h.time || e.secao || (e.tipo !== 'torre' && e.tipo !== 'nucleo') || protegida(e)) continue; const d = e.obj.position.distanceTo(E.p); if (d < bd) { bd = d; alvo = e; } }
+    if (alvo) { const def = herois.filter(x => x.vivo && x.time !== h.time && x.obj.position.distanceTo(alvo.obj.position) < 14).length, nos = herois.filter(x => x.vivo && x.time === h.time && x.obj.position.distanceTo(alvo.obj.position) < 18).length;
+      if (def === 0 || def <= nos - 1) { h.ramo = 'empurrar'; h.forcarAlvo = alvo; const d = alvo.obj.position.distanceTo(pos); if (d > h.alcance + alvo.raio) { mover2(h, alvo.obj.position); return true; } if (atacar(h) || h.atkCd > 0) return true; } } }
+  return false;
+}
+// papéis: o caçador planeja emboscadas; o meio roda para as laterais quando a onda dele está empurrada
+function papelBot(h, dt, c) {
+  const t = estado.tempo, pos = h.obj.position;
+  if (h.funcao === 'selva' && h.nivel >= 3 && c.hpF > .6) {
+    if (h.gank && (h.gank.ate < t || !h.gank.alvo.vivo || !visivelPara(h.gank.alvo, h.time))) h.gank = null;
+    if (!h.gank && t > (h.gankProx || (h.gankProx = t + 25 + Math.random() * 30))) { h.gankProx = t + 45 + Math.random() * 35; let best = null, bs = 1e9;
+      for (const e of herois) { if (!e.vivo || e.time === h.time || !visivelPara(e, h.time) || e.funcao === 'selva') continue; const d = e.obj.position.distanceTo(pos); if (d > 55 || torreInimigaEm(h, e.obj.position, 3)) continue;
+        const sc = d + 40 * e.hp / e.maxHp - 8 * herois.filter(a => a.vivo && a.time === h.time && a !== h && a.obj.position.distanceTo(e.obj.position) < 12).length; if (sc < bs) { bs = sc; best = e; } }
+      if (best) h.gank = { alvo: best, ate: t + 16 }; }
+    if (h.gank) { const e = h.gank.alvo, d = e.obj.position.distanceTo(pos); h.ramo = 'gank'; h.atacarAte = t + 2; if (d > 12) { mover2(h, e.obj.position); return true; } return false; } }
+  if (h.funcao === 'meio' && h.nivel >= 4 && c.hpF > .6) {
+    if (h.roam && (h.roam.ate < t || !h.roam.alvo.vivo)) h.roam = null;
+    if (!h.roam && t > (h.roamProx || (h.roamProx = t + 90 + Math.random() * 40))) { h.roamProx = t + 80 + Math.random() * 50;
+      const semOnda = !unidades.some(u => u.vivo && u.tipo === 'minion' && u.time !== h.time && !u.rota && u.obj.position.distanceTo(pos) < 16);
+      if (semOnda) { let best = null, bd = 60; for (const e of herois) { if (!e.vivo || e.time === h.time || !visivelPara(e, h.time) || e.funcao === 'meio' || e.funcao === 'selva') continue; const d = e.obj.position.distanceTo(pos); const ajuda = herois.some(a => a.vivo && a.time === h.time && a !== h && a.obj.position.distanceTo(e.obj.position) < 14); if (d < bd && ajuda) { bd = d; best = e; } } if (best) h.roam = { alvo: best, ate: t + 18 }; } }
+    if (h.roam) { const e = h.roam.alvo, d = e.obj.position.distanceTo(pos); h.ramo = 'roam'; h.atacarAte = t + 2; if (d > 12) { mover2(h, e.obj.position); return true; } return false; } }
+  return false;
+}
+// limpar a onda com habilidade de dano no meio do grupo de tropas (3+, ou 2+ empurrando); mana sobrando; nunca no vazio
+function limparOnda(h, dt, pressao) { const pos = h.obj.position; if (h.mana < h.manaMax * (h.funcao === 'suporte' ? .85 : .45) || Math.random() > dt * 1.2) return false;
+  let alvo = null, bn = 0; for (const u of unidades) { if (!u.vivo || u.time === h.time || u.tipo !== 'minion' || u.obj.position.distanceTo(pos) > 11) continue; if (torreInimigaEm(h, u.obj.position) && !pressao) continue; let n = 0; for (const v of unidades) if (v.vivo && v.tipo === 'minion' && v.time === u.time && v.obj.position.distanceTo(u.obj.position) < 3) n++; if (n > bn) { bn = n; alvo = u; } }
+  if (!alvo || bn < (pressao ? 2 : 3)) return false; const d0 = alvo.obj.position.distanceTo(pos);
+  for (const k of ['q', 'w', 'e']) { if (!habPronta(h, k)) continue; const d = h.def.hab[k]; if (!ehDano(d) || d.tipo === 'marca' || d.tipo === 'serpente' || d.tipo === 'dash') continue; const lim = d.centro === 'self' ? (d.raio || 3) * .9 : d.centro === 'frente' ? (d.dist || 2) + (d.raio || 2) * .8 : alcHab(d) + .3; if (d0 > lim) continue; if (d.centro === 'self' || d.centro === 'frente') { h.olharPara(alvo.obj.position, 1, 1); if (usarHab(h, k)) { h.forcarAlvo = alvo; return true; } continue; } if (lancarEm(h, k, alvo)) { h.forcarAlvo = alvo; return true; } }
+  return false; }
+// envoltório da decisão: detector de travamento (1,5 s sem progresso → contorna) e "nunca parado"
+function pensarBot(h, dt) {
+  const t = estado.tempo, pos = h.obj.position;
+  if (h.vivo && !h.canal && h.desvioIA && h.desvioIA.t > t) { const v = h.desvioIA.p.clone().sub(pos).setY(0), L = v.length(); if (L > .4) { h.ctrl.x = v.x / L; h.ctrl.y = v.z / L; h.ctrl.len = 1; return; } }
+  h.ramo = null; pensar(h, dt);
+  if (!h.vivo || h.canal) { h.prog = null; h.ocioso = 0; return; }
+  if (h.ctrl.len > .5) { h.ocioso = 0;
+    if (!h.prog || h.prog.p.distanceTo(pos) > 1) h.prog = { p: pos.clone(), t };
+    else if (t - h.prog.t > 1.5) { const sg = Math.random() < .5 ? 1 : -1; h.desvioIA = { p: pos.clone().add(new THREE.Vector3(-h.ctrl.y * sg * 4 - h.ctrl.x * 1.5, 0, h.ctrl.x * sg * 4 - h.ctrl.y * 1.5)), t: t + .9 }; h.prog = null; h.travadas = (h.travadas || 0) + 1; }
+    return; }
+  h.prog = null;
+  if (h.atkCd > 0 || naFonte(h)) { h.ocioso = 0; return; }
+  if (h.passeio && h.passeio.t > t && h.passeio.p.distanceTo(pos) > .5) { mover2(h, h.passeio.p); return; } // segue o passeio até chegar (antes andava só 1 decisão) // atacando (entre golpes) ou curando na fonte
+  h.ocioso = (h.ocioso || 0) + dt;
+  if (h.ocioso > .45) { if (!h.passeio || h.passeio.t < t || h.passeio.p.distanceTo(pos) < .5) { const a = Math.random() * 6.283, r = 1.2 + Math.random() * 1.6; h.passeio = { p: pos.clone().add(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r)), t: t + 1.2 }; } mover2(h, h.passeio.p); h.ocioso = 0; h.ramo = h.ramo || 'passeio'; }
 }
 function pensar(h, dt) {
   const c = h.ctrl; c.x = c.y = c.len = 0; h.forcarAlvo = null;
@@ -1403,22 +1533,25 @@ function pensar(h, dt) {
   }
   // voltar para comprar quando houver ouro sobrando e ninguém por perto
   const pc = proximaPeca(h);
-  if (!naFonte(h, 20) && h.combateT > 3 && ((dInim > 10 && (h.ouro >= pc + DIF.margem || (h.ouro >= pc && hpF < .55))) || (dInim > 7 && h.ouro >= pc + 900))) { h.recuando = true; recuar(h); return; }
+  const podeVoltar = h.funcao !== 'suporte' || hpF < .45 || h.mana < h.manaMax * .2 || (h.combateT < 15 && hpF < .8); // suporte: só com vida/mana baixa ou depois de uma luta (não acompanha o recall do atirador)
+  if (podeVoltar && !naFonte(h, 20) && h.combateT > 3 && ((dInim > 10 && (h.ouro >= pc + DIF.margem || (h.ouro >= pc && hpF < .55))) || (dInim > 7 && h.ouro >= pc + 900))) { h.recuando = true; recuar(h); return; }
   // frente da tropa aliada
   const torresMinhas = estruturas.filter(e => e.time === h.time && e.vivo && e.tipo !== 'nucleo' && !e.secao);
   let frenteX = torresMinhas.length ? torresMinhas.reduce((a, e) => s * e.obj.position.x > s * a ? e.obj.position.x : a, -s * 99) : NUCLEO[h.time].x;
   let nAliados = 0;
-  for (const u of unidades) if (u.vivo && u.tipo === 'minion' && u.time === h.time) { nAliados++; if (s * (u.obj.position.x - frenteX) > 0) frenteX = u.obj.position.x; }
+  for (const u of unidades) if (u.vivo && u.tipo === 'minion' && u.time === h.time && !(ROTAS3 && u.rota)) { nAliados++; if (s * (u.obj.position.x - frenteX) > 0) frenteX = u.obj.position.x; }
   // perigo de torre inimiga
-  const torre = estruturaInimigaProxima(h, 14);
+  const torre = estruturaInimigaProxima(h, 20);
   let tanqueTorre = 0; if (torre) for (const u of unidades) if (u.vivo && u.tipo === 'minion' && u.time === h.time && u.obj.position.distanceTo(torre.obj.position) < torre.alcance) tanqueTorre++;
-  const naTorre = torre && pos.distanceTo(torre.obj.position) < torre.alcance + 1.2;
+  const naTorre = torre && pos.distanceTo(torre.obj.position) < torre.alcance + 1.2; // (torre procurada a 20 m: para empurrar; o perigo continua sendo estar no alcance dela)
   const inimHp = inim ? inim.hp / inim.maxHp : 1;
   const inimSobTorre = inim && estruturas.some(e => e.vivo && e.tipo === 'torre' && e.time !== h.time && e.obj.position.distanceTo(inim.obj.position) < e.alcance);
   // pressão: herói inimigo morto (ou fraco e longe) → empurra a rota em vez de ficar parado no meio
-  const adv = herois.find(x => x.time !== h.time); const pressao = adv && (!adv.vivo || (visivelPara(adv, h.time) && adv.hp / adv.maxHp < .35 && dInim > 12)) && hpF > .45;
+  const pressao = hpF > .45 && !herois.some(x => x.vivo && x.time !== h.time && visivelPara(x, h.time) && x.obj.position.distanceTo(pos) < 18 && x.hp / x.maxHp > .35); // nenhum inimigo em condição de defender por perto
   const RL = ROTAS3 ? rotaPara(h) : null;
   if (naTorre && (tanqueTorre === 0 || torre.alvoAnt === h) && !(inim && inimHp < .15)) { mover2(h, RL ? andarNaRota(RL, pos, h.time, -6) : pos.clone().add(new THREE.Vector3(-s * 6, 0, 0)).setZ(laneZ(pos.x - s * 6))); return; }
+  if (objetivosTime(h, dt, { inim, dInim, hpF })) return;
+  if (papelBot(h, dt, { hpF, inim, dInim })) return;
   if (h.funcao === 'suporte' && RL && pensarSuporte(h, dt, { inim, dInim, hpF, s, inimSobTorre, inimHp, RL })) return;
   // lutar contra o herói: placar de luta (vida, nível, habilidades prontas, torre) e chance de abate
   if (inim && (dInim < 10 || (dInim < 13 && inim.hp < inim.maxHp * .3))) {
@@ -1429,15 +1562,7 @@ function pensar(h, dt) {
     if (favoravel || L.abate) {
       h.lutaT = (h.lutaT || 0) + dt;
       const reage = Math.random() < dt * DIF.reflexo;
-      for (const k of ['r', 'e', 'w', 'q']) {
-        const H = h.hab[k], d = h.def.hab[k]; if (!H.nv || H.cd > 0 || h.mana < d.mana[H.nv - 1]) continue;
-        if (k === 'r' && !(L.abate || L.danoR >= inim.hp * .55 || hpF < .35 || (d.tipo === 'buff' || d.tipo === 'invocar'))) continue;
-        if (!reage && k !== 'r') continue;
-        const alc = d.alc || d.comp || (d.centro === 'frente' ? (d.dist || 2) + d.raio * .8 : 0) || d.raio || d.dist || 6;
-        if (d.tipo === 'dash' && dInim < h.alcance * .8 && h.def.distancia) continue;
-        if (d.tipo === 'dash' && hpF < .45 && !L.abate) continue; // guarda o dash para fugir
-        if (d.tipo === 'buff' || d.tipo === 'invocar' ? (hpF < .8 || dInim < 5) : dInim < alc + (d.centro === 'self' ? 0 : .5)) { if (usarHab(h, k)) break; }
-      }
+      usarHabsIA(h, inim, { L, hpF, reage, sobTorre: inimSobTorre });
       if (hpF < .25 && h.feit.curar <= 0) curar(h);
       if (L.abate && dInim > h.alcance + 1.5 && dInim < 7 && h.feit.clarao <= 0 && DIF.clarao) clarao(h, inim.obj.position.clone().sub(pos).setY(0).normalize());
       h.forcarAlvo = inim;
@@ -1450,15 +1575,16 @@ function pensar(h, dt) {
     }
     h.lutaT = 0;
     // cutucar (poke) à distância com habilidades de dano quando sobra mana
-    for (const k of ['q', 'w', 'e']) { const H = h.hab[k], d = h.def.hab[k]; if (!H.nv || H.cd > 0 || !['proj', 'linha', 'area', 'zona'].includes(d.tipo) || h.mana < h.manaMax * .45) continue; const alc = d.alc || d.comp || 6; if (dInim < alc && dInim > 3.5 && !inimSobTorre && Math.random() < dt * DIF.poke) { usarHab(h, k); break; } }
+    if (Math.random() < dt * DIF.poke * 2) usarHabsIA(h, inim, { L, hpF, reage: true, poke: true, sobTorre: inimSobTorre });
     if (dInim < 5.5 && L.score < DIF.limiar - .15) { mover2(h, pos.clone().add(new THREE.Vector3(-s * 4, 0, 0))); return; }
   }
   // estrutura primeiro quando as tropas aliadas estão tanqueando a torre (empurra a rota como um jogador faria)
-  if (torre && tanqueTorre >= (pressao ? 1 : 2) && !protegida(torre) && hpF > .45 && !(inim && dInim < 7)) { const d = torre.obj.position.distanceTo(pos); h.forcarAlvo = torre; if (d > h.alcance + torre.raio) mover2(h, torre.obj.position); else atacar(h); return; }
+  if (torre && tanqueTorre >= 1 && !protegida(torre) && hpF > .45 && !(inim && dInim < 7)) { const d = torre.obj.position.distanceTo(pos); h.forcarAlvo = torre; if (d > h.alcance + torre.raio) mover2(h, torre.obj.position); else atacar(h); return; }
   { const nuc = estruturas.find(e => e.vivo && e.tipo === 'nucleo' && e.time !== h.time && !protegida(e)); if (nuc && nuc.obj.position.distanceTo(pos) < 14 && hpF > .4 && !(inim && dInim < 6)) { h.forcarAlvo = nuc; if (nuc.obj.position.distanceTo(pos) > h.alcance + nuc.raio) mover2(h, nuc.obj.position); else atacar(h); return; } }
   if (SELVA_ON) { botUsarOlho(h); if (botSelva(h, dt, { hpF, inim, dInim })) return; }
   // agrupar: aliado brigando com herói inimigo perto → vai ajudar (rotação), sem entrar em torre inimiga
   if (DIF.rotacao && hpF > .5 && !inim) for (const a of herois) { if (a === h || !a.vivo || a.time !== h.time) continue; const e = focoInimigo(a, 9); if (!e) continue; const d = a.obj.position.distanceTo(pos); if (d < 26 && d > 6 && !estruturas.some(t => t.vivo && t.tipo === 'torre' && t.time !== h.time && t.obj.position.distanceTo(e.obj.position) < t.alcance)) { if (!h.flanco || h.flanco.t < estado.tempo) h.flanco = { t: estado.tempo + 3 + Math.random() * 3, a: Math.random() * 6.283, r: (h.def.distancia ? 4.5 : 2) + Math.random() * 1.5 }; mover2(h, e.obj.position.clone().add(new THREE.Vector3(Math.cos(h.flanco.a) * h.flanco.r, 0, Math.sin(h.flanco.a) * h.flanco.r))); return; } }
+  if (limparOnda(h, dt, pressao)) return;
   // farmar: tropa inimiga com menos vida por perto
   let alvo = null, melhor = 1e9;
   let segurar = null; // tropa quase no ponto de último golpe: espera em alcance em vez de bater antes (não "empurra" à toa)
@@ -1467,7 +1593,6 @@ function pensar(h, dt) {
   if (!alvo && segurar) { const d = segurar.obj.position.distanceTo(pos); if (d > h.alcance + segurar.raio - .3) mover2(h, segurar.obj.position); return; }
   if (alvo) {
     // habilidade em grupo de tropas
-    const qq = h.hab.q, dq = h.def.hab.q; if (qq.nv && qq.cd <= 0 && h.mana > h.manaMax * .65 && dq.tipo !== 'buff' && inimigosEm(alvo.obj.position, h.time, 3).length >= 3 && Math.random() < dt) usarHab(h, 'q');
     if (pressao) for (const k of ['q', 'w', 'e']) { const H = h.hab[k], d = h.def.hab[k]; if (H.nv && H.cd <= 0 && h.mana > h.manaMax * .3 && ['proj', 'linha', 'area', 'zona'].includes(d.tipo) && inimigosEm(alvo.obj.position, h.time, 3).length >= 2 && Math.random() < dt * 2) { usarHab(h, k); break; } }
     h.forcarAlvo = alvo;
     const d = alvo.obj.position.distanceTo(pos);
@@ -1520,6 +1645,8 @@ function atualizarHeroi(h, dt) {
   atualizarStatus(h, dt); if (!h.vivo) return;
   if (h.cdCongelado > 0) h.cdCongelado -= dt; else for (const k of ['q', 'w', 'e', 'r']) h.hab[k].cd = Math.max(0, h.hab[k].cd - dt); // Josué R congela as recargas
   if (h.carroT > estado.tempo) for (const u of inimigosEm(h.obj.position, h.time, 1.8)) { if ((h.carroHit.get(u) || 0) > estado.tempo) continue; h.carroHit.set(u, estado.tempo + 1); danificar(h, u, h.carroDano, { hab: true }); aplicarLento(u, .25, .6); } // Acabe W: atropela
+  if (h.id === 'jonatas') { const b = h.buffs.find(x => x.escudeiro); const perto = herois.some(a => a !== h && a.vivo && a.time === h.time && a.obj.position.distanceTo(h.obj.position) < 8); if (perto) { if (b) b.t = .5; else h.buffs.push({ tipo: 'as', v: .2, t: .5, escudeiro: true }); } } // Jônatas P: Escudeiro Fiel
+  if (h.id === 'noe') { h.goferT = (h.goferT ?? 4) - dt; if (h.goferT <= 0) { h.goferT = 4; if (h.gofer >= 10) { darEscudo(h, h.gofer, 3); h.gofer = 0; } } }
   if (h.id === 'moises') { h.manaCeuT = (h.manaCeuT ?? 20) - dt; if (h.manaCeuT <= 0) { h.manaCeuT = 60; cairMana(h); } }
   if (h.id === 'herodes') h.paranoia = !herois.some(a => a !== h && a.vivo && a.time === h.time && a.obj.position.distanceTo(h.obj.position) < 9);
   if (h.id === 'balaao') for (const u of herois) if (u.vivo && u.time !== h.time && u.invis > 0 && u.obj.position.distanceTo(h.obj.position) < 9) { u.invis = 0; textoInfo(u, 'A jumenta viu!'); }
@@ -1664,7 +1791,7 @@ function atualizar(dt) {
     if (jogador && jogador.reserva && podeComprar(jogador)) { const id = jogador.reserva; jogador.reserva = null; const e = comprar(jogador, id); if (!e) { aviso('Comprado: ' + ITENS[id].nome); som('moeda'); } }
     // entrada do jogador
     lerEntrada();
-    for (const h of herois) if ((h.bot || (AUTO && h === jogador)) && !h.treino) { h.pensarAcc = (h.pensarAcc || 0) + dt; if (h.pensarAcc < (h.pensarProx || 0)) continue; const acc = h.pensarAcc; h.pensarAcc = 0; h.pensarProx = REACAO[DIF_ID][0] + Math.random() * REACAO[DIF_ID][1]; pensar(h, acc); } // cada bot reage no próprio ritmo (nunca em sincronia com o jogador)
+    for (const h of herois) if ((h.bot || (AUTO && h === jogador)) && !h.treino) { h.pensarAcc = (h.pensarAcc || 0) + dt; if (h.pensarAcc < (h.pensarProx || 0)) continue; const acc = h.pensarAcc; h.pensarAcc = 0; h.pensarProx = REACAO[DIF_ID][0] + Math.random() * REACAO[DIF_ID][1]; pensarBot(h, acc); } // cada bot reage no próprio ritmo (nunca em sincronia com o jogador)
     if (jogador && !jogador.bot && !AUTO && segurandoAtaque) { jogador.atkFixo = null; jogador.modoAlvo = segurandoModo; if (!atacar(jogador) && jogador.ctrl.len < .12 && jogador.atkCd <= 0) { const a = alvoAtaque(jogador, jogador.alcance + 6); if (a) mover2(jogador, a.obj.position); } jogador.modoAlvo = null; }
     else if (jogador && !AUTO && jogador.atkFixo) { // um toque = continua no mesmo alvo até ele morrer, sair do alcance ou você mexer o analógico
       const A = jogador.atkFixo, d = A.obj.position.distanceTo(jogador.obj.position) - (A.raio || 1);
@@ -2495,8 +2622,8 @@ window.__pedirFuncao = pedirFuncao;
 // veste lendária: modelo GLB próprio (models/tripo/skins/<id>_lendaria.glb + _lod1), montado como os heróis do Tripo
 async function prepararLendaria(id) {
   const k = id + '@lendaria'; if (BASES[k]) return k; if (!BASES[id]) return null;
-  const g = await carregar('tripo/skins/' + id + '_lendaria').catch(e => { console.warn('[lendaria]', id, e && e.message); return null; }); if (!g) return null;
-  const lod = await carregar('tripo/skins/' + id + '_lendaria_lod1').catch(() => null);
+  const g = await carregar('tripo/skins/' + id + '_lendaria', VER_LENDA).catch(e => { console.warn('[lendaria]', id, e && e.message); return null; }); if (!g) return null;
+  const lod = await carregar('tripo/skins/' + id + '_lendaria_lod1', VER_LENDA).catch(() => null);
   const r = montarTripo(g, BASES[id].cena, id); if (lod) juntarLOD(r.cena, lod.scene, Q.mobile ? 22 : 30); ativarCulling(r.cena);
   BASES[k] = { cena: r.cena, clips: g.animations.length ? aliasTripo(g.animations, clips, HEROIS[id], r.escMundo, r.hips) : BASES[id].clips, tripo: true }; return k;
 }
