@@ -767,3 +767,8 @@ html.android #girarBtn{display:block}
 #selCards .card[hidden]{display:none!important}
 
 #funcaoTela .cartas.c5{flex-wrap:wrap;justify-content:center;max-width:96vw;gap:calc(1.6*var(--u))}#funcaoTela .cartas.c5 button{width:calc(21*var(--u));padding:calc(1.6*var(--u))}#funcaoTela .cartas.c5 small{font-size:calc(1.45*var(--u))}#funcaoTela .cartas button.sug{border-color:#ffd66b;box-shadow:0 0 18px rgba(255,214,107,.35)}
+#perfilTela .pfRod{gap:10px;flex-wrap:wrap}
+#perfilTela .pfRod button.google,#perfilTela .pfRod button.sec{background:#fff;color:#222;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+#perfilTela .pfRod button.google::before{content:'G';font-weight:900;color:#4285f4;font-size:1.1em}
+#perfilTela .pfRod button.sec{background:#3a3f4c;color:#eee}
+#perfilTela .pfRod button:disabled{opacity:.6}

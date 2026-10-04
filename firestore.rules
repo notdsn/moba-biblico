@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // perfil do jogador: só o próprio dono (uid do login Google) lê e escreve
+    match /perfis/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // todo o resto: negado
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

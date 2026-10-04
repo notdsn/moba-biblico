@@ -38,6 +38,8 @@ const extras5 = [];
 import { Particulas, Aneis, colunaLuz, Textos } from './vfx.js';
 import { criarPoderes } from './poderes.js';
 import { som, destravarSom, ouvinteSom, somLigado, estadoSom } from './som.js';
+import { iniciarNuvem, entrarGoogle, sairGoogle, salvarNuvem, usuario, nuvemSincronizada, aoMudarUsuario } from './nuvem.js';
+import { listaVestes } from './perfil.js';
 import { perfil, salvarPerfil, statsHeroi, VESTES, vesteDe, vesteLiberada, vesteEquipada, equipar, progressoVeste, conferirVestes, pontuacao, nota, medalhas, NARRADOR, VERSOS, DICAS, sortear, nivelConta, XP_CONTA, nomeJogador, mudarNome, resetarPerfil, xpPartida } from './perfil.js';
 import { configurarKTX2, reduzirTexturas, juntarLOD, ativarCulling, atualizarFrustum, naTela, aplicarLOD, SombrasBlob, ContadorFPS } from './perf.js';
 
@@ -445,8 +447,8 @@ function onda(time, n = 4) {
 function iniciarStatus(u) { u.lento = 0; u.lentoT = 0; u.atord = 0; u.escudos = []; u.dots = []; u.buffs = []; u.invis = 0; u.provoc = null; u.combateT = 99; u.vooT = 0; u.voo = 0; u.vooH = 0; u.medo = null; u.encanto = null; u.raiz = 0; u.empurrao = null; u.imparavel = 0; u.confuso = null; u.corrente = null; u.cego = 0; u.antiCura = null; u.silencio = 0; u.aterrado = 0; u.jaula = null; }
 
 // ================= heróis =================
-function criarHeroi(id, time, ehBot) {
-  const d = HEROIS[id]; const b = BASES[id];
+function criarHeroi(id, time, ehBot, baseK = null) {
+  const d = HEROIS[id]; const b = BASES[baseK || id];
   const u = new Unidade(b.cena, b.clips || clips, { time, tipo: 'heroi', nome: d.nome, escala: ESC_HEROI * d.esc, raio: d.esc > 1.2 ? .95 : .75, hp: d.base.hp, vel: d.base.vel, alcance: d.base.alcance, dano: d.base.ad, cadencia: d.base.cad, anim: { ...d.anim } });
   Object.assign(u, { id, def: d, bot: ehBot, nivel: 1, xp: 0, pontos: 1, ouro: 500, itens: [], abates: 0, mortes: 0, assist: 0, cs: 0, atkCd: 0, travado: 0, contAtaque: 0, proxBonus: 0, proxMag: 0, ctrl: { x: 0, y: 0, len: 0 }, canal: null, dash: null, morteT: 0, feit: { curar: 0, clarao: 0 }, cdPassiva: 0, cdEscudoFe: 0 });
   u.mago = ['debora', 'farao', 'jezabel'].includes(id);
@@ -488,7 +490,7 @@ const rmag = (u) => (u.st ? u.st.rm : 15) + buff(u, 'arm') + buff(u, 'rm') + vel
 const XP_NIVEL = (n) => MODO2 ? 190 + 130 * (n - 1) : 100 + 60 * (n - 1); // 2v2 com selva: curva mais lenta (nível 11–13 aos 15 min)
 function darXp(h, v) {
   if (!h || h.nivel >= 15) return;
-  if (h.tipo === 'heroi' && h.combateT < 6 && herois.some(e => e.id === 'ester' && e.vivo && e.time === h.time && e.obj.position.distanceTo(h.obj.position) < 10)) v *= 1.1; // Ester P: Banquete de Ester h.xp += v;
+  if (h.tipo === 'heroi' && h.combateT < 6 && herois.some(e => e.id === 'ester' && e.vivo && e.time === h.time && e.obj.position.distanceTo(h.obj.position) < 10)) v *= 1.1; /* Ester P: Banquete de Ester */ h.xp += v;
   while (h.nivel < 15 && h.xp >= XP_NIVEL(h.nivel)) {
     h.xp -= XP_NIVEL(h.nivel); h.nivel++; h.pontos++; recalcular(h);
     aneis.add(h.obj.position, new THREE.Color(1, .85, .4), .5, 2.6, .7);
@@ -2145,7 +2147,7 @@ function telaVS(id, vsId, vid, dur = 2.8) {
 function htmlVestes(id) {
   const V = VESTES[id]; const eq = vesteEquipada(id);
   const b = (vid, nome, livre, prog) => `<button class="vst ${eq === vid || (!eq && !vid) ? 'on' : ''} ${livre ? '' : 'trancada'}" data-v="${vid || ''}"><canvas width="72" height="72" data-h="${id}" data-v="${vid || ''}"></canvas><b>${nome}</b><small>${livre ? (eq === vid || (!eq && !vid) ? 'Equipada' : 'Vestir') : `🔒 ${prog.atual}/${prog.n}`}</small></button>`;
-  return `<div class="vestes"><div class="rot">Vestes</div>${b(null, V.padrao, true)}${V.lista.map(v => b(v.id, v.nome, vesteLiberada(id, v.id), progressoVeste(id, v))).join('')}<div class="req" id="vReq"></div></div>`;
+  return `<div class="vestes"><div class="rot">Vestes</div>${b(null, V.padrao, true)}${listaVestes(id).map(v => b(v.id, v.nome, vesteLiberada(id, v.id), progressoVeste(id, v))).join('')}<div class="req" id="vReq"></div></div>`;
 }
 function ligarVestes(root, id, aoTrocar) {
   root.querySelectorAll('canvas[data-h]').forEach(async c => { const vid = c.dataset.v; const g = c.getContext('2d'); g.drawImage(retratos[id], 0, 0, 72, 72); if (vid) { const r = await retratosDaVeste(id, vid); if (r) g.drawImage(r.rosto, 0, 0, 72, 72); } });
@@ -2185,6 +2187,8 @@ const escHtml = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const nomeHtml = () => escHtml(nomeJogador());
 const NOMES_CAMPO = { vitorias: 'vitórias', torres: 'torres', cura: 'de cura', abates: 'abates', controles: 'controles', semMorrer: 'vitórias sem morrer', nucleos: 'Núcleos' };
 const dataCurta = (t) => { const d = new Date(t); const z = (n) => String(n).padStart(2, '0'); return `${z(d.getDate())}/${z(d.getMonth() + 1)} ${z(d.getHours())}:${z(d.getMinutes())}`; };
+let telaPerfilDepois = null;
+aoMudarUsuario(() => { const el = $('perfilTela'); if (el && el.className === 'on') telaPerfil(telaPerfilDepois); const bp = $('selPerfil'); if (bp && bp.onclick) { const n = bp.querySelector('b'); if (n) n.textContent = perfil().nome; } });
 function telaPerfil(depois) {
   const el = $('perfilTela'); const p = perfil(); const nv = nivelConta(p.xp); const ids = [...LUZ, ...TREVAS];
   const der = Math.max(0, p.partidas - p.vitorias); const tx = p.partidas ? Math.round(100 * p.vitorias / p.partidas) : 0;
@@ -2208,7 +2212,7 @@ function telaPerfil(depois) {
       <section class="pfU"><h3>Últimas partidas <small>${p.hist.length}/10</small></h3><div class="rolar"><ul>${hist}</ul></div></section>
       <section class="pfV"><h3>Vestes <small>${nLivres}/${ids.length} liberadas</small></h3><div class="rolar"><ul>${vestes}</ul></div></section>
     </div>
-    <div class="pfRod"><small>Salvo só neste aparelho</small><button id="pfReset" class="perigo">Resetar progresso</button></div>
+    <div class="pfRod">${(() => { const u = usuario(); return u ? `<small>Conectado como <b>${escHtml(u.email || u.displayName || 'Google')}</b> · ${nuvemSincronizada() ? 'salvo na nuvem' : 'nuvem indisponível, salvo neste aparelho'}</small><button id="pfSair" class="sec">Sair</button>` : '<small>Salvo só neste aparelho</small><button id="pfEntrar" class="google">Entrar com Google</button>'; })()}<button id="pfReset" class="perigo">Resetar progresso</button></div>
     <div class="pfConf" hidden><div class="cx"><b>Resetar progresso?</b><p>Isso apaga seu nível, as estatísticas, as últimas partidas e as vestes liberadas <u>deste aparelho</u>. Não dá para desfazer.</p><div class="bt"><button class="sec" id="pfNao">Cancelar</button><button class="perigo" id="pfSim">Sim, resetar</button></div></div></div>
   </div>`;
   el.className = 'on';
@@ -2220,6 +2224,9 @@ function telaPerfil(depois) {
   $('pfReset').onclick = () => { conf.hidden = false; };
   $('pfNao').onclick = () => { conf.hidden = true; };
   conf.onclick = (e) => { if (e.target === conf) conf.hidden = true; };
+  telaPerfilDepois = depois;
+  const be = $('pfEntrar'); if (be) be.onclick = async () => { be.disabled = true; be.textContent = 'Entrando…'; try { await entrarGoogle(); } catch (e) { aviso && aviso('Não foi possível entrar com Google', true); } be.disabled = false; be.textContent = 'Entrar com Google'; };
+  const bs = $('pfSair'); if (bs) bs.onclick = async () => { bs.disabled = true; try { await sairGoogle(); } catch (e) { } telaPerfil(depois); };
   $('pfSim').onclick = () => { resetarPerfil(); salvarPerfil(); telaPerfil(depois); aviso && aviso('Progresso resetado'); };
   el.querySelector('.fecharV').onclick = () => { salvarNome(); el.className = ''; depois && depois(); };
 }
@@ -2258,7 +2265,7 @@ function registrarPerfil(venceu) {
   s.abates += h.abates; s.torres += h.stats.torres; s.cura += Math.round(h.stats.cura); s.controles += h.stats.controles;
   s.mortes += h.mortes; s.assist += h.assist; s.pontos += pts; s.melhor = Math.max(s.melhor || 0, pts); s.tempo += Math.round(t);
   p.hist.unshift({ h: h.id, vs: r ? r.id : null, v: venceu ? 1 : 0, k: h.abates, d: h.mortes, a: h.assist, n: notaP, xp: xpG, dur: Math.round(t), t: Date.now() }); p.hist = p.hist.slice(0, 10);
-  salvarPerfil(); const novas = conferirVestes();
+  salvarPerfil(); const novas = conferirVestes(); salvarNuvem();
   return { xpG, partes: xp.partes, antes, depois: nivelConta(p.xp), novas };
 }
 function fimDePartida(vencedor, nucleo) {
@@ -2415,6 +2422,14 @@ function pedirFuncao(id) {
   $('funcaoVoltar').onclick = () => { el.classList.remove('on'); $('selecao').classList.add('on'); };
 }
 window.__pedirFuncao = pedirFuncao;
+// veste lendária: modelo GLB próprio (models/tripo/skins/<id>_lendaria.glb + _lod1), montado como os heróis do Tripo
+async function prepararLendaria(id) {
+  const k = id + '@lendaria'; if (BASES[k]) return k; if (!BASES[id]) return null;
+  const g = await carregar('tripo/skins/' + id + '_lendaria').catch(e => { console.warn('[lendaria]', id, e && e.message); return null; }); if (!g) return null;
+  const lod = await carregar('tripo/skins/' + id + '_lendaria_lod1').catch(() => null);
+  const r = montarTripo(g, BASES[id].cena, id); if (lod) juntarLOD(r.cena, lod.scene, Q.mobile ? 22 : 30); ativarCulling(r.cena);
+  BASES[k] = { cena: r.cena, clips: g.animations.length ? aliasTripo(g.animations, clips, HEROIS[id], r.escMundo, r.hips) : BASES[id].clips, tripo: true }; return k;
+}
 async function comecarPartida(id, vs, funcao) {
   const d = HEROIS[id]; _timeJogador = d.time; recolorirBarras();
   const lista = d.time === 'luz' ? TREVAS : LUZ;
@@ -2425,7 +2440,8 @@ async function comecarPartida(id, vs, funcao) {
   if (vid) { const r = await retratosDaVeste(id, vid); if (r) retratos[id] = r.rosto; }
   const mostrarVS = !CAPTURA || CENA === 'vs';
   const vsP = mostrarVS ? telaVS(id, vsId, vid) : null;
-  jogador = criarHeroi(id, d.time, false); bot = criarHeroi(vsId, inimigo(d.time), true);
+  const lend = vid === 'lendaria' ? await prepararLendaria(id) : null;
+  jogador = criarHeroi(id, d.time, false, lend); bot = criarHeroi(vsId, inimigo(d.time), true);
   if (SELVA_ON && P.get('modo') !== '1v1') { // 2v2: você + aliado (PC) contra caçador + meio (PC)
     const meus = (d.time === 'luz' ? LUZ : TREVAS).filter(x => x !== id), deles = lista.filter(x => x !== vsId);
     const aId = HEROIS[P.get('aliado')] && meus.includes(P.get('aliado')) ? P.get('aliado') : porRota(meus, fnJog === 'selva' || (ROTAS3 && fnJog !== 'meio') ? 'meio' : 'selva');
@@ -2506,7 +2522,7 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar };
+window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);
@@ -2520,4 +2536,5 @@ window.__info = () => ({ calls: renderer.info.render.calls, tris: renderer.info.
 window.__atualizar = (dt = 1 / 60) => { atualizar(dt); atualizarCamera(dt); };
 window.__tick = (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) { if (i < n - 1) { atualizar(dt); atualizarCamera(dt); } else passo(dt); } return true; };
 
+if (P.get('nuvem') !== '0') setTimeout(() => iniciarNuvem(), 1200); // login Google opcional (restaura a sessão sem travar o carregamento)
 iniciar().catch(e => { console.error(e, e && e.stack); progTxt.textContent = 'Erro ao carregar: ' + e.message; window.__erroStack = e && e.stack; });

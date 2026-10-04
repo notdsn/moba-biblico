@@ -1,5 +1,5 @@
 // Perfil local (salvo no aparelho), vestes liberadas por objetivos, nota/medalhas do fim de partida,
-// narrador (frases), dicas e versículos. Nada vai para servidor: tudo em localStorage.
+// narrador (frases), dicas e versículos. Fica em localStorage; com login Google, também em Firestore (perfis/{uid}, ver nuvem.js).
 const CHAVE = 'lxt.perfil';
 const P = new URLSearchParams(location.search);
 const SALVAR = P.get('perfil') !== '0';
@@ -55,8 +55,8 @@ export const VESTES = {
   balaao: { padrao: 'Filho de Beor', lista: [{ id: 'jumenta', nome: 'Profeta de Petor', tex: null, campo: 'controles', n: 50, req: 'Aplicar 50 controles com Balaão (arte em breve)', verso: '“O Senhor abriu a boca da jumenta.” — Nm 22:28' }] },
   nabuco: { padrao: 'Rei de Babilônia', lista: [{ id: 'ouro', nome: 'Cabeça de Ouro', tex: 'models/tripo/skins/nabuco_ouro.webp', campo: 'nucleos', n: 5, req: 'Destruir 5 Núcleos com Nabucodonosor', verso: '“Tu és a cabeça de ouro.” — Dn 2:38' }] },
 };
-export const vesteDe = (id, vid) => (VESTES[id] && VESTES[id].lista.find(v => v.id === vid)) || null;
-export function vesteLiberada(id, vid) { const p = perfil(); return !!(p.vestes[id] && p.vestes[id].includes(vid)); }
+export const vesteDe = (id, vid) => vid === 'lendaria' ? (LEND.has(id) ? VESTE_LENDARIA : null) : (VESTES[id] && VESTES[id].lista.find(v => v.id === vid)) || null;
+export function vesteLiberada(id, vid) { if (vid === 'lendaria') return LEND.has(id); const p = perfil(); return !!(p.vestes[id] && p.vestes[id].includes(vid)); }
 export function vesteEquipada(id) { const q = P.get('veste'); if (q) { const [h, v] = q.split(':'); if (h === id && vesteDe(id, v)) return v; } const v = perfil().equip[id]; return v && vesteLiberada(id, v) ? v : null; }
 export function equipar(id, vid) { const p = perfil(); if (vid && !vesteLiberada(id, vid)) return false; p.equip[id] = vid || null; salvarPerfil(); return true; }
 export function progressoVeste(id, v) { const s = statsHeroi(id); return { atual: Math.min(v.n, Math.floor(s[v.campo] || 0)), n: v.n }; }
@@ -148,3 +148,23 @@ export const DICAS = {
   nabuco: ['Cada abate dá escudo ao Nabucodonosor.', 'Os Guardas da Babilônia ajudam a derrubar torres.'],
 };
 export const sortear = (l) => l[Math.floor(Math.random() * l.length)];
+
+// ---------- nuvem (Firebase): mescla sem apagar nada — máximo dos contadores, união das vestes e do histórico ----------
+export function mesclarPerfil(n) {
+  const p = perfil(); if (!n || typeof n !== 'object') return p;
+  for (const k of ['xp', 'partidas', 'vitorias']) p[k] = Math.max(+p[k] || 0, +n[k] || 0);
+  if ((!p.nomeOk || p.nome === 'Peregrino') && typeof n.nome === 'string' && n.nome.trim() && n.nome !== 'Peregrino') p.nome = n.nome.slice(0, 16);
+  if (n.nomeOk) p.nomeOk = true;
+  for (const [id, s] of Object.entries(n.heroi || {})) { const a = statsHeroi(id); for (const [c, v] of Object.entries(s || {})) if (typeof v === 'number') a[c] = Math.max(+a[c] || 0, v); }
+  for (const [id, l] of Object.entries(n.vestes || {})) if (Array.isArray(l)) p.vestes[id] = [...new Set([...(p.vestes[id] || []), ...l])];
+  for (const [id, v] of Object.entries(n.equip || {})) if (p.equip[id] == null && v) p.equip[id] = v;
+  p.vistas = Object.assign({}, n.vistas || {}, p.vistas);
+  const vistos = new Set(); p.hist = [...p.hist, ...(Array.isArray(n.hist) ? n.hist : [])].filter(m => { const k = m && (m.t + ':' + m.h); if (!m || vistos.has(k)) return false; vistos.add(k); return true; }).sort((a, b) => (b.t || 0) - (a.t || 0)).slice(0, 10);
+  salvarPerfil(); return p;
+}
+// vestes lendárias (modelo GLB próprio em models/tripo/skins/<id>_lendaria.glb): só aparecem para a conta autorizada e se o arquivo existir
+let LEND = new Set();
+export function definirLendarias(ids) { LEND = new Set(ids || []); }
+export const temLendaria = (id) => LEND.has(id);
+export const VESTE_LENDARIA = { id: 'lendaria', nome: 'Lendária', tex: null, glb: true, campo: 'partidas', n: 0, req: 'Veste lendária exclusiva', verso: '“Eis que faço novas todas as coisas.” — Ap 21:5' };
+export const listaVestes = (id) => (VESTES[id] ? (LEND.has(id) ? [...VESTES[id].lista, VESTE_LENDARIA] : VESTES[id].lista) : []);
