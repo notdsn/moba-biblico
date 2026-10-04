@@ -45,11 +45,18 @@ export async function mapaV2(scene, loader, POS, MAPA_C, portoes, tapa = null) {
       let a = L.ang + i * passo; const meioT = compM * LM / 2 / L.R; // meio comprimento do trecho, em ângulo
       if (i === 1) a = L.ang + L.meiaAbertura + meioT; else if (i === MURO_N - 1) a = L.ang - L.meiaAbertura - meioT; // os vizinhos do portão do Meio (mais largo) encostam na borda da passagem
       if (portaI.has(i)) { muros[time].push(barreira(a, passo * .5 * 2 * L.R * .8)); continue; } // porta lateral: vão na muralha
-      const o = por('muralha_reta', L.centro.x + Math.sin(a) * L.R, L.centro.z + Math.cos(a) * L.R, a, .8); if (o) { o.scale.x = compM; /* cada trecho do tamanho do seu arco (o modelo inteiro tem ~18 m e tapava as aberturas) */ o.userData.vizinho = Math.min(i, MURO_N - i) <= MURO_ABRE; muros[time].push(o); } }
+      const o = por('muralha_reta', L.centro.x + Math.sin(a) * L.R, L.centro.z + Math.cos(a) * L.R, a, .8); if (o) { o.userData.muro = true; o.scale.x = compM; /* cada trecho do tamanho do seu arco (o modelo inteiro tem ~18 m e tapava as aberturas) */ o.userData.vizinho = Math.min(i, MURO_N - i) <= MURO_ABRE; muros[time].push(o); } }
     // vão (portão do Meio e portas laterais): véu da cor do time — aliado passa, inimigo bate na muralha até ela cair
     function barreira(a, larg) { const cor = time === 'luz' ? 0x7fd0ff : 0xd070ff; const m = new THREE.Mesh(new THREE.PlaneGeometry(larg, 3.2), new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: .16, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })); m.position.set(L.centro.x + Math.sin(a) * L.R, 1.6, L.centro.z + Math.cos(a) * L.R); m.rotation.y = a; m.renderOrder = 2; g.add(m); return m; }
     muros[time].push(barreira(L.ang, 2 * L.R * Math.sin(L.meiaAbertura)));
   }
+  // desempenho (iPhone): os trechos de muralha de cada base viram UM InstancedMesh por submalha (antes: 1 draw call por trecho,
+  // mais 1 por trecho no mapa de sombra). Cada trecho continua existindo como "proxy" (fora da cena) para a animação da queda.
+  for (const time of Object.keys(muros)) { const pecas = muros[time].filter(o => o.userData.muro); if (!pecas.length) continue;
+    const tpl = M.muralha_reta; tpl.updateMatrixWorld(true); const subs = []; tpl.traverse(m => { if (m.isMesh) subs.push(m); });
+    const ims = subs.map(m => { const geo = m.geometry.clone(); geo.applyMatrix4(m.matrixWorld); const im = new THREE.InstancedMesh(geo, m.material, pecas.length); im.castShadow = true; im.receiveShadow = true; g.add(im); return im; });
+    pecas.forEach((o, idx) => { o.updateMatrixWorld(true); for (const im of ims) im.setMatrixAt(idx, o.matrixWorld); g.remove(o); o.userData.inst = ims.map(im => [im, idx]); });
+    for (const im of ims) { im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); } }
   // vegetação e props: oliveiras na Luz, palmeiras no Jordão e nas Trevas, tendas de Israel atrás da muralha da Luz, poços de pedra nas margens, rochas do deserto nas bordas
   let sem = 7; const rnd = () => { sem = (sem * 16807) % 2147483647; return sem / 2147483647; };
   for (let i = 0; i < 26; i++) { const x = -70 + rnd() * 140, lim = MAPA_C - Math.abs(x) * .55; const z = (rnd() < .5 ? -1 : 1) * (lim - 4 - rnd() * 6); por(x < 0 ? 'oliveira' : 'palmeira', x, z, rnd() * 6.28, .8 + rnd() * .4); }
@@ -66,6 +73,8 @@ export async function mapaV2(scene, loader, POS, MAPA_C, portoes, tapa = null) {
   window.__portaoV2 = { muros, entulho, usado: 0 };
   return g;
 }
+const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+function sincronizar(o) { const L = o.userData.inst; if (!L) return; o.updateMatrix(); for (const [im, i] of L) { im.setMatrixAt(i, o.visible ? o.matrix : ZERO); im.instanceMatrix.needsUpdate = true; } }
 // queda do portão: afunda e inclina portão + a muralha toda (tween de transform, sem física), poeira curta e entulho estático
 export function derrubarPortao(time, e, POS, fx, agendar, efeitos) {
   const S = window.__portaoV2; const base = time === 'luz' ? POS.baseLuz : POS.baseTrevas, nuc = time === 'luz' ? POS.nucleoLuz : POS.nucleoTrevas; const L = layoutBase(base, nuc);
@@ -73,7 +82,7 @@ export function derrubarPortao(time, e, POS, fx, agendar, efeitos) {
   const pecas = [e.obj, ...(S ? S.muros[time] : [])];
   const ang = (o) => { let a = Math.atan2(o.position.x - L.centro.x, o.position.z - L.centro.z) - L.ang; a = Math.atan2(Math.sin(a), Math.cos(a)); return Math.abs(a) / Math.PI; };
   const ini = pecas.map(o => ({ o, d: o === e.obj ? 0 : ang(o) * .9, y: o.position.y, rx: o.rotation.x, rz: o.rotation.z, sy: o.scale.y, tx: (Math.random() - .5) * .5, tz: (Math.random() - .5) * .5 }));
-  efeitos.push({ t: 0, vida: 2.05, up: (ef) => { for (const p of ini) { if (!p.o.visible) continue; const k = Math.max(0, Math.min(1, (ef.t - p.d) / 1.0)), q = k * k; p.o.position.y = p.y - q * 4.5; p.o.rotation.x = p.rx + p.tx * q; p.o.rotation.z = p.rz + p.tz * q; p.o.scale.y = p.sy * (1 - .45 * q); if (k >= 1) p.o.visible = false; } return ef.t < ef.vida; } });
+  efeitos.push({ t: 0, vida: 2.05, up: (ef) => { for (const p of ini) { if (!p.o.visible) continue; const k = Math.max(0, Math.min(1, (ef.t - p.d) / 1.0)), q = k * k; p.o.position.y = p.y - q * 4.5; p.o.rotation.x = p.rx + p.tx * q; p.o.rotation.z = p.rz + p.tz * q; p.o.scale.y = p.sy * (1 - .45 * q); if (k >= 1) p.o.visible = false; sincronizar(p.o); } return ef.t < ef.vida; } });
   // poeira: poucas partículas do sistema já existente (sem material novo), com o mesmo atraso da onda
   for (const p of ini) { const w = new THREE.Vector3(); p.o.getWorldPosition(w); agendar(p.d + .1, () => { for (let j = 0; j < (p.o === e.obj ? 14 : 5); j++) fx.emit(w.x + (Math.random() - .5) * 5, .4 + Math.random() * 2, w.z + (Math.random() - .5) * 5, { vel: [(Math.random() - .5) * 3, 1 + Math.random() * 2, (Math.random() - .5) * 3], cor: [.62, .55, .44], vida: 1.4 + Math.random() * .6, t0: 1.6, t1: 2.6, alpha: .55, drag: 1.2 }); }); }
   // entulho: reposiciona instâncias já existentes (1 draw call, nenhum shader novo)
