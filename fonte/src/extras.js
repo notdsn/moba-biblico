@@ -74,6 +74,8 @@ function esconder(w) { w.g.position.set(0, -50, 0); w.anel.position.set(0, -50, 
 function atualizarSentinelas(dt) { const t = D.estado.tempo; for (const w of EX.sentinelas) { if (!w.vivo) continue; if (t >= w.fim) { w.vivo = false; esconder(w); continue; } w.g.userData.o.rotation.y += dt * 1.5; w.g.userData.o.position.y = Math.sin(t * 2 + w.t) * .08; } }
 // bots: põem sentinela nas moitas do rio / entradas dos poços (dificuldade decide quanto)
 const PONTOS_SENT = () => EX.moitas.filter(m => Math.abs(m.x) < 30);
+// suporte (bot): ponto de sentinela ainda sem visão aliada, perto de p (moitas do rio/selva)
+export function pontoSentinela(h, p, raio) { if (!(D.DIF.sentinela) || (h.sentCd || 0) > D.estado.tempo) return null; let best = null, bd = raio; for (const m of PONTOS_SENT()) { const d = Math.hypot(m.x - p.x, m.z - p.z); if (d > bd) continue; if (EX.sentinelas.some(w => w.vivo && w.time === h.time && Math.hypot(w.pos.x - m.x, w.pos.z - m.z) < 8)) continue; bd = d; best = m; } return best; }
 export function botSentinela(h) {
   const ch = D.DIF.sentinela || 0; if (!ch || (h.sentCd || 0) > D.estado.tempo || !h.vivo) return;
   if ((h._sentTry || 0) > D.estado.tempo) return; h._sentTry = D.estado.tempo + 2;

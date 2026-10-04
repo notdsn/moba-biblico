@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { layoutBase } from './mapa_v2.js';
 import { SELVA_ON, SELVA_LARG, SELVA_SUL, distTrilha, distCampo, COVAS, naMuralha, bordaCova, MAPA_WR, MAPA_K, laneZ as laneZK, MAPA_C, MAPA_FOLGA, distLosango, distLateral, TORRES_LATERAIS, ROTA_TOPO, ROTA_BAIXO } from './selva_mapa.js';
 export { MAPA_WR };
 
@@ -36,6 +37,11 @@ if (MAPA_WR) { // espaçamento do WR no Meio: externa perto do rio, interna, tor
   POS.baseLuz.set(-83, 0, laneZ(-83)); POS.baseTrevas.set(85, 0, laneZ(85));
 }
 // distância à rota mais próxima (Meio + laterais) e relevo do mapa WR (plano dentro do losango, sobe fora dele)
+// mapa v2: vegetação alta não pode tapar as rotas na câmera do jogo (câmera a 57°, girada -45°: fica a sudoeste do herói).
+// Um prop em (x,z) com altura alt tapa o chão até ~alt*.65 m "para dentro da tela" (sentido nordeste, longe da câmera).
+const distRotaV = (x, z) => Math.min(x > -62 && x < 64 ? Math.abs(z - laneZ(x)) : 1e9, distLateral(x, z)); // o Meio termina nos portões (atrás da base não é rota)
+let BASES_V2 = null; const naBaseV2 = (x, z) => { if (!BASES_V2) BASES_V2 = [layoutBase(POS.baseLuz, POS.nucleoLuz), layoutBase(POS.baseTrevas, POS.nucleoTrevas)]; return BASES_V2.some(L => Math.hypot(x - L.centro.x, z - L.centro.z) < L.R + 5); }; // muralha + saídas da base
+export function tapaRota(x, z, alt = 7, raio = 2.5) { const fol = LANE.largura + 1.5; if (distRotaV(x, z) < fol + raio + 3 || naBaseV2(x, z)) return true; const L = alt * .7 + raio; for (let s = 0; s <= L + 3; s += 1.5) { const px = x + .707 * s, pz = z - .707 * s; if ((s <= L && distRotaV(px, pz) < fol) || naBaseV2(px, pz)) return true; } return false; }
 export const distRota = (x, z) => MAPA_WR ? Math.min(Math.abs(z - laneZ(x)), distLateral(x, z)) : Math.abs(z - laneZ(x));
 const rioWR = (x, z) => Math.abs(x - 1 - 2.2 * Math.sin(z * .09)); // rio: cruza o mapa na outra diagonal (x ≈ 1)
 
@@ -207,7 +213,7 @@ function criarCaminho(scene, q) {
       pts.push([x + jx, laneZ(x + jx) + w + jz]);
     }
   }
-  if (MAPA_WR) { const pl = q.mobile ? 1.25 : 1.0; // estradas do topo e de baixo: mesmo estilo, passo um pouco maior no celular
+  if (MAPA_WR) { const pl = MAPA_V2 ? passo : q.mobile ? 1.25 : 1.0; // estradas do topo e de baixo: mesmo estilo, passo um pouco maior no celular
     for (const rota of [ROTA_TOPO, ROTA_BAIXO]) for (let i = 0; i < rota.length - 1; i++) { const [ax, az] = rota[i], [bx, bz] = rota[i + 1]; const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
       for (let t = 0; t < L; t += pl) for (let w = -LANE.largura; w <= LANE.largura; w += pl) { const edge = Math.abs(w) / LANE.largura; if (edge > .82 && R() < (edge - .82) * 4) continue; const jx = (R() - .5) * pl * .5, jz = (R() - .5) * pl * .5; pts.push([ax + ux * t - uz * w + jx, az + uz * t + ux * w + jz]); } } }
   if (MAPA_WR) { // um InstancedMesh por trecho de 24 x 24: o que está fora da câmera nem é desenhado
@@ -646,6 +652,7 @@ export function criarMundo(scene, modelos, q, tempoU) {
   let lodProps = null;
   if (TP) {
     for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; if (Math.sin(a) > -.3 || Math.cos(a) > .5) continue; const x = POS.baseLuz.x + Math.cos(a) * 6.8, z = POS.baseLuz.z + Math.sin(a) * 6.8; colunas.push({ x, y: 0, z, alt: 3.4, ry: a, cor: '#ffffff' }); }
+    if (MAPA_V2) { const filtra = (L, raio) => { const n0 = L.length; for (let i = L.length - 1; i >= 0; i--) if (tapaRota(L[i].x, L[i].z, L[i].alt, raio)) L.splice(i, 1); return n0 - L.length; }; console.log('[mapa v2] tirados da frente das rotas: árvores', filtra(arvores, 3), 'pedras', filtra(pedras, 1)); for (const a of arvores) if (BASES_V2.some(L => Math.hypot(a.x - L.centro.x, a.z - L.centro.z) < L.R + 22)) a.alt *= .6; } // atrás da base (borda do mapa): árvores menores, não tapam as saídas laterais
     const iA = instanciar(scene, TP.arvore, arvores, { trecho: 16, sombra: !q.mobile, lod: TP.arvore_lod1, distLOD: q.baixa ? -99 : q.mobile ? 3 : 18, distMax: q.mobile ? (MAPA_WR ? 38 : 40) : 60, lod2: TP.arvore_lod2, distLOD2: q.mobile ? 18 : 34, altoSoFundo: q.mobile }); // celular: o lado de perto da câmera quase só aparece na borda de baixo
     const iP = instanciar(scene, TP.pedra, pedras, { trecho: 16, sombra: !q.mobile, lod: TP.pedra_lod1, distLOD: q.baixa ? -99 : q.mobile ? 3 : 18, distMax: q.mobile ? (MAPA_WR ? 34 : 34) : 60, altoSoFundo: q.mobile });
     const iC = instanciar(scene, TP.coluna, colunas, { trecho: 60, sombra: !q.mobile });

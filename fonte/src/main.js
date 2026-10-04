@@ -10,8 +10,8 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import './style.css';
-import { iniciarExtras, atualizarExtras, aplicarFogVisual, porSentinela, botSentinela, desenharExtrasMM, monstroAbatidoPor, bonusFim, heroisDoDia, missaoDoDia, FOG_ON, TREINO, EX, SENT } from './extras.js';
-import { criarMundo, carregarTexturas, POS, laneZ, LANE, texBrilho, PROP_TORRE, MAPA_5V5, MAPA_V2 } from './world.js';
+import { iniciarExtras, atualizarExtras, aplicarFogVisual, porSentinela, botSentinela, pontoSentinela, desenharExtrasMM, monstroAbatidoPor, bonusFim, heroisDoDia, missaoDoDia, FOG_ON, TREINO, EX, SENT } from './extras.js';
+import { criarMundo, carregarTexturas, POS, laneZ, LANE, texBrilho, PROP_TORRE, MAPA_5V5, MAPA_V2, tapaRota } from './world.js';
 import { mapaV2, layoutBase, derrubarPortao, MURO_N, MURO_ABRE } from './mapa_v2.js';
 const PORTOES = {}; let LAY = null; // mapa v2: portões destrutíveis e muralhas
 // ---- prévia 5v5 com 3 rotas (?rotas=3): Barão (topo), Meio e Dragão (baixo), torres e tropas em cada rota ----
@@ -55,6 +55,7 @@ const ANEIS_TODOS = P.has('aneis');         // depuração/prints: mostra o alca
 const MEDIR = P.has('medir');
 // dificuldade do Computador: ?dif=facil|normal|dificil (ou Configurações)
 const DIFS = { facil: { nome: 'Fácil', limiar: .25, reflexo: 2.5, desvio: .2, poke: .6, abate: 1.25, margem: 400, clarao: false, sentinela: 0, rotacao: false, chamadas: 0 }, normal: { nome: 'Normal', limiar: -.04, reflexo: 6, desvio: .45, poke: 1.5, abate: .9, margem: 150, clarao: true, sentinela: .5, rotacao: true, chamadas: .6 }, dificil: { nome: 'Difícil', limiar: -.1, reflexo: 9, desvio: .7, poke: 2.2, abate: .85, margem: 50, clarao: true, sentinela: 1, rotacao: true, chamadas: 1 } };
+const REACAO = { facil: [.16, .22], normal: [.09, .16], dificil: [.05, .1] }; // intervalo entre decisões dos bots (s): base + aleatório
 let DIF_ID = DIFS[P.get('dif')] ? P.get('dif') : (DIFS[localStorage.getItem('mobaDif')] ? localStorage.getItem('mobaDif') : 'normal'); let DIF = DIFS[DIF_ID];
 // configurações do aparelho (menu da engrenagem)
 const CFG = { joyFixo: localStorage.getItem('mobaJoyFixo') === '1', tremor: localStorage.getItem('mobaTremor') !== '0', atkContinuo: localStorage.getItem('mobaAtkCont') !== '0', menorVida: localStorage.getItem('mobaMenorVida') === '1' };
@@ -220,7 +221,7 @@ async function iniciar() {
   NOMES_PROPS.forEach((n, i) => { modelos[n] = props[i].scene; props[i].scene.traverse(o => { if (o.isMesh) { o.material.roughness = .85; } }); });
   progTxt.textContent = 'Carregando texturas…'; await carregarTexturas(Q);
   mundo = criarMundo(scene, modelos, Q, tempoU);
-  if (MAPA_V2) mapaV2(scene, loader, POS, MAPA_C, PORTOES).then(g => { window.__mapaV2 = g ? g.children.length : -1; });
+  if (MAPA_V2) mapaV2(scene, loader, POS, MAPA_C, PORTOES, tapaRota).then(g => { window.__mapaV2 = g ? g.children.length : -1; });
   // limite de partículas (buffers fixos, sem alocação durante a partida)
   fx = new Particulas(scene, Q.baixa ? 420 : Q.mobile ? 600 : 1600, true);
   fxD = new Particulas(scene, Q.baixa ? 180 : Q.mobile ? 260 : 700, false);
@@ -266,7 +267,7 @@ function criarEstruturas() {
   const tl1 = add('luz', 'torre', mundo.torreLuz, { hp: 2400 * HPE, nome: 'Torre Externa da Luz', ordem: 1, placas: 0 });
   const tl2 = add('luz', 'torre', mundo.torreLuz2, { hp: 2700 * HPE, nome: 'Torre Interna da Luz', ordem: 2, requer: [tl1] });
   if (MAPA_V2) { LAY = { luz: layoutBase(POS.baseLuz, POS.nucleoLuz), trevas: layoutBase(POS.baseTrevas, POS.nucleoTrevas) }; // torre da base fica DENTRO da muralha, ao lado do caminho portão -> Núcleo (ordem: externas -> portão -> torre de dentro -> Núcleo)
-    for (const [T, t] of [['luz', mundo.torreLuz3], ['trevas', mundo.torreTrevas3]]) if (t) { const L = LAY[T]; t.position.copy(L.centro).addScaledVector(L.f, L.R - 6).add(new THREE.Vector3(L.f.z, 0, -L.f.x).multiplyScalar(7)); t.position.y = 0; } }
+    for (const [T, t] of [['luz', mundo.torreLuz3], ['trevas', mundo.torreTrevas3]]) if (t) { const L = LAY[T]; t.position.copy(L.centro).addScaledVector(L.f, L.R - 8.5).add(new THREE.Vector3(L.f.z, 0, -L.f.x).multiplyScalar(9)); /* longe do eixo portão -> Núcleo (antes 6 e 7: travava a saída) */ t.position.y = 0; } }
   const portao = (time, req) => { const L = LAY[time]; const g = new THREE.Group(); g.position.copy(L.portao); g.userData.topo = 8.5; g.userData.raio = 3.4; scene.add(g); PORTOES[time] = g; return add(time, 'torre', g, { hp: 2900 * HPE, nome: `Portão de Jerusalém ${time === 'luz' ? 'da Luz' : 'das Trevas'}`, ordem: 3, requer: [req], alcance: 0, portao: true, raio: 3.4 }); };
   const dentro = (time, g, req) => g ? add(time, 'torre', g, { hp: 2900 * HPE, nome: `Torre do Santuário ${time === 'luz' ? 'da Luz' : 'das Trevas'}`, ordem: 3, requer: [req], dentroMuralha: true }) : req;
   const tl3 = MAPA_V2 ? dentro('luz', mundo.torreLuz3, portao('luz', tl2)) : mundo.torreLuz3 ? add('luz', 'torre', mundo.torreLuz3, { hp: 2900 * HPE, nome: 'Torre da Base da Luz', ordem: 3, requer: [tl2] }) : null;
@@ -282,9 +283,9 @@ function criarEstruturas() {
     const fora = (v) => !LAY || ['luz', 'trevas'].every(T => Math.hypot(v.x - LAY[T].centro.x, v.z - LAY[T].centro.z) > LAY[T].R + 3); // no mapa v2 a estrada lateral começa do lado de fora da muralha
     const sai = (T) => LAY ? [LAY[T].centro.clone().addScaledVector(LAY[T].f, LAY[T].R + 4)] : [];
     // mapa v2: a estrada lateral chega no trecho de muralha virado para ela (não vai até o portão); as tropas nascem do lado de fora
-    const ent = (T, q) => { const L = LAY[T]; const d = new THREE.Vector3(q.x - L.centro.x, 0, q.z - L.centro.z).normalize(); return L.centro.clone().addScaledVector(d, L.R + 3); };
-    const montar = (pl) => { const m = den(pl).filter(fora); if (!LAY) return [POS.nucleoLuz.clone(), ...m, POS.nucleoTrevas.clone()]; const eL = ent('luz', m[0]), eT = ent('trevas', m[m.length - 1]); const R = [POS.nucleoLuz.clone(), eL, ...m, eT, POS.nucleoTrevas.clone()]; R.ent = { luz: eL, trevas: eT }; return R; };
-    ROTAS_L.barao = montar(ROTA_TOPO); ROTAS_L.dragao = montar(ROTA_BAIXO);
+    const ent = (T, q, nome, k = 3) => { const L = LAY[T]; const a = L.portas[nome].a; return L.centro.clone().add(new THREE.Vector3(Math.sin(a) * (L.R + k), 0, Math.cos(a) * (L.R + k))); }; // na porta lateral da muralha
+    const montar = (pl, nome) => { const m = den(pl).filter(fora); if (!LAY) return [POS.nucleoLuz.clone(), ...m, POS.nucleoTrevas.clone()]; const eL = ent('luz', m[0], nome), eT = ent('trevas', m[m.length - 1], nome); const R = [POS.nucleoLuz.clone(), ent('luz', 0, nome, -4), eL, ...m, eT, ent('trevas', 0, nome, -4), POS.nucleoTrevas.clone()]; R.ent = { luz: eL, trevas: eT }; return R; };
+    ROTAS_L.barao = montar(ROTA_TOPO, 'barao'); ROTAS_L.dragao = montar(ROTA_BAIXO, 'dragao');
     const nomeR = ['Barão', 'Dragão'], nomeO = ['da Base', 'Interna', 'Externa'];
     for (let r = 0; r < 2; r++) for (const time of ['luz', 'trevas']) {
       const ts = TORRES_LATERAIS.slice(r * 6, r * 6 + 6).filter(t => t[2] === time); let ant = null; const cadeia = [];
@@ -1225,7 +1226,10 @@ function aviso(txt, mal = false) { avisoEl.textContent = txt; avisoEl.className 
 function desvioMuralha(p, alvo, time) {
   for (const T of ['luz', 'trevas']) { const L = LAY[T]; const dentro = (q) => Math.hypot(q.x - L.centro.x, q.z - L.centro.z) < L.R; if (dentro(p) === dentro(alvo) || L.aberta) continue;
     if (time && time !== T && !dentro(p)) { const d = new THREE.Vector3(p.x - L.centro.x, 0, p.z - L.centro.z).normalize(); return L.centro.clone().addScaledVector(d, L.R + 2.2); } // inimigo: para no trecho de muralha mais perto (não dá a volta até o portão)
-    const lado = L.centro.clone().addScaledVector(L.f, L.R + (dentro(p) ? -2.6 : 2.6)), outro = L.centro.clone().addScaledVector(L.f, L.R + (dentro(p) ? 2.6 : -2.6));
+    // aliado: usa a abertura (portão do Meio ou porta lateral) que dá o caminho mais curto
+    let lado = null, outro = null, bc = 1e9; const din = dentro(p);
+    for (const ab of L.aberturas) { const sx = Math.sin(ab.a), sz = Math.cos(ab.a); const a1 = new THREE.Vector3(L.centro.x + sx * (L.R + (din ? -3 : 3)), 0, L.centro.z + sz * (L.R + (din ? -3 : 3))), a2 = new THREE.Vector3(L.centro.x + sx * (L.R + (din ? 3 : -3)), 0, L.centro.z + sz * (L.R + (din ? 3 : -3)));
+      const c = Math.hypot(p.x - a1.x, p.z - a1.z) + Math.hypot(alvo.x - a2.x, alvo.z - a2.z); if (c < bc) { bc = c; lado = a1; outro = a2; } }
     return Math.hypot(p.x - lado.x, p.z - lado.z) > 2.2 ? lado : outro; }
   return alvo;
 }
@@ -1234,8 +1238,9 @@ function muralhasV2() {
   const passo = Math.PI * 2 / MURO_N;
   for (const u of unidades) { if (!u.vivo || (u.tipo !== 'heroi' && u.tipo !== 'minion')) continue; const p = u.obj.position;
     for (const T of ['luz', 'trevas']) { const L = LAY[T]; if (L.aberta) continue; const dx = p.x - L.centro.x, dz = p.z - L.centro.z, d = Math.hypot(dx, dz); const fx = 1.3 + u.raio * .5; if (Math.abs(d - L.R) > fx) continue;
-      let da = Math.atan2(dx, dz) - L.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); const g = estruturas.find(e => e.portao && e.time === T);
-      const aberto = Math.abs(da) < L.meiaAbertura ? (!g || !g.vivo || u.time === T) : (g && !g.vivo && Math.abs(da) < (MURO_ABRE + .5) * passo);
+      const au = Math.atan2(dx, dz); const g = estruturas.find(e => e.portao && e.time === T && !e.secao);
+      const naAbertura = L.aberturas.some(ab => { let da = au - ab.a; da = Math.atan2(Math.sin(da), Math.cos(da)); return Math.abs(da) < ab.meia - (u.raio * .5) / L.R; }); // portão do Meio e portas laterais
+      const aberto = naAbertura && (!g || !g.vivo || u.time === T);
       if (aberto) continue; const r = d < L.R ? L.R - fx : L.R + fx; p.x = L.centro.x + dx / (d || 1) * r; p.z = L.centro.z + dz / (d || 1) * r; } }
 }
 function mover2(h, alvo) {
@@ -1309,6 +1314,71 @@ const golpeEm = (h, u) => mitigar(h, u, h.st.ad, { ataque: true });
 function fugir(h, inim) { const pos = h.obj.position, dir = FONTE[h.time].clone().sub(pos).setY(0).normalize();
   for (const k of ['e', 'w', 'q']) { const H = h.hab[k], d = h.def.hab[k]; if (H.nv && H.cd <= 0 && d.tipo === 'dash' && h.mana >= d.mana[H.nv - 1]) { h.olharPara(pos.clone().add(dir), 1, 1); h.ctrl.x = dir.x; h.ctrl.y = dir.z; h.ctrl.len = 1; if (usarHab(h, k)) return true; } }
   if (inim && h.feit.clarao <= 0 && h.hp / h.maxHp < .2) { clarao(h, dir); return true; } return false; }
+// ================= IA do suporte (rota do Dragão) =================
+// Independente do atirador: espaçamento próprio, cutuca sozinho, cura/escudo nos aliados feridos,
+// controla (peel/engage) quando vale, põe sentinela no rio/moitas, às vezes roda para o meio e recua com pouca vida.
+const CC_KEYS = ['silencia', 'encanta', 'lento', 'cega', 'arrasta', 'raiz', 'atordoa', 'atordoaLonge', 'conselho', 'dissipa', 'arremessa', 'aterra', 'medo', 'provoca', 'jaula', 'corrente', 'empurra', 'empurraHab', 'gancho'];
+const ehCC = (d) => CC_KEYS.some(k => d[k]);
+const ehDano = (d) => !!d.dano && ['proj', 'linha', 'area', 'zona', 'serpente', 'marca'].includes(d.tipo);
+const alcHab = (d) => d.alc || d.comp || (d.centro === 'frente' ? (d.dist || 2) + (d.raio || 2) * .8 : 0) || (d.centro === 'self' ? d.raio : 0) || d.raio || d.dist || 6;
+const habPronta = (h, k) => { const H = h.hab[k], d = h.def.hab[k]; return H.nv && H.cd <= 0 && h.mana >= d.mana[H.nv - 1] && !(h.silencio > 0); };
+// mira manual do bot num ponto (com um erro pequeno, como um jogador)
+function mirarEm(h, p, alc, erro = .25) { const v = p.clone().sub(h.obj.position).setY(0); const L = v.length() || 1; const a = Math.atan2(v.z, v.x) + (Math.random() - .5) * erro; h.mira = { dir: new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), frac: Math.min(1, L / (alc || L)) }; }
+function lancarEm(h, k, u) { const d = h.def.hab[k]; const lead = u.ctrl && u.ctrl.len > .2 && d.vel ? u.obj.position.distanceTo(h.obj.position) / d.vel * (u.st ? u.st.ms || 3.5 : 3.5) * .6 : 0; const p = u.obj.position.clone(); if (lead) p.add(new THREE.Vector3(u.ctrl.x * lead, 0, u.ctrl.y * lead)); mirarEm(h, p, alcHab(d)); const r = usarHab(h, k); h.mira = null; return r; }
+function pensarSuporte(h, dt, c) {
+  const pos = h.obj.position, t = estado.tempo, RL = c.RL;
+  const adc = herois.find(a => a !== h && a.vivo && a.time === h.time && a.funcao === 'atirador');
+  // personalidade da posição: lado/distância próprios, sorteados de tempos em tempos
+  if (!h.sup) h.sup = { t: 0, lado: 1, atras: 2, roamAte: 0, roamProx: 100 + Math.random() * 60, harass: 0 };
+  const S = h.sup; if (S.t < t) { S.t = t + 2.5 + Math.random() * 3; S.lado = (Math.random() < .5 ? -1 : 1) * (2 + Math.random() * 2); S.atras = .5 + Math.random() * 3; }
+  const reage = Math.random() < dt * DIF.reflexo; // reação com atraso aleatório
+  const torreInimPerto = (p) => estruturas.some(e => e.vivo && e.tipo === 'torre' && e.time !== h.time && e.obj.position.distanceTo(p) < e.alcance + .5);
+  // 1) salvar/curar o aliado mais ferido
+  let ferido = null, fF = 1; for (const a of herois) { if (!a.vivo || a.time !== h.time || a === h) continue; const d = a.obj.position.distanceTo(pos); if (d > 12) continue; const f = a.hp / a.maxHp; if (f < fF) { fF = f; ferido = a; } }
+  const hpF = c.hpF;
+  if (ferido && reage && (fF < .5 || (fF < .75 && ferido.combateT < 2))) {
+    const dF = ferido.obj.position.distanceTo(pos), emLuta = ferido.combateT < 1.5;
+    for (const k of ['w', 'e', 'q', 'r']) { if (!habPronta(h, k)) continue; const d = h.def.hab[k];
+      if (d.doaVida && hpF > .45 && dF < (d.alcDoa || 9)) { if (usarHab(h, k)) return true; }
+      if (d.puxaAliado && fF < .32 && emLuta && dF > 3 && dF < d.puxaAliado) { if (usarHab(h, k)) return true; }
+      if (d.curaLinha && dF < d.comp - .5) { mirarEm(h, ferido.obj.position, d.comp, .08); const r = usarHab(h, k); h.mira = null; if (r) return true; }
+      if ((d.escudoAliados || d.cura || d.curaAliados) && dF < (d.aliados || d.raio || 6)) { if (usarHab(h, k)) return true; }
+      if (d.tipo === 'nuvem' && fF < .35 && emLuta && dF < d.alc) { mirarEm(h, ferido.obj.position, d.alc, .05); const r = usarHab(h, k); h.mira = null; if (r) return true; }
+      if (d.redireciona && emLuta && fF < .45 && dF < (d.raioRed || 8) && herois.some(e => e.vivo && e.time !== h.time && e.obj.position.distanceTo(ferido.obj.position) < 7)) { if (usarHab(h, k)) return true; }
+    }
+  }
+  // 2) peel: inimigo colado no atirador (ou em mim) → controle nele
+  const prot = adc && adc.obj.position.distanceTo(pos) < 12 ? adc : null;
+  let ameaca = null; if (prot) { let bd = 4.5; for (const e of herois) { if (!e.vivo || e.time === h.time || !visivelPara(e, h.time)) continue; const d = e.obj.position.distanceTo(prot.obj.position); if (d < bd) { bd = d; ameaca = e; } } }
+  if (ameaca && reage) for (const k of ['e', 'w', 'q', 'r']) { if (!habPronta(h, k)) continue; const d = h.def.hab[k]; if (!ehCC(d) || (k === 'r' && prot.hp / prot.maxHp > .5)) continue; if (ameaca.obj.position.distanceTo(pos) < alcHab(d) && lancarEm(h, k, ameaca)) return true; }
+  // 3) engage: atirador perto e saudável, inimigo ao alcance e fora da torre dele → abre com controle, segue com dano
+  const inim = c.inim, dInim = c.dInim;
+  if (inim && !c.inimSobTorre && dInim < 11) {
+    const L = avaliarLuta(h, inim, false, hpF, c.inimHp);
+    const junto = prot && prot.hp / prot.maxHp > .45 && prot.obj.position.distanceTo(inim.obj.position) < 10;
+    const vale = (junto && (L.score > DIF.limiar - .05 || c.inimHp < .4)) || L.abate;
+    if (vale) {
+      if (reage) for (const k of ['e', 'q', 'w', 'r']) { if (!habPronta(h, k)) continue; const d = h.def.hab[k]; if (!(ehCC(d) || ehDano(d))) continue; if (k === 'r' && !(c.inimHp < .5 || L.abate || herois.filter(e => e.vivo && e.time !== h.time && e.obj.position.distanceTo(inim.obj.position) < 5).length >= 2)) continue; if (d.tipo === 'dash' && hpF < .5) continue; if (dInim < alcHab(d) + .3 && lancarEm(h, k, inim)) return true; }
+      if (h.def.hab.r && h.def.hab.r.tipo === 'buff' && reage && habPronta(h, 'r') && (h.def.hab.r.maldPovo || h.def.hab.r.edito) && dInim < 8) usarHab(h, 'r');
+      h.forcarAlvo = inim; if (dInim > h.alcance + inim.raio) mover2(h, inim.obj.position); else atacar(h); return true;
+    }
+    // 4) poke / harass por conta própria
+    if (h.mana > h.manaMax * .4 && dInim > 3 && Math.random() < dt * DIF.poke * 1.3) for (const k of ['q', 'w', 'e']) { if (!habPronta(h, k)) continue; const d = h.def.hab[k]; if (!ehDano(d) || d.tipo === 'dash') continue; if (dInim < alcHab(d) && lancarEm(h, k, inim)) return true; }
+    if (dInim < h.alcance + inim.raio + .3 && hpF > .5 && S.harass < t && !torreInimPerto(pos)) { S.harass = t + 1.5 + Math.random() * 2.5; h.forcarAlvo = inim; if (atacar(h)) return true; }
+    if (dInim < 4.5 && L.score < DIF.limiar - .15) { mover2(h, prot ? prot.obj.position.clone().lerp(pos, .3) : FONTE[h.time]); return true; } // não fica na frente sozinho
+  }
+  // 5) sentinela: moita do rio/selva perto da rota, sem visão ainda
+  if (FOG_ON && !(inim && dInim < 9)) { const w = pontoSentinela(h, pos, 14); if (w) { S.ward = w; } if (S.ward && Math.hypot(S.ward.x - pos.x, S.ward.z - pos.z) > 3 && (h.sentCd || 0) <= t) { mover2(h, new THREE.Vector3(S.ward.x, 0, S.ward.z)); return true; } S.ward = null; }
+  // 6) roaming: de vez em quando dá uma volta pelo meio (o atirador seguro)
+  if (S.roamAte > t) { const meio = herois.find(a => a.vivo && a.time === h.time && a.funcao === 'meio'); if (meio && !(inim && dInim < 8)) { mover2(h, meio.obj.position.clone().add(new THREE.Vector3(S.lado, 0, -S.lado))); return true; } S.roamAte = 0; }
+  if (t > S.roamProx && hpF > .7 && adc && adc.hp / adc.maxHp > .6 && !(inim && dInim < 14) && !herois.some(e => e.vivo && e.time !== h.time && e.obj.position.distanceTo(adc.obj.position) < 12)) { S.roamProx = t + 70 + Math.random() * 60; if (Math.random() < .6) { S.roamAte = t + 10 + Math.random() * 6; return false; } }
+  // 7) posição: perto do atirador, mas com espaçamento próprio e zona morta (não copia cada passo dele)
+  if (!adc) return false; // sem atirador: comportamento normal da rota
+  const a0 = andarNaRota(RL, adc.obj.position, h.time, 0), a1 = andarNaRota(RL, adc.obj.position, h.time, 1); const fx = a1.x - a0.x, fz = a1.z - a0.z, fl = Math.hypot(fx, fz) || 1;
+  const alvo = adc.obj.position.clone().add(new THREE.Vector3(-fx / fl * S.atras - fz / fl * S.lado, 0, -fz / fl * S.atras + fx / fl * S.lado));
+  const dA = alvo.distanceTo(pos); if (S.andando ? dA < 1 : dA < 2.6) { S.andando = false; h.ctrl.len = 0; return true; }
+  S.andando = true; mover2(h, alvo); return true;
+}
 function pensar(h, dt) {
   const c = h.ctrl; c.x = c.y = c.len = 0; h.forcarAlvo = null;
   if (!h.vivo) { comprarBuild(h); return; }
@@ -1349,6 +1419,7 @@ function pensar(h, dt) {
   const adv = herois.find(x => x.time !== h.time); const pressao = adv && (!adv.vivo || (visivelPara(adv, h.time) && adv.hp / adv.maxHp < .35 && dInim > 12)) && hpF > .45;
   const RL = ROTAS3 ? rotaPara(h) : null;
   if (naTorre && (tanqueTorre === 0 || torre.alvoAnt === h) && !(inim && inimHp < .15)) { mover2(h, RL ? andarNaRota(RL, pos, h.time, -6) : pos.clone().add(new THREE.Vector3(-s * 6, 0, 0)).setZ(laneZ(pos.x - s * 6))); return; }
+  if (h.funcao === 'suporte' && RL && pensarSuporte(h, dt, { inim, dInim, hpF, s, inimSobTorre, inimHp, RL })) return;
   // lutar contra o herói: placar de luta (vida, nível, habilidades prontas, torre) e chance de abate
   if (inim && (dInim < 10 || (dInim < 13 && inim.hp < inim.maxHp * .3))) {
     const L = avaliarLuta(h, inim, inimSobTorre, hpF, inimHp);
@@ -1387,7 +1458,7 @@ function pensar(h, dt) {
   { const nuc = estruturas.find(e => e.vivo && e.tipo === 'nucleo' && e.time !== h.time && !protegida(e)); if (nuc && nuc.obj.position.distanceTo(pos) < 14 && hpF > .4 && !(inim && dInim < 6)) { h.forcarAlvo = nuc; if (nuc.obj.position.distanceTo(pos) > h.alcance + nuc.raio) mover2(h, nuc.obj.position); else atacar(h); return; } }
   if (SELVA_ON) { botUsarOlho(h); if (botSelva(h, dt, { hpF, inim, dInim })) return; }
   // agrupar: aliado brigando com herói inimigo perto → vai ajudar (rotação), sem entrar em torre inimiga
-  if (DIF.rotacao && hpF > .5 && !inim) for (const a of herois) { if (a === h || !a.vivo || a.time !== h.time) continue; const e = focoInimigo(a, 9); if (!e) continue; const d = a.obj.position.distanceTo(pos); if (d < 26 && d > 6 && !estruturas.some(t => t.vivo && t.tipo === 'torre' && t.time !== h.time && t.obj.position.distanceTo(e.obj.position) < t.alcance)) { mover2(h, a.obj.position); return; } }
+  if (DIF.rotacao && hpF > .5 && !inim) for (const a of herois) { if (a === h || !a.vivo || a.time !== h.time) continue; const e = focoInimigo(a, 9); if (!e) continue; const d = a.obj.position.distanceTo(pos); if (d < 26 && d > 6 && !estruturas.some(t => t.vivo && t.tipo === 'torre' && t.time !== h.time && t.obj.position.distanceTo(e.obj.position) < t.alcance)) { if (!h.flanco || h.flanco.t < estado.tempo) h.flanco = { t: estado.tempo + 3 + Math.random() * 3, a: Math.random() * 6.283, r: (h.def.distancia ? 4.5 : 2) + Math.random() * 1.5 }; mover2(h, e.obj.position.clone().add(new THREE.Vector3(Math.cos(h.flanco.a) * h.flanco.r, 0, Math.sin(h.flanco.a) * h.flanco.r))); return; } }
   // farmar: tropa inimiga com menos vida por perto
   let alvo = null, melhor = 1e9;
   let segurar = null; // tropa quase no ponto de último golpe: espera em alcance em vez de bater antes (não "empurra" à toa)
@@ -1409,7 +1480,6 @@ function pensar(h, dt) {
     let melhorP = -1, ref = null; for (const u of unidades) if (u.vivo && u.tipo === 'minion' && u.time === h.time && u.rota === RL) { const pr = progressoRota(RL, u.obj.position, h.time); if (pr > melhorP) { melhorP = pr; ref = u.obj.position; } }
     if (!ref) for (const e of estruturas) if (e.vivo && e.tipo === 'torre' && e.time === h.time && e.rota === (RL === ROTAS_L.barao ? 'barao' : 'dragao')) { const pr = progressoRota(RL, e.obj.position, h.time); if (pr > melhorP) { melhorP = pr; ref = e.obj.position; } }
     const q = ref ? andarNaRota(RL, ref, h.time, h.def.distancia ? -4 : -2.5) : andarNaRota(RL, NUCLEO[h.time], h.time, 10);
-    if (h.funcao === 'suporte') { const adc = herois.find(a => a !== h && a.vivo && a.time === h.time && a.funcao === 'atirador'); if (adc) { mover2(h, adc.obj.position.clone().add(new THREE.Vector3(-s * 1.5, 0, 1.2))); return; } }
     mover2(h, q); return;
   }
   // posição: logo atrás da tropa aliada
@@ -1594,7 +1664,7 @@ function atualizar(dt) {
     if (jogador && jogador.reserva && podeComprar(jogador)) { const id = jogador.reserva; jogador.reserva = null; const e = comprar(jogador, id); if (!e) { aviso('Comprado: ' + ITENS[id].nome); som('moeda'); } }
     // entrada do jogador
     lerEntrada();
-    for (const h of herois) if ((h.bot || (AUTO && h === jogador)) && !h.treino) pensar(h, dt);
+    for (const h of herois) if ((h.bot || (AUTO && h === jogador)) && !h.treino) { h.pensarAcc = (h.pensarAcc || 0) + dt; if (h.pensarAcc < (h.pensarProx || 0)) continue; const acc = h.pensarAcc; h.pensarAcc = 0; h.pensarProx = REACAO[DIF_ID][0] + Math.random() * REACAO[DIF_ID][1]; pensar(h, acc); } // cada bot reage no próprio ritmo (nunca em sincronia com o jogador)
     if (jogador && !jogador.bot && !AUTO && segurandoAtaque) { jogador.atkFixo = null; jogador.modoAlvo = segurandoModo; if (!atacar(jogador) && jogador.ctrl.len < .12 && jogador.atkCd <= 0) { const a = alvoAtaque(jogador, jogador.alcance + 6); if (a) mover2(jogador, a.obj.position); } jogador.modoAlvo = null; }
     else if (jogador && !AUTO && jogador.atkFixo) { // um toque = continua no mesmo alvo até ele morrer, sair do alcance ou você mexer o analógico
       const A = jogador.atkFixo, d = A.obj.position.distanceTo(jogador.obj.position) - (A.raio || 1);
@@ -2522,7 +2592,7 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, teste: { definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES } };
+window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, teste: { definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);
