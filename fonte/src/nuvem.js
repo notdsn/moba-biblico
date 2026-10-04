@@ -16,10 +16,12 @@ async function carregarSDK() {
   const app = initializeApp(cfg); const auth = A.getAuth(app); const db = F.getFirestore(app);
   fb = { A, F, auth, db }; return fb;
 }
+// liberadas pelo Edson: por enquanto só a do Davi (Davi Celestial); as outras seguem pausadas
+const LENDARIAS_LIBERADAS = ['davi'];
 async function conferirLendarias() {
   if (!ehLendario()) { definirLendarias([]); return; }
   const base = new URL('models/tripo/skins/', location.href);
-  const ok = await Promise.all(IDS_LENDA.map(id => fetch(new URL(id + '_lendaria.glb', base), { method: 'HEAD', cache: 'no-store' }).then(r => r.ok && !/text\/html/.test(r.headers.get('content-type') || '') ? id : null).catch(() => null)));
+  const ok = await Promise.all(IDS_LENDA.filter(id => LENDARIAS_LIBERADAS.includes(id)).map(id => fetch(new URL(id + '_lendaria.glb', base), { method: 'HEAD', cache: 'no-store' }).then(r => r.ok && !/text\/html/.test(r.headers.get('content-type') || '') ? id : null).catch(() => null)));
   definirLendarias(ok.filter(Boolean));
 }
 async function sincronizar() {

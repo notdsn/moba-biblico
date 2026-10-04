@@ -55,7 +55,7 @@ export const VESTES = {
   balaao: { padrao: 'Filho de Beor', lista: [{ id: 'jumenta', nome: 'Profeta de Petor', tex: null, campo: 'controles', n: 50, req: 'Aplicar 50 controles com Balaão (arte em breve)', verso: '“O Senhor abriu a boca da jumenta.” — Nm 22:28' }] },
   nabuco: { padrao: 'Rei de Babilônia', lista: [{ id: 'ouro', nome: 'Cabeça de Ouro', tex: 'models/tripo/skins/nabuco_ouro.webp', campo: 'nucleos', n: 5, req: 'Destruir 5 Núcleos com Nabucodonosor', verso: '“Tu és a cabeça de ouro.” — Dn 2:38' }] },
 };
-export const vesteDe = (id, vid) => vid === 'lendaria' ? (LEND.has(id) ? VESTE_LENDARIA : null) : (VESTES[id] && VESTES[id].lista.find(v => v.id === vid)) || null;
+export const vesteDe = (id, vid) => vid === 'lendaria' ? (LEND.has(id) ? lendaria(id) : null) : (VESTES[id] && VESTES[id].lista.find(v => v.id === vid)) || null;
 export function vesteLiberada(id, vid) { if (vid === 'lendaria') return LEND.has(id); const p = perfil(); return !!(p.vestes[id] && p.vestes[id].includes(vid)); }
 export function vesteEquipada(id) { const q = P.get('veste'); if (q) { const [h, v] = q.split(':'); if (h === id && vesteDe(id, v)) return v; } const v = perfil().equip[id]; return v && vesteLiberada(id, v) ? v : null; }
 export function equipar(id, vid) { const p = perfil(); if (vid && !vesteLiberada(id, vid)) return false; p.equip[id] = vid || null; salvarPerfil(); return true; }
@@ -166,5 +166,7 @@ export function mesclarPerfil(n) {
 let LEND = new Set();
 export function definirLendarias(ids) { LEND = new Set(ids || []); }
 export const temLendaria = (id) => LEND.has(id);
+export const NOMES_LENDARIA = { davi: 'Davi Celestial' };
+const lendaria = (id) => ({ ...VESTE_LENDARIA, nome: NOMES_LENDARIA[id] || (VESTES[id] ? VESTES[id].padrao + ' Lendário' : 'Lendária') });
 export const VESTE_LENDARIA = { id: 'lendaria', nome: 'Lendária', tex: null, glb: true, campo: 'partidas', n: 0, req: 'Veste lendária exclusiva', verso: '“Eis que faço novas todas as coisas.” — Ap 21:5' };
-export const listaVestes = (id) => (VESTES[id] ? (LEND.has(id) ? [...VESTES[id].lista, VESTE_LENDARIA] : VESTES[id].lista) : []);
+export const listaVestes = (id) => (VESTES[id] ? (LEND.has(id) ? [...VESTES[id].lista, lendaria(id)] : VESTES[id].lista) : []);

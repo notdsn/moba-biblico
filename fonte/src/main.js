@@ -39,7 +39,7 @@ import { Particulas, Aneis, colunaLuz, Textos } from './vfx.js';
 import { criarPoderes } from './poderes.js';
 import { som, destravarSom, ouvinteSom, somLigado, estadoSom } from './som.js';
 import { iniciarNuvem, entrarGoogle, sairGoogle, salvarNuvem, usuario, nuvemSincronizada, aoMudarUsuario } from './nuvem.js';
-import { listaVestes } from './perfil.js';
+import { listaVestes, definirLendarias } from './perfil.js';
 import { perfil, salvarPerfil, statsHeroi, VESTES, vesteDe, vesteLiberada, vesteEquipada, equipar, progressoVeste, conferirVestes, pontuacao, nota, medalhas, NARRADOR, VERSOS, DICAS, sortear, nivelConta, XP_CONTA, nomeJogador, mudarNome, resetarPerfil, xpPartida } from './perfil.js';
 import { configurarKTX2, reduzirTexturas, juntarLOD, ativarCulling, atualizarFrustum, naTela, aplicarLOD, SombrasBlob, ContadorFPS } from './perf.js';
 
@@ -2188,7 +2188,7 @@ const nomeHtml = () => escHtml(nomeJogador());
 const NOMES_CAMPO = { vitorias: 'vitórias', torres: 'torres', cura: 'de cura', abates: 'abates', controles: 'controles', semMorrer: 'vitórias sem morrer', nucleos: 'Núcleos' };
 const dataCurta = (t) => { const d = new Date(t); const z = (n) => String(n).padStart(2, '0'); return `${z(d.getDate())}/${z(d.getMonth() + 1)} ${z(d.getHours())}:${z(d.getMinutes())}`; };
 let telaPerfilDepois = null;
-aoMudarUsuario(() => { const el = $('perfilTela'); if (el && el.className === 'on') telaPerfil(telaPerfilDepois); const bp = $('selPerfil'); if (bp && bp.onclick) { const n = bp.querySelector('b'); if (n) n.textContent = perfil().nome; } });
+aoMudarUsuario(() => { if (selHeroi) try { verHeroi(selHeroi); } catch (e) { } const el = $('perfilTela'); if (el && el.className === 'on') telaPerfil(telaPerfilDepois); const bp = $('selPerfil'); if (bp && bp.onclick) { const n = bp.querySelector('b'); if (n) n.textContent = perfil().nome; } });
 function telaPerfil(depois) {
   const el = $('perfilTela'); const p = perfil(); const nv = nivelConta(p.xp); const ids = [...LUZ, ...TREVAS];
   const der = Math.max(0, p.partidas - p.vitorias); const tx = p.partidas ? Math.round(100 * p.vitorias / p.partidas) : 0;
@@ -2522,7 +2522,7 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil };
+window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, teste: { definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES } };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);
