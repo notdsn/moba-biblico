@@ -65,8 +65,8 @@ const TRIPO_MINIONS = ['guardiao', 'sombra'];
 const PROPS_TRIPO = ['torre_luz', 'torre_trevas', 'nucleo_luz', 'nucleo_trevas', 'fonte', 'arvore', 'arvore_lod1', 'arvore_lod2', 'pedra', 'pedra_lod1', 'coluna'];               // medição de desempenho headless: usa as mesmas otimizações do celular
 const mobile = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent);
 // limite de resolução: no celular no máximo 1,3x e ~750 mil pixels renderizados (iPhone 11: 1165×538)
-const prMax = () => mobile ? Math.min(devicePixelRatio, 1.3, Math.sqrt(7.5e5 / Math.max(1, innerWidth * innerHeight))) : Math.min(devicePixelRatio, 2);
-const Q = { mobile, sombra: mobile ? 1024 : 2048, pr: CAPTURA ? 1 : Math.max(1, prMax()) };
+const prMax = () => mobile ? Math.min(devicePixelRatio, 1.3, Math.sqrt(7.5e5 / Math.max(1, innerWidth * innerHeight))) : Math.min(devicePixelRatio, 1.5); // PC: 1,5x basta com MSAA 4x (2x + MSAA + SMAA + bloom era preenchimento demais)
+const Q = { mobile, sombra: mobile ? 1024 : 1536, pr: CAPTURA ? 1 : Math.max(1, prMax()) };
 // Android de entrada (Mali-G52/Adreno 6xx, 3-4 GB): resolução 1x e sombra menor desde o início (não depende só do ajuste dinâmico)
 const ANDROID_FRACO = /Android/i.test(navigator.userAgent) && ((navigator.deviceMemory || 8) <= 4 || (navigator.hardwareConcurrency || 8) <= 4);
 if (ANDROID_FRACO && !CAPTURA) { Q.pr = 1; Q.sombra = 512; }
@@ -88,7 +88,7 @@ renderer.setSize(innerWidth, innerHeight, false);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 // celular: mapa de sombra único de 1024 px, redesenhado em quadros alternados (a 60 FPS o atraso de 16 ms não aparece)
 if (!P.has('dev')) renderer.debug.checkShaderErrors = false; // checar erros força o navegador a esperar o link do shader (tranco)
-const SOMBRA_ALTERNADA = Q.mobile && (!CAPTURA || MEDIR); if (SOMBRA_ALTERNADA) renderer.shadowMap.autoUpdate = false;
+const SOMBRA_ALTERNADA = !CAPTURA || MEDIR; // PC e celular: sombra em quadros alternados if (SOMBRA_ALTERNADA) renderer.shadowMap.autoUpdate = false;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.info.autoReset = false;
 
@@ -138,7 +138,7 @@ const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, uCinza: { 
       c.rgb = (c.rgb-.5)*1.06+.5; vec2 d=vUv-.5; d.x*=1.6; float v=1.-uVig*smoothstep(.25,.95,length(d)); c.rgb*=v; c.rgb = mix(c.rgb, vec3(dot(c.rgb, vec3(.299,.587,.114))) * .8, uCinza); gl_FragColor=c; }` });
 composer.addPass(grade);
 // antisserrilhado extra (bordas de grama, partículas e shaders) — desligado no modo ?q=baixa
-const smaa = Q.baixa || Q.mobile ? null : new SMAAPass(); if (smaa) composer.addPass(smaa);
+const smaa = null; // um AA só: o MSAA do render target (SMAA em cima dele era custo dobrado)
 
 let W = innerWidth, H = innerHeight;
 function redimensionar() {
@@ -184,9 +184,9 @@ async function iniciar() {
   if (TRIPO) {
     progTxt.textContent = 'Carregando os heróis (Tripo)…';
     const ids = TRIPO_IDS.filter(id => !(id === 'davi' && DAVI_GROK));
-    const gs = await Promise.all(ids.map(id => carregar('tripo/' + id).catch(e => { console.warn('[tripo] falhou', id, e && e.message); return null; })));
+    const gs = await Promise.all(ids.map(id => carregar('tripo/' + id + '_lite').catch(() => carregar('tripo/' + id)).catch(e => { console.warn('[tripo] falhou', id, e && e.message); return null; }))); // _lite: ~11k tris, texturas 512/256, mesmos ossos e clipes
     const lods = await Promise.all(ids.map(id => carregar('tripo/' + id + '_lod1').catch(() => null)));
-    ids.forEach((id, i) => { const g = gs[i]; if (!g) return; const r = montarTripo(g, BASES[id].cena, id); if (lods[i]) juntarLOD(r.cena, lods[i].scene, Q.mobile ? 22 : 30); BASES[id] = { cena: r.cena, clips: aliasTripo(g.animations, clips, HEROIS[id], r.escMundo, r.hips), tripo: true }; });
+    ids.forEach((id, i) => { const g = gs[i]; if (!g) return; const r = montarTripo(g, BASES[id].cena, id); if (lods[i]) juntarLOD(r.cena, lods[i].scene, Q.mobile ? 6 : 9); BASES[id] = { cena: r.cena, clips: aliasTripo(g.animations, clips, HEROIS[id], r.escMundo, r.hips), tripo: true }; });
   }
   if (DAVI_GROK) { progTxt.textContent = 'Carregando o Davi (Grok Build)…'; const g = await carregar('davi_grok'); BASES.davi = { cena: montarGrok(g, BASES.davi.cena), clips: aliasGrok(g.animations, clips), grok: true };
     // gancho de LOD: se existir models/davi_grok_lod1.glb (gerado por tools/comprimir_modelo.mjs --lod), usa de longe
@@ -200,7 +200,7 @@ async function iniciar() {
     const gs = await Promise.all(TRIPO_MINIONS.map(id => carregar('tripo/' + id).catch(e => { console.warn('[tripo] falhou', id, e && e.message); return null; })));
     const lods = await Promise.all(TRIPO_MINIONS.map(id => carregar('tripo/' + id + '_lod1').catch(() => null)));
     TRIPO_MINIONS.forEach((id, i) => { const g = gs[i]; if (!g) return;
-      const r = montarTripo(g, BASES[id].cena, id, ESC_TROPA); if (lods[i]) juntarLOD(r.cena, lods[i].scene, Q.mobile ? 16.5 : 25);
+      const r = montarTripo(g, BASES[id].cena, id, ESC_TROPA); if (lods[i]) juntarLOD(r.cena, lods[i].scene, Q.mobile ? 4 : 6);
       const A = ANIM_TROPA[id]; BASES[id] = { cena: r.cena, clips: aliasTripo(g.animations, clips, { anim: A, base: { vel: A.vel } }, r.escMundo, r.hips), tripo: true };
       if (id === 'sombra') { // o "bruto" das Trevas usa o mesmo modelo, maior e mais avermelhado, com o golpe mais pesado
         const cb = skClone(r.cena); const lista = []; cb.traverse(o => { if (o.isSkinnedMesh) lista.push(o); });
@@ -209,7 +209,7 @@ async function iniciar() {
       } }); }
   // desempenho: culling dos personagens (esfera folgada) e, no celular, tropas sem sombra real (usam sombra "blob")
   for (const b of Object.values(BASES)) ativarCulling(b.cena);
-  if (Q.mobile) for (const k of ['guardiao', 'sombra', 'sombra_guerreiro']) BASES[k].cena.traverse(o => { if (o.isMesh) o.castShadow = false; });
+  for (const k of ['guardiao', 'sombra', 'sombra_guerreiro']) BASES[k].cena.traverse(o => { if (o.isMesh) o.castShadow = false; }); // tropas: sombra blob (PC e celular)
   progTxt.textContent = 'Montando o campo de batalha…'; await esperar(10);
   const props = await Promise.all(NOMES_PROPS.map(carregar));
   const modelos = {};
@@ -226,7 +226,7 @@ async function iniciar() {
   // limite de partículas (buffers fixos, sem alocação durante a partida)
   fx = new Particulas(scene, Q.baixa ? 420 : Q.mobile ? 600 : 1600, true);
   fxD = new Particulas(scene, Q.baixa ? 180 : Q.mobile ? 260 : 700, false);
-  if (Q.mobile) blobs = new SombrasBlob(scene, 64);
+  blobs = new SombrasBlob(scene, 64);
   aneis = new Aneis(scene); if (Q.mobile) aneis.max = Q.baixa ? 6 : 9; textos = new Textos(camera);
   if (PODERES_NOVOS) { // identidade própria de cada poder (poderes.js): atlas de partículas + 5 GLBs do Tripo
     const [atl, ...pg] = await Promise.all([new THREE.TextureLoader().loadAsync(Q.mobile ? 'vfx/poderes_512.webp' : 'vfx/poderes.webp').catch(() => null), ...GLB_PODERES.map(n => carregar('tripo/poderes/' + n).catch(() => null))]);
@@ -243,7 +243,7 @@ async function iniciar() {
   const h0 = P.get('heroi');
   if (h0 && HEROIS[h0] && CENA !== 'sel' && CENA !== 'perfil' && CENA !== 'nome') comecarPartida(h0, P.get('vs'));
   else abrirSelecao();
-  if (!(Q.mobile && h0 && HEROIS[h0] && CENA !== 'sel' && CENA !== 'perfil' && CENA !== 'nome')) aquecerShaders(); // celular com partida direta: comecarPartida aquece só a escalação
+  if (!(h0 && HEROIS[h0] && CENA !== 'sel' && CENA !== 'perfil' && CENA !== 'nome')) aquecerShaders(); // celular com partida direta: comecarPartida aquece só a escalação
   if (!CAPTURA) { relogio.start(); requestAnimationFrame(loop); }
   if (!(h0 && HEROIS[h0] && CENA !== 'sel')) window.__pronto = true; // com herói na URL, comecarPartida avisa quando estiver pronto
 }
@@ -452,7 +452,7 @@ function iniciarStatus(u) { u.lento = 0; u.lentoT = 0; u.atord = 0; u.escudos = 
 function criarHeroi(id, time, ehBot, baseK = null) {
   const d = HEROIS[id]; const b = BASES[baseK || id];
   const u = new Unidade(b.cena, b.clips || clips, { time, tipo: 'heroi', nome: d.nome, escala: ESC_HEROI * d.esc, raio: d.esc > 1.2 ? .95 : .75, hp: d.base.hp, vel: d.base.vel, alcance: d.base.alcance, dano: d.base.ad, cadencia: d.base.cad, anim: { ...d.anim } });
-  Object.assign(u, { baseK: baseK || id, id, def: d, bot: ehBot, nivel: 1, xp: 0, pontos: 1, ouro: 500, itens: [], abates: 0, mortes: 0, assist: 0, cs: 0, atkCd: 0, travado: 0, contAtaque: 0, proxBonus: 0, proxMag: 0, ctrl: { x: 0, y: 0, len: 0 }, canal: null, dash: null, morteT: 0, feit: { curar: 0, clarao: 0 }, cdPassiva: 0, cdEscudoFe: 0 });
+  Object.assign(u, { baseK: baseK || id, id, def: d, bot: ehBot, nivel: 1, xp: 0, pontos: 1, ouro: 500, itens: [], abates: 0, mortes: 0, assist: 0, cs: 0, atkCd: 0, travado: 0, contAtaque: 0, proxBonus: 0, proxMag: 0, ctrl: { x: 0, y: 0, len: 0 }, canal: null, dash: null, morteT: 0, feit: { clarao: 0, curar: 0, purificar: 0, incendiar: 0, barreira: 0, exaustao: 0, fantasma: 0 }, feitSel: ehBot ? feitDoBot(d, id) : feitDoJogador(), cdPassiva: 0, cdEscudoFe: 0 });
   u.mago = ['debora', 'farao', 'jezabel'].includes(id);
   u.hab = { q: { nv: 0, cd: 0 }, w: { nv: 0, cd: 0 }, e: { nv: 0, cd: 0 }, r: { nv: 0, cd: 0 } };
   u.stats = { danoHerois: 0, danoSofrido: 0, danoEstr: 0, danoTropas: 0, torres: 0, cura: 0, controles: 0, primeiro: false, mortes: 0, maiorSerie: 0, ouroTotal: 500, historico: [500] }; u.sequencia = 0;
@@ -555,6 +555,7 @@ function danificar(fonte, alvo, valor, o = {}) {
   if (fonte && fonte.disfarceT > estado.tempo) { fonte.disfarceT = 0; textoInfo(fonte, 'Disfarce revelado'); } // Sarai E
   if (fonte && (fonte.tipo === 'heroi' || fonte.tipo === 'minion') && (alvo.time === 'luz' || alvo.time === 'trevas')) { if (!(fonte.revelado > estado.tempo + 1.2 && fonte.revelaPara === alvo.time)) { fonte.revelado = estado.tempo + 1.2; fonte.revelaPara = alvo.time; } } // quem ataca aparece para o time atacado (mesmo na moita)
   if (SELVA_ON) valor *= multDano(fonte);
+  if (fonte && fonte.exaustoT > estado.tempo) valor *= .65; // feitiço Exaustão
   if (alvo.tipo === 'torre' || alvo.tipo === 'nucleo') return danoEstrutura(fonte, alvo, valor);
   let v = Math.max(1, Math.round(mitigar(fonte, alvo, valor, o)));
   if (alvo.espinhosT > estado.tempo && fonte && fonte !== alvo && fonte.vivo && !o.reflexo && fonte.tipo !== 'torre' && fonte.tipo !== 'nucleo') danificar(alvo, fonte, v * .3, { puro: true, reflexo: true }); // Lami W: Couraça de Escamas
@@ -1243,9 +1244,55 @@ function particulasZona(tipo, c, r, dt) {
 }
 
 // ================= feitiços e recuo =================
-const FEIT = { curar: 90, clarao: 120 };
-function curar(h) { if (!h.vivo || h.feit.curar > 0) return; h.feit.curar = FEIT.curar; curarU(h, 90 + 15 * h.nivel + h.maxHp * .1, true); h.buffs.push({ tipo: 'ms', v: .3, t: 1 }); aneis.add(h.obj.position, new THREE.Color(.5, 1, .6), .5, 2.5, .6); for (let k = 0; k < 30; k++) fx.emit(h.obj.position.x + (Math.random() - .5) * 2, .3, h.obj.position.z + (Math.random() - .5) * 2, { vel: [0, 3 + Math.random() * 2, 0], cor: [.5, 1, .6], vida: .9, t0: .4, t1: 0 }); }
-function clarao(h, dirF) { if (!h.vivo || h.feit.clarao > 0 || h.atord > 0) return; h.feit.clarao = FEIT.clarao; const dir = dirF || (h.ctrl.len > .1 ? new THREE.Vector3(h.ctrl.x, 0, h.ctrl.y).normalize() : frente(h)); const a = h.obj.position.clone(); h.obj.position.addScaledVector(dir, 5); limitar(h.obj.position); h.canal = null; for (const p of [a, h.obj.position]) { for (let k = 0; k < 24; k++) fx.emit(p.x, 1 + Math.random(), p.z, { vel: [(Math.random() - .5) * 6, (Math.random() - .5) * 6, (Math.random() - .5) * 6], cor: [1, .95, .6], vida: .4, t0: .5, t1: 0 }); aneis.add(p, new THREE.Color(1, .95, .6), .2, 1.8, .4); } }
+// ================= feitiços de invocador: cada herói leva 2 (como no Wild Rift) =================
+const FEIT = { clarao: 120, curar: 90, purificar: 90, incendiar: 90, barreira: 90, exaustao: 90, fantasma: 90 };
+const FEIT_INFO = {
+  clarao: { nome: 'Clarão', desc: 'Salta 5 m na direção do joystick.', cor: '#fff09a', ico: 'M18 2 6 18h8l-2 12 14-18h-9Z' },
+  curar: { nome: 'Curar', desc: 'Cura você e o aliado mais ferido por perto; corrida curta.', cor: '#9dffb0', ico: 'M12 4h8v8h8v8h-8v8h-8v-8H4v-8h8Z' },
+  purificar: { nome: 'Purificar', desc: 'Remove atordoamento, raiz, lentidão, medo e encanto; 1 s imune a controle.', cor: '#bfe8ff', ico: 'M16 3c5 6 8 10 8 15a8 8 0 0 1-16 0c0-5 3-9 8-15Z' },
+  incendiar: { nome: 'Incendiar', desc: 'Queima o herói inimigo mais próximo (6 m): dano verdadeiro por 3 s e −50% de cura.', cor: '#ff9a5a', ico: 'M16 2c2 6 9 8 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4 0-4 0-7 2-10Z' },
+  barreira: { nome: 'Barreira', desc: 'Escudo forte por 2,5 s.', cor: '#ffe6a0', ico: 'M16 3 27 7v8c0 7-5 12-11 14C10 27 5 22 5 15V7Z' },
+  exaustao: { nome: 'Exaustão', desc: 'Herói inimigo mais próximo (6 m): −30% de velocidade e −35% de dano por 3 s.', cor: '#d6b0ff', ico: 'M8 3h16v5l-6 8 6 8v5H8v-5l6-8-6-8Z' },
+  fantasma: { nome: 'Fantasma', desc: '+40% de velocidade por 6 s.', cor: '#b8fff4', ico: 'M16 3a10 10 0 0 1 10 10v16l-4-3-3 3-3-3-3 3-3-3-4 3V13A10 10 0 0 1 16 3Zm-4 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm8 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z' },
+};
+function feitDoJogador() { try { const v = JSON.parse(localStorage.getItem('mobaFeit') || 'null'); if (Array.isArray(v) && v.length === 2 && v[0] !== v[1] && FEIT[v[0]] && FEIT[v[1]]) return v; } catch (e) { /* padrão */ } return ['clarao', 'curar']; }
+function feitDoBot(d, id) { const f = d && d.funcao; const par = (id || '').length % 2; const seg = f === 'atirador' ? (par ? 'curar' : 'barreira') : f === 'mago' ? 'incendiar' : f === 'assassino' ? (par ? 'incendiar' : 'fantasma') : f === 'lutador' ? (par ? 'purificar' : 'fantasma') : f === 'tanque' ? 'exaustao' : f === 'suporte' ? (par ? 'exaustao' : 'barreira') : 'curar'; return ['clarao', seg]; }
+// tela de escolha dos 2 feitiços (no menu de heróis); grava em localStorage
+function abrirFeitTela() { let t = $('feitTela'); if (!t) { t = document.createElement('div'); t.id = 'feitTela'; document.body.appendChild(t); } let sel = feitDoJogador().slice();
+  const desenhar = () => { t.innerHTML = `<div class="caixa"><h2>Feitiços</h2><p>Escolha 2 · ${sel.map(k => FEIT_INFO[k].nome).join(' + ')}</p><div class="lista">${Object.keys(FEIT).map(k => { const I = FEIT_INFO[k], i = sel.indexOf(k); return `<button data-k="${k}" class="${i >= 0 ? 'on' : ''}" style="--c:${I.cor}"><svg viewBox="0 0 32 32"><path d="${I.ico}" fill="currentColor"/></svg><b>${I.nome}${i >= 0 ? ` <i>${i ? 'C' : 'X'}</i>` : ''}</b><small>${I.desc}<br>Recarga ${FEIT[k]} s</small></button>`; }).join('')}</div><button class="ok">Pronto</button></div>`;
+    t.querySelectorAll('.lista button').forEach(b => b.onclick = () => { const k = b.dataset.k; if (sel.includes(k)) return; sel = [sel[1], k]; localStorage.setItem('mobaFeit', JSON.stringify(sel)); desenhar(); });
+    t.querySelector('.ok').onclick = () => { t.className = ''; atualizarBotaoFeit(); }; };
+  desenhar(); t.className = 'on'; }
+function atualizarBotaoFeit() { const b = $('selFeit'); if (b) b.textContent = 'Feitiços: ' + feitDoJogador().map(k => FEIT_INFO[k].nome).join(' + '); }
+const temFeit = (h, k) => h.feitSel && h.feitSel.includes(k);
+function heroiInimigoPerto(h, raio) { let m = null, md = raio; for (const u of herois) { if (!u.vivo || u.time === h.time || !visivelPara(u, h.time)) continue; const d = u.obj.position.distanceTo(h.obj.position); if (d < md) { md = d; m = u; } } return m; }
+function chuvaFx(p, cor, n = 26, sobe = 3) { for (let k = 0; k < n; k++) fx.emit(p.x + (Math.random() - .5) * 1.6, .4 + Math.random(), p.z + (Math.random() - .5) * 1.6, { vel: [(Math.random() - .5) * 2, sobe + Math.random() * 2, (Math.random() - .5) * 2], cor, vida: .8, t0: .45, t1: 0 }); }
+function avisoFeit(h, t) { if (h === jogador) aviso(t, true); return false; }
+function usarFeit(h, k, dir) {
+  if (!h || !h.vivo || !k || !FEIT[k] || !temFeit(h, k)) return false; if (h.feit[k] > 0) return avisoFeit(h, `${FEIT_INFO[k].nome} recarregando`);
+  if (k === 'clarao') return clarao(h, dir) !== false; if (k === 'curar') return curar(h) !== false;
+  const p = h.obj.position; const C = (hx) => new THREE.Color(hx);
+  if (k === 'purificar') { limparControles(h); h.imparavel = Math.max(h.imparavel || 0, 1); h.dots = h.dots.filter(d => !d.ignite); chuvaFx(p, [.75, .92, 1]); aneis.add(p, C('#bfe8ff'), .4, 2.2, .5); }
+  else if (k === 'incendiar' || k === 'exaustao') { const a = heroiInimigoPerto(h, 6.5); if (!a) return avisoFeit(h, 'Nenhum herói inimigo perto (6 m)');
+    const q = a.obj.position; if (k === 'incendiar') { a.dots = a.dots.filter(d => !(d.ignite && d.fonte === h)); a.dots.push({ dps: (60 + 26 * h.nivel) / 3, t: 3, fonte: h, puro: true, ignite: true }); a.antiCura = { v: .5, t: 3 }; chuvaFx(q, [1, .5, .15], 30, 2); aneis.add(q, C('#ff7a2a'), .3, 1.8, .5); }
+    else { aplicarLento(a, .3, 3); a.exaustoT = estado.tempo + 3; chuvaFx(q, [.75, .55, 1], 22, 1); aneis.add(q, C('#a77bff'), .3, 1.8, .6); }
+    textoInfo(a, FEIT_INFO[k].nome + '!'); h.olharPara && h.olharPara(q, 1, 1); }
+  else if (k === 'barreira') { darEscudo(h, 105 + 30 * h.nivel, 2.5); chuvaFx(p, [1, .9, .55], 20, 1.5); }
+  else if (k === 'fantasma') { h.buffs.push({ tipo: 'ms', v: .4, t: 6 }); h.fantasmaT = estado.tempo + 6; chuvaFx(p, [.7, 1, .95], 20, 1); aneis.add(p, C('#b8fff4'), .3, 2, .4); }
+  h.feit[k] = FEIT[k]; textoInfo(h, FEIT_INFO[k].nome); if (h === jogador) som('nivel'); return true;
+}
+// IA: cada bot usa o 2º feitiço na hora certa (o Clarão e o Curar já têm regras próprias)
+function botFeiticos(h, inim, dInim, hpF) {
+  const k = h.feitSel[1]; if (!k || h.feit[k] > 0 || k === 'curar' || k === 'clarao') return;
+  if (k === 'purificar') { if ((h.atord > .5 || h.raiz > .5 || h.medo || h.encanto || h.provoc) && inim && dInim < 9) usarFeit(h, k); return; }
+  if (!inim || inim.tipo !== 'heroi') return;
+  if (k === 'barreira') { if (hpF < .28 && dInim < 7) usarFeit(h, k); }
+  else if (k === 'incendiar') { const hi = inim.hp / inim.maxHp; if (dInim < 6 && DIF.clarao && (hi < .35 || (hi < .6 && h.combateT < 2))) usarFeit(h, k); }
+  else if (k === 'exaustao') { if (dInim < 5.5 && (hpF < .45 || (inim.def.funcao === 'assassino' && h.combateT < 2))) usarFeit(h, k); }
+  else if (k === 'fantasma') { if ((hpF < .25 && dInim < 7) || (DIF.clarao && inim.hp / inim.maxHp < .25 && dInim > h.alcance + 1 && dInim < 10)) usarFeit(h, k); }
+}
+function curar(h) { if (!h.vivo || h.feit.curar > 0 || !temFeit(h, 'curar')) return false; h.feit.curar = FEIT.curar; curarU(h, 90 + 15 * h.nivel + h.maxHp * .1, true); { let al = null; for (const u of herois) if (u !== h && u.vivo && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < 6 && (!al || u.hp / u.maxHp < al.hp / al.maxHp)) al = u; if (al) { curarU(al, (90 + 15 * h.nivel) * .8, true, h); aneis.add(al.obj.position, new THREE.Color(.5, 1, .6), .4, 2, .5); } } textoInfo(h, 'Curar'); h.buffs.push({ tipo: 'ms', v: .3, t: 1 }); aneis.add(h.obj.position, new THREE.Color(.5, 1, .6), .5, 2.5, .6); for (let k = 0; k < 30; k++) fx.emit(h.obj.position.x + (Math.random() - .5) * 2, .3, h.obj.position.z + (Math.random() - .5) * 2, { vel: [0, 3 + Math.random() * 2, 0], cor: [.5, 1, .6], vida: .9, t0: .4, t1: 0 }); }
+function clarao(h, dirF) { if (!h.vivo || h.feit.clarao > 0 || h.atord > 0 || !temFeit(h, 'clarao')) return false; h.feit.clarao = FEIT.clarao; const dir = dirF || (h.ctrl.len > .1 ? new THREE.Vector3(h.ctrl.x, 0, h.ctrl.y).normalize() : frente(h)); const a = h.obj.position.clone(); h.obj.position.addScaledVector(dir, 5); limitar(h.obj.position); h.canal = null; for (const p of [a, h.obj.position]) { for (let k = 0; k < 24; k++) fx.emit(p.x, 1 + Math.random(), p.z, { vel: [(Math.random() - .5) * 6, (Math.random() - .5) * 6, (Math.random() - .5) * 6], cor: [1, .95, .6], vida: .4, t0: .5, t1: 0 }); aneis.add(p, new THREE.Color(1, .95, .6), .2, 1.8, .4); } }
 function recuar(h) { if (!h.vivo || h.canal || estado.fim) return; h.canal = { tipo: 'recuo', t: 0, dur: 4 }; if (h === jogador) aviso('Recuando para a base…'); }
 
 // ================= agendamentos / efeitos =================
@@ -1520,6 +1567,7 @@ function pensar(h, dt) {
   if (desviar(h, dt)) return;
   const inim = focoInimigo(h, 13);
   const dInim = inim ? inim.obj.position.distanceTo(pos) : 99;
+  botFeiticos(h, inim, dInim, hpF);
   // recuar com pouca vida
   let nInim = 0, nAmig = 0; for (const u of herois) { if (!u.vivo) continue; const d = u.obj.position.distanceTo(pos); if (u.time !== h.time && d < 12) nInim++; else if (u.time === h.time && u !== h && d < 12) nAmig++; }
   const emDesvantagem = nInim >= 2 && nAmig === 0 && hpF < .6 && !(inim && inim.hp / inim.maxHp < .2);
@@ -1637,7 +1685,7 @@ function atualizarStatus(u, dt) {
   if (u.provoc) { u.provoc.t -= dt; if (u.provoc.t <= 0 || !u.provoc.por.vivo) u.provoc = null; }
   for (const e of u.escudos) e.t -= dt; if (u.escudos.length) u.escudos = u.escudos.filter(e => e.t > 0 && e.v > 0);
   for (const b of u.buffs) b.t -= dt; if (u.buffs.length) u.buffs = u.buffs.filter(b => b.t > 0);
-  for (const d of u.dots) { d.t -= dt; d.acc = (d.acc || 0) + dt; if (d.acc >= .5) { d.acc = 0; danificar(d.fonte, u, d.dps * .5, { mag: d.mag }); } } if (u.dots.length) u.dots = u.dots.filter(d => d.t > 0);
+  for (const d of u.dots) { d.t -= dt; d.acc = (d.acc || 0) + dt; if (d.acc >= .5) { d.acc = 0; danificar(d.fonte, u, d.dps * .5, { mag: d.mag, puro: d.puro }); } } if (u.dots.length) u.dots = u.dots.filter(d => d.t > 0);
   u.combateT += dt;
 }
 function atualizarHeroi(h, dt) {
@@ -1652,7 +1700,7 @@ function atualizarHeroi(h, dt) {
   if (h.id === 'balaao') for (const u of herois) if (u.vivo && u.time !== h.time && u.invis > 0 && u.obj.position.distanceTo(h.obj.position) < 9) { u.invis = 0; textoInfo(u, 'A jumenta viu!'); }
   if (h.conselhoT > 0) { h.conselhoT -= dt; h.consAtk -= dt; const al = h.encanto && h.encanto.por; if (!al || !al.vivo || h.conselhoT <= 0) { h.conselhoT = 0; if (h.encanto && h.encanto.por.time === h.time) h.encanto = null; } else if (h.consAtk <= 0 && al.obj.position.distanceTo(h.obj.position) < h.alcance + 1.5) { h.consAtk = .8; danificar(h, al, h.st.ad, { ataque: true }); } } // Balaão E
   if (h.estase > 0) { h.estase -= dt; h.travado = Math.max(h.travado, .2); h.ctrl.len = 0; }
-  h.feit.curar = Math.max(0, h.feit.curar - dt); h.feit.clarao = Math.max(0, h.feit.clarao - dt); h.cdPassiva = Math.max(0, h.cdPassiva - dt); h.cdEscudoFe = Math.max(0, h.cdEscudoFe - dt);
+  for (const k in h.feit) if (h.feit[k] > 0) h.feit[k] = Math.max(0, h.feit[k] - dt); h.cdPassiva = Math.max(0, h.cdPassiva - dt); h.cdEscudoFe = Math.max(0, h.cdEscudoFe - dt);
   h.atkCd = Math.max(0, h.atkCd - dt); h.travado = Math.max(0, h.travado - dt);
   // regeneração
   const fora = h.combateT > 6;
@@ -1813,9 +1861,9 @@ function atualizar(dt) {
     if (u.tipo === 'monstro') continue;
     const dx = u.obj.position.x - camAlvo.x; if (Math.abs(dx) >= 34 && u.tipo !== 'heroi') continue;
     u.animAcc = (u.animAcc || 0) + dt; const vis = naTela(u.obj.position, 2.8); if (vis) visU++;
-    if (u.modelo.userData.lod && !u.semLOD) aplicarLOD(u, camera.position);
+    if (u.modelo.userData.lod && !u.semLOD) aplicarLOD(u, camAlvo);
     // o seu herói anima em todo quadro; tropas: no celular a 30 Hz, de longe (LOD1) a 12 Hz; fora da câmera ~7 Hz
-    const passo = u === jogador ? 0 : !vis ? .14 : u.tipo !== 'minion' ? 0 : u.lodNivel === 1 ? (Q.mobile ? 1 / 12 : 1 / 15) : Q.mobile ? 1 / 31 : 0;
+    const passo = u === jogador ? 0 : !vis ? .14 : u.tipo !== 'minion' ? (u.lodNivel === 1 ? (Q.mobile ? 1 / 20 : 1 / 24) : 0) : u.lodNivel === 1 ? (Q.mobile ? 1 / 12 : 1 / 15) : Q.mobile ? 1 / 31 : 0;
     if (u.animAcc >= passo) { u.mixer.update(u.animAcc); u.animAcc = 0; }
     u.atualizarFlash(dt);
   }
@@ -1840,7 +1888,7 @@ function moverJoy(e) { let dx = e.clientX - joyC.x, dy = e.clientY - joyC.y; con
 function joyVisual(dx, dy) { const r = joy.offsetWidth * .42; joyBotao.style.transform = `translate(${dx * r}px,${dy * r}px)`; }
 const J = (f) => () => jogador && !estado.fim && f(jogador);
 const tocarAtaque = (modo) => (h) => { const ok = atacarModo(h, modo); h.modoAlvo = modo; const a = alvoAtaque(h, h.alcance + 6); h.modoAlvo = null; h.atkFixo = CFG.atkContinuo && a ? a : null; return ok; };
-const botoes = { bAtaque: J(tocarAtaque(null)), bTropa: J(tocarAtaque('tropa')), bTorre: J(tocarAtaque('torre')), bSentinela: J(h => { if (!porSentinela(h)) aviso('Sentinela recarregando', true); else h.sentPostas = (h.sentPostas || 0) + 1; }), bQ: J(h => usarHab(h, 'q')), bW: J(h => usarHab(h, 'w')), bE: J(h => usarHab(h, 'e')), bR: J(h => usarHab(h, 'r')), bCurar: J(curar), bClarao: J(h => clarao(h)), bRecuar: J(recuar) };
+const botoes = { bAtaque: J(tocarAtaque(null)), bTropa: J(tocarAtaque('tropa')), bTorre: J(tocarAtaque('torre')), bSentinela: J(h => { if (!porSentinela(h)) aviso('Sentinela recarregando', true); else h.sentPostas = (h.sentPostas || 0) + 1; }), bQ: J(h => usarHab(h, 'q')), bW: J(h => usarHab(h, 'w')), bE: J(h => usarHab(h, 'e')), bR: J(h => usarHab(h, 'r')), bCurar: J(h => usarFeit(h, h.feitSel[1])), bClarao: J(h => usarFeit(h, h.feitSel[0])), bRecuar: J(recuar) };
 let segurandoAtaque = false, segurandoModo = null;
 if (SELVA_ON) {
   const roda = $('rodaPing');
@@ -1894,12 +1942,15 @@ function lerEntrada() {
 // ================= câmera =================
 const perfStat = { visU: 0 };
 const camAlvo = new THREE.Vector3(); let camIni = false; let camExtra = null;
+const camMorto = new THREE.Vector3(); let telaCinza = false;
 function atualizarCamera(dt) {
   // defesa contra tela preta: posição NaN/infinita (empurrão, colisão, divisão por zero) deixaria a câmera em NaN e nada seria desenhado
   for (const u of unidades) { const q = u.obj.position; if (Number.isFinite(q.x + q.y + q.z)) { (u._okPos || (u._okPos = new THREE.Vector3())).copy(q); } else { console.warn('[NaN] posição de', u.nome || u.tipo); if (u._okPos) q.copy(u._okPos); else q.set(0, 0, 0); u.empurrao = null; u.dash = null; } }
   if (!Number.isFinite(camAlvo.x + camAlvo.y + camAlvo.z)) camIni = false;
   const ref = estado.fim ? estado.fim.nucleo.obj.position : (jogador ? jogador.obj.position : POS.baseLuz);
-  const foco = ref.clone(); foco.y = 0; if (CAM_ANTIGA || estado.fim) { foco.x += 1.2; foco.z -= 1.2; }
+  // morto: o joystick move a câmera livremente pelo mapa (como no Wild Rift), em vez de ficar parado olhando o corpo
+  if (jogador && !jogador.vivo && !estado.fim) { const c = jogador.ctrl; if (c && c.len > .1) { camMorto.x += c.x * 16 * dt; camMorto.z += c.y * 16 * dt; } const L = 60; camMorto.x = Math.max(-L, Math.min(L, camMorto.x)); camMorto.z = Math.max(-L, Math.min(L, camMorto.z)); } else camMorto.set(0, 0, 0);
+  const foco = ref.clone().add(camMorto); foco.y = 0; if (CAM_ANTIGA || estado.fim) { foco.x += 1.2; foco.z -= 1.2; }
   if (!camIni) { camAlvo.copy(foco); camIni = true; }
   camAlvo.lerp(foco, 1 - Math.exp(-dt * (estado.fim ? 2 : 6)));
   const off = camExtra ? camExtra.off : CAM_OFF;
@@ -2011,7 +2062,8 @@ function atualizarHUD(dt) {
   const setCd = (el, cd, max) => { const c = el.querySelector('.cd'); if (cd > 0) { c.classList.add('on'); c.style.setProperty('--p', (cd / max).toFixed(3)); c.textContent = cd > 1 ? Math.ceil(cd) : cd.toFixed(1).replace('.', ','); } else c.classList.remove('on'); };
   for (const [k, el] of Object.entries(cdEls)) { const H = h.hab[k], d = h.def.hab[k]; setCd(el, H.cd, H.nv ? d.cd[H.nv - 1] * 100 / (100 + h.st.ah) : 1); el.classList.toggle('bloq', H.nv === 0); el.classList.toggle('semMana', H.nv > 0 && h.mana < d.mana[H.nv - 1]); el.classList.toggle('podeSubir', podeSubir(h, k)); const nvEl = el.querySelector('.nvs'); if (nvEl) nvEl.innerHTML = Array.from({ length: k === 'r' ? 3 : 5 }, (_, i) => `<i class="${i < H.nv ? 'on' : ''}"></i>`).join(''); }
   if (SELVA_ON) { const ob = h.olhoBeemote > estado.tempo; const bb = $('bBeemote'); if (bb.hidden === ob) bb.hidden = !ob; }
-  setCd($('bCurar'), h.feit.curar, FEIT.curar); setCd($('bClarao'), h.feit.clarao, FEIT.clarao); setCd($('bSentinela'), Math.max(0, (h.sentCd || 0) - estado.tempo), SENT.cd);
+  if (h._feitUI !== h.feitSel.join()) { h._feitUI = h.feitSel.join(); [['bClarao', 0], ['bCurar', 1]].forEach(([id, i]) => { const el = $(id), k = h.feitSel[i], I = FEIT_INFO[k]; el.setAttribute('aria-label', I.nome); el.style.setProperty('color', I.cor, 'important'); el.style.setProperty('border-color', I.cor, 'important'); el.innerHTML = `<svg viewBox="0 0 32 32"><path d="${I.ico}" fill="currentColor"/></svg><span>${I.nome}</span><em class="cd"></em>`; }); }
+  setCd($('bClarao'), h.feit[h.feitSel[0]], FEIT[h.feitSel[0]]); setCd($('bCurar'), h.feit[h.feitSel[1]], FEIT[h.feitSel[1]]); setCd($('bSentinela'), Math.max(0, (h.sentCd || 0) - estado.tempo), SENT.cd);
   { const R = h.hab.r; const pronta = R.nv > 0 && R.cd <= 0 && h.mana >= h.def.hab.r.mana[R.nv - 1] && h.vivo; if (pronta !== h.ultPronta) { h.ultPronta = pronta; cdEls.r.classList.toggle('pronta', pronta); if (pronta && estado.tempo > 1) som('ultPronta', null, .8); } }
   atualizarAnuncio(dt);
   $('bRecuar').classList.toggle('ativo', !!h.canal);
@@ -2025,7 +2077,8 @@ function atualizarHUD(dt) {
   $('loja').classList.toggle('pode', podeComprar(h)); $('loja').classList.toggle('temOuro', h.ouro >= 400); atualizarCompraRapida();
   hudEl.classList.toggle('semRotulos', estado.tempo > 60);
   { const u = grade.uniforms.uCinza; u.value += ((!h.vivo && !estado.fim ? .85 : 0) - u.value) * .15; }
-  const m = $('morte'); if (!h.vivo && !estado.fim) { m.className = 'on'; m.innerHTML = `Renascendo em <b>${Math.ceil(h.morteT)}</b><small>Aproveite para comprar na LOJA</small>`; } else m.className = '';
+  const m = $('morte'); const morto = !h.vivo && !estado.fim; if (morto) { m.className = 'on'; const s = Math.ceil(h.morteT); if (m._s !== s) { m._s = s; m.innerHTML = `<i>Você foi derrotado</i>Renasce em <b>${s}</b><small>Compre na LOJA · mova o joystick para olhar o mapa</small>`; } } else { m.className = ''; m._s = -1; }
+  if (morto !== telaCinza) { telaCinza = morto; renderer.domElement.style.filter = morto ? 'grayscale(.85) brightness(.75)' : ''; }
   $('pontosAviso').className = h.pontos > 0 && h.vivo ? 'on' : '';
   const b = bot; if (b) { const ii = $('inimInfo'); if (!ii.firstChild) { ii.innerHTML = `<canvas width="64" height="64"></canvas><div><b>${b.def.nome}</b><small></small></div><span class="mira">Toque: travar mira</span>`; const cv = ii.querySelector('canvas'); if (retratos[b.id]) cv.getContext('2d').drawImage(retratos[b.id], 0, 0, 64, 64); }
     const tx = `Nv ${b.nivel} · ${b.abates}/${b.mortes}`; const sm = ii.querySelector('small'); if (sm.textContent !== tx) sm.textContent = tx; ii.classList.toggle('morto', !b.vivo); ii.classList.toggle('dica', estado.tempo < 45); }
@@ -2051,8 +2104,7 @@ function ajustarQualidade(fps) {
 // pelos retratos e pelo aquecimento e ficavam lá a partida inteira; no iPhone isso estourava a memória (Safari recarregava a página)
 const ehBaseHeroi = (k) => !!HEROIS[String(k).split('@')[0]];
 const basesEmUso = () => new Set(herois.map(h => h.baseK || h.id));
-function liberarBasesForaDeUso() {
-  if (!Q.mobile) return 0; const uso = basesEmUso(); const manter = new Set(); let n = 0;
+function liberarBasesForaDeUso() { const uso = basesEmUso(); const manter = new Set(); let n = 0;
   const marcar = (o) => { if (!o.isMesh) return; manter.add(o.geometry); for (const m of [].concat(o.material)) if (m) for (const p in m) { const t = m[p]; if (t && t.isTexture) manter.add(t); } };
   for (const [k, b] of Object.entries(BASES)) if (b && b.cena && (!ehBaseHeroi(k) || uso.has(k))) b.cena.traverse(marcar);
   for (const u of unidades) if (u.obj) u.obj.traverse(marcar);
@@ -2061,7 +2113,7 @@ function liberarBasesForaDeUso() {
   return n;
 }
 function aquecerShaders() {
-  const uso = basesEmUso(); const tmp = new THREE.Group(); for (const [k, b] of Object.entries(BASES)) if (b && b.cena && (!Q.mobile || !ehBaseHeroi(k) || uso.has(k))) tmp.add(skClone(b.cena)); scene.add(tmp);
+  const uso = basesEmUso(); const tmp = new THREE.Group(); for (const [k, b] of Object.entries(BASES)) if (b && b.cena && (!ehBaseHeroi(k) || uso.has(k))) tmp.add(skClone(b.cena)); scene.add(tmp);
   const ocultos = []; scene.traverse(o => { if (!o.visible) { ocultos.push(o); o.visible = true; } });
   // variantes que só nascem no meio da luta (coroa dos guardas = básico sem textura; sombras dos objetos dos poderes)
   const coroa = new THREE.Mesh(new THREE.TorusGeometry(.5, .1, 4, 8), new THREE.MeshBasicMaterial({ color: 0xffc040 })); coroa.castShadow = true; tmp.add(coroa);
@@ -2076,7 +2128,7 @@ function aquecerShaders() {
   tmp.position.copy(camAlvo || new THREE.Vector3());
   try { renderer.compile(scene, camera); renderer.shadowMap.needsUpdate = true; composer.render(0); for (const pr of renderer.info.programs || []) { pr.getUniforms(); pr.getAttributes(); } } catch (e) { console.warn('[aquecer]', e && e.message); } // 1 quadro completo (inclui o passe de sombra)
   for (const o of ocultos) o.visible = false; scene.remove(tmp); coroa.geometry.dispose();
-  const n = liberarBasesForaDeUso(); if (n && Q.mobile) console.log('[memoria] liberados da GPU:', n);
+  const n = liberarBasesForaDeUso(); if (n) console.log('[memoria] liberados da GPU:', n);
 }
 
 // ================= retratos (renderizados dos próprios modelos 3D) =================
@@ -2128,6 +2180,7 @@ function abrirSelecao() {
   $('selOk').onclick = () => { if (!selHeroi) return; el.classList.remove('on'); if (SELVA_ON && P.get('modo') !== '1v1') pedirFuncao(selHeroi); else comecarPartida(selHeroi, null); };
   const bg = $('selGaleria'); if (bg) bg.onclick = () => telaGaleria(() => selHeroi && verHeroi(selHeroi));
   const bm = $('selMissoes'); if (bm) bm.onclick = () => telaMissoes();
+  { const bf = $('selFeit'); if (bf) { bf.onclick = abrirFeitTela; atualizarBotaoFeit(); } }
   const bt = $('selTreino'); if (bt) { if (TREINO) { bt.textContent = 'Sair do treino'; const ps = $('selPasso'); if (ps) ps.textContent = 'Treino: escolha um herói'; } bt.onclick = () => { const u = new URL(location.href); if (TREINO) u.searchParams.delete('treino'); else u.searchParams.set('treino', '1'); location.href = u.toString(); }; }
   const bp = $('selPerfil'); const botaoPerfil = () => { if (bp) bp.innerHTML = `<i>${nivelConta().nivel}</i><span><b>${nomeHtml()}</b><small>Perfil</small></span>`; }; botaoPerfil(); if (bp) bp.onclick = () => telaPerfil(botaoPerfil);
   if (CENA === 'perfil') { perfilExemplo(); botaoPerfil(); telaPerfil(botaoPerfil); }
@@ -2605,8 +2658,10 @@ function configurarHUD() {
   $('painel').className = h.time;
   document.body.dataset.time = h.time;
 }
+// marcador de ping no mundo: 3 anéis pulsando + coluna de luz (segue o alvo quando é um herói)
+function marcaPing(pos, hex, alvo) { const c = new THREE.Color(hex); const p = pos.clone(); for (let i = 0; i < 3; i++) setTimeout(() => { const q = alvo && alvo.vivo ? alvo.obj.position : p; aneis.add(q, c, .3, 2.4, .7); for (let k = 0; k < 14; k++) fx.emit(q.x + (Math.random() - .5) * .5, .2 + k * .25, q.z + (Math.random() - .5) * .5, { vel: [0, 2.5, 0], cor: [c.r, c.g, c.b], vida: .7, t0: .5, t1: 0 }); }, i * 450); }
 function selvaDeps() {
-  return { scene, unidades, herois, estado, Q, carregar, danificar, ganharOuro, darXp, criarBarra, iniciarStatus, atualizarStatus, mover2, atacar, usarHab, estruturas, protegida, jogadorTime, jogador: () => jogador, get DIF() { return DIF; }, visivel: visivelPara, get fx() { return fx; }, get fxD() { return fxD; }, tremer, anunciar, retratos, aviso, som, FONTE, laneZ, aplicarLento };
+  return { scene, unidades, herois, estado, Q, carregar, danificar, ganharOuro, darXp, criarBarra, iniciarStatus, atualizarStatus, mover2, atacar, usarHab, estruturas, protegida, jogadorTime, jogador: () => jogador, get DIF() { return DIF; }, visivel: visivelPara, get fx() { return fx; }, get fxD() { return fxD; }, tremer, anunciar, retratos, aviso, som, FONTE, laneZ, aplicarLento, porSentinela, marcaPing };
 }
 // tela de função (2v2): Selva ou Meio; o aliado fica com a outra
 // missões bíblicas (liberam vestes), missão do dia e heróis do dia — só leitura do perfil salvo
@@ -2636,9 +2691,9 @@ window.__pedirFuncao = pedirFuncao;
 // veste lendária: modelo GLB próprio (models/tripo/skins/<id>_lendaria.glb + _lod1), montado como os heróis do Tripo
 async function prepararLendaria(id) {
   const k = id + '@lendaria'; if (BASES[k]) return k; if (!BASES[id]) return null;
-  const g = await carregar('tripo/skins/' + id + '_lendaria', VER_LENDA).catch(e => { console.warn('[lendaria]', id, e && e.message); return null; }); if (!g) return null;
+  const g = await carregar('tripo/skins/' + id + '_lendaria_lite', VER_LENDA).catch(() => carregar('tripo/skins/' + id + '_lendaria', VER_LENDA)).catch(e => { console.warn('[lendaria]', id, e && e.message); return null; }); if (!g) return null;
   const lod = await carregar('tripo/skins/' + id + '_lendaria_lod1', VER_LENDA).catch(() => null);
-  const r = montarTripo(g, BASES[id].cena, id); if (lod) juntarLOD(r.cena, lod.scene, Q.mobile ? 22 : 30); ativarCulling(r.cena);
+  const r = montarTripo(g, BASES[id].cena, id); if (lod) juntarLOD(r.cena, lod.scene, Q.mobile ? 6 : 9); ativarCulling(r.cena);
   BASES[k] = { cena: r.cena, clips: g.animations.length ? aliasTripo(g.animations, clips, HEROIS[id], r.escMundo, r.hips) : BASES[id].clips, tripo: true }; return k;
 }
 async function comecarPartida(id, vs, funcao) {
@@ -2733,7 +2788,7 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, teste: { definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
+window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, teste: { morrer, comprar, danificar, usarFeit, ping, definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);

@@ -46,10 +46,11 @@ export function juntarLOD(base, lodCena, dist = 18) {
   if (add.length) base.userData.lod = [{ nivel: 0, dist: 0 }, { nivel: 1, dist }];
   return add.length;
 }
-export function aplicarLOD(u, camPos) {
+// distância HORIZONTAL até o foco da câmera (o herói focado), não até a câmera (que fica a 26 m e deixava o LOD inútil); histerese de 1 m
+export function aplicarLOD(u, foco) {
   const niveis = u.modelo.userData.lod; if (!niveis) return;
-  const d = u.obj.position.distanceTo(camPos); let esc = niveis[0];
-  for (const n of niveis) if (d >= n.dist) esc = n; u.lodNivel = esc.nivel;
+  const d = Math.hypot(u.obj.position.x - foco.x, u.obj.position.z - foco.z); const atual = u.lodNivel || 0; let esc = niveis[0];
+  for (const n of niveis) if (d >= n.dist + (n.nivel > atual ? 0 : -1)) esc = n; if (esc.nivel === atual && u.lodOk) return; u.lodOk = true; u.lodNivel = esc.nivel;
   for (const n of niveis) { const on = n === esc; if (!n.nos) { n.nos = []; u.modelo.traverse(o => { if (o.isMesh && o.userData.lod === n.nivel) n.nos.push(o); }); } for (const o of n.nos) o.visible = on; }
 }
 

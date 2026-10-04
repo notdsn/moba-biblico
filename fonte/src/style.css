@@ -205,7 +205,7 @@ body[data-time=trevas] .hab.ult{background:radial-gradient(circle at 50% 30%,#8a
 #abate.on{opacity:1}#abate i{font-style:normal;font-family:'Nunito';font-size:.7em;color:#ddd}
 #abate .al{color:#9fe0ff}#abate .in{color:#ff9aa6}
 #morte{position:absolute;top:36%;left:50%;transform:translateX(-50%);text-align:center;font-family:'Cinzel';font-weight:900;font-size:calc(3.6*var(--u));color:#ffd0d6;text-shadow:0 2px 6px #000;display:none}
-#morte.on{display:block}#morte b{font-size:1.6em;color:#fff}#morte small{display:block;font-family:'Nunito';font-size:calc(1.9*var(--u));color:#ffe7a8}
+#morte.on{display:block}#morte i{display:block;font-style:normal;font-size:.6em;color:#ff9aa8;letter-spacing:.08em}#morte b{font-size:1.6em;color:#fff}#morte small{display:block;font-family:'Nunito';font-size:calc(1.9*var(--u));color:#ffe7a8}
 /* tela de morte em cinza: feita no shader (grade.uCinza); filtro CSS no canvas WebGL deixa a cena preta no Safari */
 #pontosAviso{position:absolute;right:calc(3*var(--u) + var(--sr));bottom:calc(47*var(--u) + var(--sb));font-size:calc(1.7*var(--u));font-weight:900;color:#ffe7a8;background:rgba(20,14,4,.75);border:1px solid #b8862b;padding:calc(.5*var(--u)) calc(1.2*var(--u));border-radius:calc(.8*var(--u));display:none}
 #pontosAviso.on{display:block}
@@ -772,3 +772,22 @@ html.android #girarBtn{display:block}
 #perfilTela .pfRod button.google::before{content:'G';font-weight:900;color:#4285f4;font-size:1.1em}
 #perfilTela .pfRod button.sec{background:#3a3f4c;color:#eee}
 #perfilTela .pfRod button:disabled{opacity:.6}
+
+#feitTela{position:fixed;inset:0;z-index:60;background:rgba(5,6,14,.82);display:none;align-items:center;justify-content:center}
+#feitTela.on{display:flex}
+#feitTela .caixa{background:#141826;border:2px solid #c9a24a;border-radius:calc(1.6*var(--u));padding:calc(2*var(--u)) calc(2.6*var(--u));max-width:92vw;max-height:92vh;overflow:auto;text-align:center;color:#f3e6c4}
+#feitTela h2{font-family:'Cinzel';margin:0 0 .2em}#feitTela p{margin:0 0 calc(1.2*var(--u));font-size:calc(1.8*var(--u))}
+#feitTela .lista{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(1.2*var(--u))}
+#feitTela .lista button{background:#1d2234;border:2px solid #333a52;border-radius:calc(1.2*var(--u));color:var(--c);padding:calc(1*var(--u));display:flex;flex-direction:column;align-items:center;gap:.25em;cursor:pointer}
+#feitTela .lista button.on{border-color:var(--c);box-shadow:0 0 calc(1.4*var(--u)) var(--c)}
+#feitTela .lista svg{width:calc(5*var(--u));height:calc(5*var(--u))}#feitTela .lista b{font-size:calc(1.9*var(--u))}#feitTela .lista b i{font-style:normal;background:var(--c);color:#111;border-radius:.3em;padding:0 .3em;font-size:.8em}
+#feitTela .lista small{color:#cfc6b0;font-size:calc(1.4*var(--u));line-height:1.25}
+#feitTela .ok{margin-top:calc(1.4*var(--u));font-size:calc(2*var(--u));padding:.4em 1.6em}
+
+/* roda de pings radial (estilo Wild Rift) */
+#rodaPing{position:fixed!important;left:50%!important;top:50%!important;width:calc(46*var(--u));height:calc(46*var(--u));margin:calc(-23*var(--u)) 0 0 calc(-23*var(--u));display:none!important;border-radius:50%;background:radial-gradient(circle,rgba(10,14,26,.55) 30%,rgba(10,14,26,.2) 70%,transparent 72%);z-index:9!important}
+#rodaPing.on{display:block!important}
+#rodaPing .centro{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-weight:900;font-size:calc(2*var(--u));opacity:.8}
+#rodaPing button{position:absolute;left:calc(50% + var(--x)*1% );top:calc(50% + var(--y)*1%);transform:translate(-50%,-50%);flex-direction:column;gap:.15em!important;padding:calc(.6*var(--u)) calc(.9*var(--u))!important;border-color:var(--c)!important;border-radius:calc(2*var(--u))!important;font-size:calc(1.5*var(--u))!important}
+#rodaPing button b{background:var(--c)!important;color:#111}
+#rodaPing button i{font-style:normal}
