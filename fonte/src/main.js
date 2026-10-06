@@ -37,6 +37,8 @@ let filtroRota = '';
 const extras5 = [];
 import { Particulas, Aneis, colunaLuz, Textos } from './vfx.js';
 import { criarPoderes } from './poderes.js';
+import { criarVfxKits } from './vfx_kits.js';
+import { criarKits } from './kits.js';
 import { som, destravarSom, ouvinteSom, somLigado, estadoSom } from './som.js';
 import { iniciarNuvem, entrarGoogle, sairGoogle, salvarNuvem, usuario, nuvemSincronizada, aoMudarUsuario } from './nuvem.js';
 import { listaVestes, definirLendarias } from './perfil.js';
@@ -175,6 +177,7 @@ const estado = { luz: 0, trevas: 0, tempo: 0, fim: null, iniciado: false };
 const suportaWebp = () => new Promise(r => { const i = new Image(); i.onload = () => r(i.width === 1); i.onerror = () => r(false); i.src = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA'; });
 const VAR_BASE = { josue: 'sansao', elias: 'davi', acabe: 'nabuco', dalila: 'jezabel', herodes: 'farao', hama: 'nabuco', balaao: 'farao', ester: 'debora', ninrode: 'nabuco', sarai: 'debora', moises: 'davi', daniel: 'davi', noe: 'sansao', jonatas: 'davi', golias2: 'golias' }; // heróis novos só têm o modelo do Tripo: o boneco antigo (referência de escala) vem de um parecido
 async function iniciar() {
+  KIT = criarKits(depsKits());
   if (TRIPO && !(await suportaWebp())) { const u = new URL(location.href); u.searchParams.set('modelos', 'antigos'); location.replace(u.toString()); return; }
   const [heroiG, heroiF, soldadoG, ...cabs] = await Promise.all(['heroi', 'heroi_f', 'soldado', ...CABELOS.map(c => 'cabelo_' + c)].map(carregar));
   const cabelos = Object.fromEntries(CABELOS.map((c, i) => [c, cabs[i]]));
@@ -235,6 +238,7 @@ async function iniciar() {
     poderes = criarPoderes({ scene, camera, fx: () => fx, fxD: () => fxD, aneis, agendar, efeitos, tremer, frente, som, texB, mobile: Q.mobile, baixa: Q.baixa, atlas: () => atl, modelo: (n) => mods[n],
       aliados: (h, r) => unidades.filter(u => u.vivo && u !== h && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < r) });
     poderes.preparar();
+    try { const fl = await carregar('vfx/flecha').catch(() => null); VK = await criarVfxKits({ scene, camera, renderer, mobile: Q.mobile, baixa: Q.baixa, ktx2: loader.ktx2Loader, flecha: fl, glb: (u) => new Promise((res, rej) => loader.load(u, res, undefined, rej)), modelo: (n) => mods[n] }); VK.preparar(); } catch (e) { console.warn('[vfx kits] sem VFX realistas:', e && e.message); VK = null; }
   }
   redimensionar();
   criarEstruturas();
@@ -476,6 +480,8 @@ function recalcular(h, cheio = false) {
   if (h.itens.includes('cajadoArao')) st.ap *= 1.15;
   st.adBase = b.ad + b.adN * (FUNCOES[h.def.funcao] || FUNCOES.lutador).ad * crescimento(h.nivel);
   if (h.babilonia) st.ad += 3 * h.babilonia;
+  if (h.babilonia >= 10) st.hp *= 1.05; // Nabuco P: Babilônia completa
+  if (h.esterR && h.esterR.fim > estado.tempo) st.hp += h.esterR.v; // Ester R: Se Perecer, Pereci
   const hpAnt = h.maxHp, manaAnt = h.manaMax;
   if (h.cresceT && h.cresceT > estado.tempo) st.hp *= 1.2; // Lami E: Passo do Gigante
   h.st = st; h.maxHp = st.hp; h.manaMax = st.mana; h.alcance = b.alcance + (h.cresceT && h.cresceT > estado.tempo ? 1.2 : 0);
@@ -486,9 +492,9 @@ const intervaloAtaque = (h) => h.def.base.cad / (1 + h.st.as + buff(h, 'as'));
 const _olhar = new THREE.Vector3();
 const velocidade = (u) => { const ms = (u.st && u.st.ms !== undefined ? u.st.ms : 0) + (u.velo === 'seco' ? .06 + .02 * ((u.hab && u.hab.e && u.hab.e.nv) || 1) : 0); return u.vel * (1 + ms + buff(u, 'ms')) * (1 - u.lento); };
 const veloArm = (u) => u.velo === 'molhado' ? 12 + 4 * ((u.hab && u.hab.e && u.hab.e.nv) || 1) : 0; // Gideão: velo molhado = +armadura/RM
-const modRes = (u, base) => base * ((u.paranoia ? .15 : 0) - (u.maldPovoT > estado.tempo ? .2 : 0)); // Herodes: Paranoia (+15%) · Balaão R (-20%)
+const modRes = (u, base) => base * (-(u.maldPovoT > estado.tempo ? .2 : 0)); // Balaão R antigo (-20%)
 const arm = (u) => (u.st ? u.st.arm : 15) + buff(u, 'arm') + veloArm(u) - (u.marcha && u.marcha.t > estado.tempo ? u.marcha.v : 0) + modRes(u, u.st ? u.st.arm : 15); // Josué: Marcha de Sete Dias
-const rmag = (u) => (u.st ? u.st.rm : 15) + buff(u, 'arm') + buff(u, 'rm') + veloArm(u) + (u.id === 'farao' ? 4 * (u.coracao || 0) : 0) + modRes(u, u.st ? u.st.rm : 15);
+const rmag = (u) => (u.st ? u.st.rm : 15) + buff(u, 'arm') + buff(u, 'rm') + veloArm(u) + (u.id === 'farao' ? 5 * (u.coracao || 0) : 0) + modRes(u, u.st ? u.st.rm : 15);
 const XP_NIVEL = (n) => MODO2 ? 190 + 130 * (n - 1) : 100 + 60 * (n - 1); // 2v2 com selva: curva mais lenta (nível 11–13 aos 15 min)
 function darXp(h, v) {
   if (!h || h.nivel >= 15) return;
@@ -529,12 +535,11 @@ function mitigar(fonte, alvo, valor, o = {}) {
   // penetração (estilo WR): % primeiro, depois o valor fixo (letalidade / penetração mágica)
   if (fonte && fonte.tipo === 'heroi' && fonte.st) r = o.mag ? r * (1 - (fonte.st.penMp || 0)) - (fonte.st.penM || 0) : r * (1 - (fonte.st.penA || 0)) - (fonte.st.let || 0) * (.6 + .4 * (fonte.nivel || 1) / 15);
   if (!o.puro) v *= 100 / (100 + Math.max(0, r));
-  if (alvo.id === 'golias') v *= .85;
-  if (fonte && fonte.fracoT > estado.tempo) v *= .7; // Sarai W: Riso de Sara
+  if (alvo.id === 'golias' && o.ataque) v *= .85; // Couraça de Bronze: só ataques básicos
+  if (fonte && fonte.fracoT > estado.tempo) v *= .75; // Sarai W: Riso de Sara
   if (fonte && fonte.tipo === 'minion' && alvo.tipo === 'heroi') v *= .6; // tropa em herói na proporção do WR (~13 de dano no começo)
   if (fonte && fonte.tipo === 'minion' && alvo.tipo === 'minion') v *= 2.2; // tropa x tropa resolve rápido: sem isso as ondas empilhavam no meio e a rota travava
   if (fonte && fonte.tipo === 'heroi') {
-    if (o.hab && fonte.id === 'jezabel' && alvo.hp < alvo.maxHp * .5) v *= 1.25;
     if (fonte.itens.includes('espadaGolias') && alvo.maxHp > fonte.maxHp) v *= 1.08;
     if (fonte.auraDanoT > estado.tempo) v *= 1 + fonte.auraDanoV; // Josué W
     if (fonte.id === 'sarai' && alvo.tipo === 'monstro') v *= 1.25; // Sarai P: Tenda no Deserto
@@ -558,6 +563,7 @@ function danificar(fonte, alvo, valor, o = {}) {
   if (fonte && fonte.exaustoT > estado.tempo) valor *= .65; // feitiço Exaustão
   if (alvo.tipo === 'torre' || alvo.tipo === 'nucleo') return danoEstrutura(fonte, alvo, valor);
   let v = Math.max(1, Math.round(mitigar(fonte, alvo, valor, o)));
+  if (KIT) { v = Math.round(KIT.modDano(fonte, alvo, v, o)); if (v <= 0) return false; }
   if (alvo.espinhosT > estado.tempo && fonte && fonte !== alvo && fonte.vivo && !o.reflexo && fonte.tipo !== 'torre' && fonte.tipo !== 'nucleo') danificar(alvo, fonte, v * .3, { puro: true, reflexo: true }); // Lami W: Couraça de Escamas
   if (alvo.tipo === 'monstro' && fonte) { alvo.ultimoAgressor = fonte; fonte.agrediuMonstroT = estado.tempo; }
   // escudos
@@ -576,17 +582,17 @@ function danificar(fonte, alvo, valor, o = {}) {
     if (alvo.tipo === 'heroi') { alvo.ultimoAgressor = fonte; alvo.agressorT = estado.tempo; fonte.agrediuHeroiT = estado.tempo; }
     if (o.ataque && fonte.st.ls) curarU(fonte, v * fonte.st.ls, false);
     if (o.cura) curarU(fonte, v * o.cura, true);
-    if (o.hab && fonte.id === 'elias' && alvo.tipo === 'heroi') fonte.mana = Math.min(fonte.manaMax, fonte.mana + 12 + 2 * fonte.nivel); // Corvos de Querite
-    if (o.hab && fonte.id === 'debora' && alvo.tipo === 'heroi' && fonte.cdPassiva <= 0) { fonte.cdPassiva = 8; darEscudo(fonte, 60 + 4 * fonte.nivel, 3); }
+    if (o.hab && fonte.id === 'debora' && alvo.tipo === 'heroi' && fonte.cdPassiva <= 0) { fonte.cdPassiva = 8; darEscudo(fonte, 60 + 4 * fonte.nivel + .15 * fonte.st.ap, 2.5); } // Débora P: Juíza de Israel
     if (o.hab && fonte.itens.includes('cetroEster')) aplicarLento(alvo, .1, 1);
   }
+  if (KIT && resto > 0) KIT.aposDano(fonte, alvo, resto, o);
   if (o.ataque && !o.reflexo && alvo.itens && alvo.itens.includes('armaduraSaul') && fonte && fonte.vivo) danificar(alvo, fonte, valor * .1, { mag: true, reflexo: true });
   // textos
   if (fonte === jogador) textos.add(alvo.obj.position, o.crit ? v + '!' : '' + v, o.crit ? 'crit' : (o.mag ? 'mag' : ''), alvo);
   else if (alvo === jogador) textos.add(alvo.obj.position, '-' + v, 'mal');
   // passivas defensivas
   if (alvo.tipo === 'heroi' && alvo.hp > 0) {
-    if (alvo.id === 'farao' && o.hab && fonte && fonte.tipo === 'heroi') { alvo.coracao = Math.min(8, (alvo.coracao || 0) + 1); alvo.coracaoT = 5; }
+    if (alvo.id === 'farao' && o.hab && fonte && fonte.tipo === 'heroi') { alvo.coracao = Math.min(6, (alvo.coracao || 0) + 1); alvo.coracaoT = 5; }
     if (alvo.itens.includes('escudoFe') && alvo.hp < alvo.maxHp * .3 && alvo.cdEscudoFe <= 0) { alvo.cdEscudoFe = 60; darEscudo(alvo, 200, 4); textoInfo(alvo, 'Escudo da Fé'); }
   }
   if (alvo.hp <= 0) { alvo.hp = 0; morrer(alvo, fonte); return true; }
@@ -610,22 +616,23 @@ function danoEstrutura(fonte, e, valor) {
   if (e.hp <= 0) { e.hp = 0; destruirEstrutura(e, fonte); return true; }
   return false;
 }
-function curarU(u, v, mostrar = true, fonte = null) { if (!u.vivo) return; if (u.maldicao && u.maldicao.t > estado.tempo && v >= 10) { danificar(u.maldicao.fonte, u, v, { mag: true }); textoInfo(u, 'Cura amaldiçoada!'); return; } /* Balaão Q */ if (u.antiCura) v *= 1 - u.antiCura.v; const a = Math.min(u.maxHp - u.hp, v); u.hp += a; const quem = fonte || (u.tipo === 'heroi' ? u : null); if (quem && quem.stats && a > 0) quem.stats.cura += a; if (mostrar && a > 5 && (u === jogador)) textos.add(u.obj.position, '+' + Math.round(a), 'cura'); }
+function curarU(u, v, mostrar = true, fonte = null) { if (!u.vivo) return; if (u.maldicao && u.maldicao.t > estado.tempo && v >= 10) { u.maldicao.curada = true; danificar(u.maldicao.fonte, u, v, { mag: true }); textoInfo(u, 'Cura amaldiçoada!'); return; } /* Balaão Q */ if (u.antiCura) v *= 1 - u.antiCura.v; const a = Math.min(u.maxHp - u.hp, v); u.hp += a; const quem = fonte || (u.tipo === 'heroi' ? u : null); if (quem && quem.stats && a > 0) quem.stats.cura += a; if (mostrar && a > 5 && (u === jogador)) textos.add(u.obj.position, '+' + Math.round(a), 'cura'); }
 function darEscudo(u, v, t) { u.escudos.push({ v, t }); aneis.add(u.obj.position, new THREE.Color(1, .9, .5), .5, 2, .5); }
 function aplicarLento(u, v, t) { if (!u.vivo || u.semLentoT > estado.tempo) return; /* Daniel W */ if (v >= u.lento || u.lentoT < t) { u.lento = Math.max(u.lento, v); u.lentoT = Math.max(u.lentoT, t); } }
-function atordoar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.atord = Math.max(u.atord, t); if (u.canal) u.canal = null; if (u.tipo === 'heroi') textos.add(u.obj.position, 'Atordoado', 'info'); }
+const ten = (u) => u.id === 'farao' ? 1 - .02 * (u.coracao || 0) : 1; // Faraó P: redução de controle
+function atordoar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; t *= ten(u); u.atord = Math.max(u.atord, t); if (u.canal) u.canal = null; if (u.tipo === 'heroi') textos.add(u.obj.position, 'Atordoado', 'info'); }
 // controle de grupo com identidade própria (arremesso, empurrão, medo, encanto, raiz)
 const imune = (u) => u.imparavel > 0;
-function arremessar(u, t, hA = 2.2) { if (!u.vivo || t <= 0 || imune(u)) return; atordoar(u, t); u.voo = t; u.vooT = t; u.vooH = hA * (u.tipo === 'heroi' && u.def && u.def.esc > 1.2 ? .75 : 1); u.dash = null; if (u.tipo === 'heroi') textoInfo(u, 'Arremessado!'); const p = u.obj.position; for (let j = 0; j < 14; j++) fxD.emit(p.x + (Math.random() - .5), .3, p.z + (Math.random() - .5), { vel: [(Math.random() - .5) * 3, 2 + Math.random() * 3, (Math.random() - .5) * 3], cor: [.55, .45, .32], vida: .8, t0: .6, t1: 1.6, alpha: .7 }); }
-function empurrar(u, dir, dist, t = .25) { if (!u.vivo || dist <= 0 || imune(u)) return; u.empurrao = { dir: dir.clone().setY(0).normalize(), v: dist / t, t }; u.dash = null; }
-function amedrontar(u, fonte, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.medo = { de: fonte.clone(), t }; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Amedrontado!'); }
+function arremessar(u, t, hA = 2.2) { if (!u.vivo || t <= 0 || imune(u) || u.semDeslocT > estado.tempo) return; t *= ten(u); atordoar(u, t); u.voo = t; u.vooT = t; u.vooH = hA * (u.tipo === 'heroi' && u.def && u.def.esc > 1.2 ? .75 : 1); u.dash = null; if (u.tipo === 'heroi') textoInfo(u, 'Arremessado!'); const p = u.obj.position; for (let j = 0; j < 14; j++) fxD.emit(p.x + (Math.random() - .5), .3, p.z + (Math.random() - .5), { vel: [(Math.random() - .5) * 3, 2 + Math.random() * 3, (Math.random() - .5) * 3], cor: [.55, .45, .32], vida: .8, t0: .6, t1: 1.6, alpha: .7 }); }
+function empurrar(u, dir, dist, t = .25) { if (!u.vivo || dist <= 0 || imune(u) || u.semDeslocT > estado.tempo || u.estase > 0) return; u.empurrao = { dir: dir.clone().setY(0).normalize(), v: dist / t, t }; u.dash = null; }
+function amedrontar(u, fonte, t) { if (!u.vivo || t <= 0 || imune(u)) return; t *= ten(u); u.medo = { de: fonte.clone(), t }; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Amedrontado!'); }
 function encantar(u, fonte, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.encanto = { por: fonte, t }; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Encantado!'); }
-function enraizar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.raiz = Math.max(u.raiz, t); u.dash = null; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Enraizado!'); }
+function enraizar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; t *= ten(u); u.raiz = Math.max(u.raiz, t); u.dash = null; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Enraizado!'); }
 // controles novos (cada um de um herói só): confusão (Gideão R), corrente (Golias Q), cegueira (Faraó E), anticura (Faraó R), silêncio (Jezabel Q), aterrar (Débora R)
 function confundir(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.confuso = { t, dir: new THREE.Vector3(Math.random() - .5, 0, Math.random() - .5).normalize(), troca: .4 }; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Confuso!'); }
 function acorrentar(u, fonte, raio, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.corrente = { ancora: fonte.obj.position.clone().lerp(u.obj.position, .5), raio, t }; if (u.tipo === 'heroi') textoInfo(u, 'Acorrentado!'); }
 function cegar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.cego = Math.max(u.cego, t); if (u.tipo === 'heroi') textoInfo(u, 'Cego!'); }
-function silenciar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.silencio = Math.max(u.silencio, t); if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Silenciado!'); }
+function silenciar(u, t) { if (!u.vivo || t <= 0 || imune(u) || u.imuneSilT > estado.tempo) return; t *= ten(u); u.silencio = Math.max(u.silencio, t); if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Silenciado!'); }
 function aterrar(u, t) { if (!u.vivo || t <= 0 || imune(u)) return; u.aterrado = Math.max(u.aterrado, t); u.dash = null; if (u.tipo === 'heroi') textoInfo(u, 'Aterrado!'); }
 const controlado = (u) => u.atord > 0 || !!u.medo || !!u.encanto || !!u.confuso;
 // movimento forçado por medo/encanto; devolve true se a unidade está sob efeito
@@ -642,6 +649,7 @@ function textoInfo(u, t) { textos.add(u.obj.position.clone().add(new THREE.Vecto
 function morrer(u, fonte) {
   if (u.tipo === 'monstro') { if (fonte && fonte.id === 'sarai') ganharOuro(fonte, 15, u.obj.position); if (fonte && fonte.tipo === 'heroi') { fonte.monstrosAbatidos = (fonte.monstrosAbatidos || 0) + 1; monstroAbatidoPor(fonte); } return monstroMorreu(u, fonte); }
   u.vivo = false; u.morteT = 0; u.tocar(u.anim.morte, .1, true); u.canal = null; u.dash = null;
+  if (KIT) KIT.aoMorrer(u, fonte);
   const heroiFonte = fonte && fonte.tipo === 'heroi' ? fonte : null;
   if (u.tipo === 'heroi') for (const s of herois) if (s.vivo && s.promessaT > estado.tempo && s.time !== u.time && (s === heroiFonte || s.obj.position.distanceTo(u.obj.position) < 12)) { for (const k of ['q', 'w', 'e', 'r']) { s.hab[k].cd = 0; s.hab[k].cargasRest = undefined; } textoInfo(s, 'Promessa cumprida!'); aneis.add(s.obj.position, new THREE.Color(1, .9, .5), .4, 2.4, .6); } // Sarai R
   if (u.tipo === 'heroi') marcarEmpurrar(inimigo(u.time), u.obj.position);
@@ -733,31 +741,44 @@ function pegarProj(geo, mat) {
   m.visible = true; m.rotation.set(0, 0, 0); return m;
 }
 function soltarProj(m) { m.visible = false; const k = m.userData.k; if (!poolProj.has(k)) poolProj.set(k, []); poolProj.get(k).push(m); }
+// o.vis = { malha, trilha } (vfx_kits): malha real orientada no movimento + fita/emissor do manifest; sem malha = só a trilha (fogo, maldição, sombra)
+let ultimoProjV = null; const ultimoProj = () => ultimoProjV;
 function lancar(de, alvo, o) {
-  const m = pegarProj(o.geo || geoPedra, o.mat || MAT_PROJ.pedra); m.position.copy(de); m.scale.setScalar(o.esc || 1);
-  const sp = m.userData.sp; if (o.semBrilho) sp.visible = false; else { sp.visible = true; sp.material = brilhoCor(o.cor || [1, .85, .5]); }
+  let m, vis = null;
+  if (o.vis && VK) { const pv = VK.TR[o.vis.trilha] || VK.TR.seco; const mm = o.vis.malha ? VK.pegarMalha(o.vis.malha) : null; const r = pv.rastro && VK.M.pegarRastro ? VK.M.pegarRastro() : null; if (r) r.iniciar(pv.rastro);
+    vis = { mm, r, tr: pv, giro: !!(o.vis.giro || (o.giro && o.vis.malha && !/flecha|virote|lanca/.test(o.vis.malha))) }; m = mm || pegarCarregador(); if (mm) { mm.scale.multiplyScalar(o.esc || 1); } m.position.copy(de); }
+  else { m = pegarProj(o.geo || geoPedra, o.mat || MAT_PROJ.pedra); m.position.copy(de); m.scale.setScalar(o.esc || 1);
+    const sp = m.userData.sp; if (o.semBrilho) sp.visible = false; else { sp.visible = true; sp.material = brilhoCor(o.cor || [1, .85, .5]); } }
   if (o.dir) m.lookAt(m.position.clone().add(o.dir));
-  projeteis.push({ m, alvo, t0: performance.now(), dir: o.dir ? o.dir.clone() : null, vel: o.vel || 26, time: o.time, fonte: o.fonte, trilha: o.trilha, perfura: o.perfura, atingidos: new Set(), dist: 0, max: o.max || 14, onHit: o.onHit, cor: o.cor || [1, .85, .5], larg: o.larg || .9, giro: o.giro !== false });
+  const pp = { m, vis, alvo, t0: performance.now(), dir: o.dir ? o.dir.clone() : null, vel: o.vel || 26, time: o.time, fonte: o.fonte, trilha: o.trilha, perfura: o.perfura, atingidos: new Set(), dist: 0, max: o.max || 14, onHit: o.onHit, onFim: o.onFim, cor: o.cor || [1, .85, .5], larg: o.larg || .9, giro: vis ? vis.giro : o.giro !== false };
+  projeteis.push(pp); ultimoProjV = pp; return pp;
 }
+const carregadores = []; function pegarCarregador() { let c = carregadores.find(x => !x.userData.uso); if (!c) { c = new THREE.Object3D(); carregadores.push(c); } c.userData.uso = true; c.rotation.set(0, 0, 0); return c; }
+const _ant = new THREE.Vector3();
+function soltarProjeto(p) { if (p.vis) { if (p.vis.mm) VK.soltarMalha(p.vis.mm); else p.m.userData.uso = false; if (p.vis.r) p.vis.r.solto = true; } else soltarProj(p.m); }
 function atualizarProjeteis(dt) {
   for (let i = projeteis.length - 1; i >= 0; i--) {
-    const p = projeteis[i]; const pos = p.m.position; let fim = false;
+    const p = projeteis[i]; const pos = p.m.position; let fim = false; if (p.vis) _ant.copy(pos);
     if (p.alvo) {
       const tp = p.alvo.obj.position.clone(); tp.y += p.alvo.tipo === 'torre' || p.alvo.tipo === 'nucleo' ? 3 : 1.2;
       const d = tp.sub(pos); const L = d.length(); const step = p.vel * dt;
-      if (L <= step + .3 || !p.alvo.vivo) { if (p.alvo.vivo) impacto(p, p.alvo); fim = true; } else pos.addScaledVector(d.normalize(), step);
+      if (L <= step + .3 || !p.alvo.vivo) { if (p.alvo.vivo) impacto(p, p.alvo); fim = true; } else { pos.addScaledVector(d.normalize(), step); p.dist += step; }
     } else {
       pos.addScaledVector(p.dir, p.vel * dt); p.dist += p.vel * dt;
       for (const u of unidades) { if (!u.vivo || u.time === p.time || p.atingidos.has(u)) continue; const dx = u.obj.position.x - pos.x, dz = u.obj.position.z - pos.z; if (dx * dx + dz * dz < (u.raio + p.larg) ** 2) { p.atingidos.add(u); impacto(p, u); if (!p.perfura) { fim = true; break; } } }
       if (p.dist > p.max) fim = true;
     }
-    if (p.giro) { p.m.rotation.x += dt * 14; p.m.rotation.y += dt * 9; }
+    if (p.vis) { const dv = _ant.sub(pos).negate(); if (p.giro) { p.m.rotation.x += dt * 14; p.m.rotation.y += dt * 9; } else if (dv.lengthSq() > 1e-6) p.m.lookAt(pos.x + dv.x, pos.y + dv.y, pos.z + dv.z); }
+    else if (p.giro) { p.m.rotation.x += dt * 14; p.m.rotation.y += dt * 9; }
     if (p.trilha) p.trilha(pos, dt, p);
-    if (fim) { soltarProj(p.m); projeteis.splice(i, 1); }
+    if (p.vis) { if (p.vis.r) p.vis.r.seguir(pos, VK.M.agora()); if (p.vis.tr.emite) p.vis.tr.emite(pos); }
+    if (p.max <= 0) fim = true;
+    if (fim) { if (p.onFim) { try { p.onFim(pos.clone(), p); } catch (e) { relatarErro('onFim', e); } } soltarProjeto(p); projeteis.splice(i, 1); }
   }
 }
 function impacto(p, u) {
   const hp = u.obj.position.clone(); hp.y += 1.2;
+  if (p.vis) { VK.faiscas(hp, 5, p.cor, 4); if (p.onHit) p.onHit(u, p); return; } // projéteis reais: o acerto de cada kit desenha o próprio impacto
   for (let k = 0; k < 10; k++) fx.emit(hp.x, hp.y, hp.z, { vel: [(Math.random() - .5) * 8, Math.random() * 5, (Math.random() - .5) * 8], cor: p.cor, vida: .35 + Math.random() * .2, t0: .5, t1: 0, drag: 3 });
   aneis.add(u.obj.position, new THREE.Color(...p.cor), .2, 1.1, .35);
   if (p.onHit) p.onHit(u, p);
@@ -802,7 +823,8 @@ const posMao = (u) => { const v = new THREE.Vector3(); if (!u.maoR) u.modelo.tra
 function atacarModo(h, modo) { h.modoAlvo = modo; const r = atacar(h); h.modoAlvo = null; return r; }
 function atacar(h) {
   if (!h.vivo || h.atkCd > 0 || h.travado > .15 || controlado(h) || h.dash || estado.fim) return false;
-  const alvo = alvoAtaque(h, h.alcance + (h.def.distancia ? .6 : .9));
+  if (h.desarmT > estado.tempo) return false; // Ester W: desarmado
+  const alvo = alvoAtaque(h, h.alcance + (h.def.distancia ? .6 : .9) + (KIT ? KIT.alcExtra(h) : 0));
   if (!alvo) return false;
   h.atkCd = intervaloAtaque(h); if (h.canal) h.canal = null;
   h.olharPara(alvo.obj.position, 1, 1);
@@ -814,27 +836,21 @@ function atacar(h) {
     if (!h.vivo || !alvo.vivo) return;
     if (h.cego > 0 && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') { textos.add(alvo.obj.position, 'Errou!', 'info'); return; }
     let dano = Math.max(1, h.st.ad + buff(h, 'ad')), crit = false, mag = 0; // buff 'ad': Sete Tranças da Dalila (rouba/perde dano)
-    if (h.id === 'hama') dano *= .7 + Math.random() * .7; // Pur, a Sorte
-    if (h.id === 'acabe' && alvo.tipo === 'heroi' && alvo.ouro > 0) { const r = Math.min(4, alvo.ouro); alvo.ouro -= r; h.ouro += r; } // Vinha de Nabote
-    if (h.id === 'ninrode' && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') { if (alvo.presaT > estado.tempo && alvo.presaPor === h) { const vd = 15 + 5 * h.nivel + .2 * (h.st.ad - h.st.adBase); agendar(.2, () => danificar(h, alvo, vd, { puro: true })); } else { h.presaN = h.presaU === alvo ? (h.presaN || 0) + 1 : 1; h.presaU = alvo; if (h.presaN >= 3) { h.presaN = 0; alvo.presaT = estado.tempo + 5; alvo.presaPor = h; if (alvo.tipo === 'heroi') textoInfo(alvo, 'Presa marcada!'); aneis.add(alvo.obj.position, new THREE.Color(.9, .3, .2), .3, 1.4, .6); } } } // Ninrode P: Poderoso Caçador
+    if (h.id === 'hama') { const sorte = .7 + Math.random() * .7; dano *= sorte; if (sorte > 1.3) ganharOuro(h, 10, alvo.obj.position.clone().setY(2.5)); } // Pur, a Sorte
     if (alvo.marcaAcabe && alvo.marcaAcabe.por === h && alvo.marcaAcabe.t > estado.tempo) { alvo.marcaAcabe = null; h.buffs.push({ tipo: 'ms', v: .3, t: 2 }); textoInfo(h, 'Perseguição!'); }
-    if (h.st.crit && Math.random() < h.st.crit) { dano *= 1.75; crit = true; }
+    if (h.st.crit && alvo.id !== 'golias' && Math.random() < h.st.crit) { dano *= 1.75; crit = true; } // Golias P: críticos causam dano normal
     let lento = 0;
-    if (h.id === 'golias2' && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') { h.contTear = (h.contTear || 0) + 1; if (h.contTear % 3 === 0) { const dT = alvo.obj.position.clone().sub(h.obj.position).setY(0).normalize(), dv = dano; for (const u of inimigosEmLinha(h.obj.position, dT, h.alcance + 1.5, 3.4, h.time)) if (u !== alvo) danificar(h, u, dv * .75); avisoLinha(h.obj.position.clone(), dT, h.alcance + 1.5, 3.4, new THREE.Color(1, .6, .3), .05); } } // Lami P: Haste de Tear
-    if (h.id === 'davi') { h.contAtaque++; if (h.contAtaque % 4 === 0) { dano *= crit ? 1.2 : 1.8; crit = true; lento = .3; } }
-    if (h.id === 'sansao') dano *= 1 + .4 * (1 - h.hp / h.maxHp);
-    if (h.id === 'daniel' && alvo.tipo === 'heroi') revelarDaniel(h, alvo);
-    if (h.id === 'josue' && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') { h.marchaN = h.marchaAlvo === alvo && alvo.marcha && alvo.marcha.t > estado.tempo ? Math.min(7, h.marchaN + 1) : 1; h.marchaAlvo = alvo; alvo.marcha = { v: 4 * h.marchaN, t: estado.tempo + 3 }; }
+    if (h.id === 'golias2' && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') { h.contTear = (h.contTear || 0) + 1; if (h.contTear % 3 === 0) { const dT = alvo.obj.position.clone().sub(h.obj.position).setY(0).normalize(), dv = dano; const o = h.obj.position; for (const u of inimigosEm(o, h.time, 3.5)) { if (u === alvo || u.tipo === 'torre' || u.tipo === 'nucleo') continue; const v = u.obj.position.clone().sub(o).setY(0); if (v.length() > .5 && v.normalize().dot(dT) < .5) continue; danificar(h, u, dv * .75, { ataque: true }); } if (VK) VK.corte(o.clone().addScaledVector(dT, 1.2).setY(1.1), [.75, 1, .55], 5, Math.atan2(dT.z, dT.x), .18); else avisoLinha(o.clone(), dT, 3.5, 3.4, new THREE.Color(1, .6, .3), .05); } } // Lami P: Haste de Tear (cone de 120° e 3,5 m)
     if (h.proxBonus) { dano *= 1 + h.proxBonus; h.proxBonus = 0; }
-    if (h.gideaoBonus) { dano += 55 + .6 * h.st.ad; h.gideaoBonus = false; }
     if (h.proxMag) { mag += h.proxMag; h.proxMag = 0; }
     if (h.itens.includes('arcoJonatas')) mag += 15;
+    if (KIT) { const r = KIT.ataque(h, alvo, dano, crit); dano = r.dano; mag += r.mag; }
     const aplicar = () => { if (!alvo.vivo) return; danificar(h, alvo, dano, { ataque: true, crit }); if (SELVA_ON) aoAtacar(h, alvo); if (mag && alvo.vivo && alvo.tipo !== 'torre' && alvo.tipo !== 'nucleo') danificar(h, alvo, mag, { mag: true }); if (lento) aplicarLento(alvo, lento, 1); };
     if (h.def.distancia) {
       const de = posMao(h); de.y = Math.max(de.y, 1.4);
       const tp = h.def.projetil; const cor = h.def.cor;
-      lancar(de, alvo, { time: h.time, fonte: h, vel: 30, cor, geo: tp === 'pedra' ? geoPedra : geoBola, mat: tp === 'pedra' ? (crit ? MAT_PROJ.ouro : MAT_PROJ.pedra) : matCor(cor), esc: crit ? 1.5 : 1, onHit: aplicar,
-        trilha: (p) => { fx.emit(p.x, p.y, p.z, { cor, vida: .3, t0: .6, t1: 0, alpha: .8 }); } });
+      const va = VIS_ATAQUE[h.id]; lancar(de, alvo, { time: h.time, fonte: h, vel: va && va.vel || 30, cor, vis: va && VK ? { malha: va.malha, trilha: crit && va.crit ? va.crit : va.trilha } : null, geo: tp === 'pedra' ? geoPedra : geoBola, mat: tp === 'pedra' ? (crit ? MAT_PROJ.ouro : MAT_PROJ.pedra) : matCor(cor), esc: crit ? 1.5 : 1, onHit: aplicar,
+        trilha: va && VK ? null : (p) => { fx.emit(p.x, p.y, p.z, { cor, vida: .3, t0: .6, t1: 0, alpha: .8 }); } });
       if (h.editoT > estado.tempo) { let n = 0; for (const u of unidades) { if (n >= 2 || !u.vivo || u === alvo || u.time === h.time || u.time === 'neutro' || u.obj.position.distanceTo(h.obj.position) > h.alcance + 1.5 || !visivelPara(u, h.time)) continue; n++; lancar(de.clone(), u, { time: h.time, fonte: h, vel: 30, cor, geo: geoBola, mat: matCor(cor), esc: .8, onHit: () => danificar(h, u, dano * .6, { ataque: true }) }); } } // Hamã R: leque de 3
     } else {
       aplicar();
@@ -849,12 +865,12 @@ function atacar(h) {
 // escala por nível da habilidade estilo WR: cada nível vale mais que o anterior (o dano cresce devagar no começo e explode no fim)
 const ESC_RANK = [1, 1.14, 1.34, 1.6, 1.9], ESC_RANK_R = [1, 1.4, 1.8], K_AP = 1.2;
 const multRank = (h, d, nv) => (d === h.def.hab.r ? ESC_RANK_R : ESC_RANK)[Math.max(0, nv - 1)] || 1;
-function valorHab(h, d, nv) { return valorHab0(h, d, nv) * (h._ecoAtivo ? .5 : 1); } // Herodes R: o clone repete com 50%
+function valorHab(h, d, nv) { return valorHab0(h, d, nv) * (h._ecoAtivo ? .4 : 1); } // Herodes R: o clone repete com 40%
 function valorHab0(h, d, nv) { const escV = d.esc === 'ap' ? h.st.ap * K_AP : d.esc === 'adb' ? h.st.ad - h.st.adBase : h.st.ad; return (d.dano ? d.dano[nv - 1] * multRank(h, d, nv) : 0) + (d.k || 0) * escV + (d.kAd || 0) * h.st.ad + (d.kHp || 0) * h.maxHp; }
 function revelarDaniel(h, u) { if (!u.vivo) return; const novo = !(u.revelado > estado.tempo && u.revelaPara === h.time); u.revelado = estado.tempo + 3; u.revelaPara = h.time; if (novo) aneis.add(u.obj.position, new THREE.Color(1, .85, .45), .3, 1.4, .5); }
 function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (!u.vivo || u.estase > 0) return;
-  let v = dano;
+  let v = KIT ? KIT.modHab(h, u, d, dano) : dano;
   if (d.antiGigante && u.maxHp > h.maxHp) v *= 1 + d.antiGigante;
   if (d.kHpAlvo) v += d.kHpAlvo[Math.min(d.kHpAlvo.length, nv) - 1] * Math.min(u.maxHp, u.tipo === 'heroi' ? 1e9 : 2500); // Davi R: % da vida máxima do alvo
   if (d.kPerdida) v += d.kPerdida * (u.maxHp - u.hp);
@@ -867,7 +883,6 @@ function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (!u.vivo) return;
   if (u.tipo === 'heroi' && h.stats && (d.lento || d.atordoa || d.raiz || d.medo || d.encanta || d.arremessa || d.provoca || d.atordoaLonge || d.confunde || d.corrente || d.cega || d.silencia || (d.aterra && extra.ultimo))) h.stats.controles++;
   if (d.lento) aplicarLento(u, d.lento[0], d.lento[1]);
-  if (h.id === 'daniel' && u.tipo === 'heroi') revelarDaniel(h, u);
   if (d.derruba && !extra.semAtordoar && !imune(u)) { atordoar(u, d.derruba); if (extra.dirL) empurrar(u, extra.dirL, u.tipo === 'heroi' && u.def.esc > 1.2 ? .8 : 1.5, .2); if (u.tipo === 'heroi') textoInfo(u, 'Derrubado!'); } // Daniel Q
   if (d.atordoa && !extra.semAtordoar) atordoar(u, d.atordoa);
   if (d.veneno) u.dots.push({ dps: v * d.veneno[0] / d.veneno[1], t: d.veneno[1], fonte: h, mag: true });
@@ -884,7 +899,6 @@ function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (d.silencia && u.tipo === 'heroi') silenciar(u, d.silencia);
   if (d.antiCura) u.antiCura = { v: d.antiCura[0], t: d.antiCura[1] };
   if (d.aterra && extra.ultimo) aterrar(u, d.aterra);
-  if (h.id === 'dalila' && u.tipo === 'heroi' && h.buffs.filter(b => b.tranca).length < 7) { h.buffs.push({ tipo: 'ad', v: 4, t: 5, tranca: true }); u.buffs.push({ tipo: 'ad', v: -4, t: 5 }); }
   if (d.mutila) u.buffs.push({ tipo: 'as', v: -d.mutila[0], t: d.mutila[1] });
   if (d.marcaSinal && u.tipo !== 'torre') { u.marcaSinal = { por: h, t: estado.tempo + d.marcaSinal }; aneis.add(u.obj.position, new THREE.Color(1, .4, .3), .3, 1.3, d.marcaSinal * .5); if (u.tipo === 'heroi') textoInfo(u, 'Marcado!'); }
   if (d.marcaPerseguir) { u.marcaAcabe = { por: h, t: estado.tempo + d.marcaPerseguir }; aneis.add(u.obj.position, new THREE.Color(1, .5, .2), .3, 1.4, d.marcaPerseguir * .5); }
@@ -892,7 +906,7 @@ function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (d.conselho && u.tipo === 'heroi' && !imune(u)) { let al = null, bd = 8; for (const v of unidades) if (v.vivo && v !== u && v.time === u.time && v.obj.position.distanceTo(u.obj.position) < bd) { bd = v.obj.position.distanceTo(u.obj.position); al = v; } if (al) { encantar(u, al, d.conselho); u.conselhoT = d.conselho; u.consAtk = 0; textoInfo(u, 'Enganado!'); } else aplicarLento(u, .4, 1.5); }
   if (d.puxa && extra.centro) { const dv = extra.centro.clone().sub(u.obj.position).setY(0); const L = dv.length(); if (L > .8) empurrar(u, dv, L - .6, .3); }
   if (d.sorte) { const r = Math.random(); if (r < .34) { aplicarLento(u, .5, 1.6); textoInfo(u, 'Sorte: lentidão'); } else if (r < .67) { if (!extra.semAtordoar) atordoar(u, .7); textoInfo(u, 'Sorte: atordoado'); } else { u.dots.push({ dps: v * .5 / 3 + 6, t: 3, fonte: h, mag: true, queima: true }); textoInfo(u, 'Sorte: queimadura'); } }
-  if (d.divide && !extra.filho) { const base = u.obj.position.clone(); const dir0 = base.clone().sub(h.obj.position).setY(0).normalize(); for (const a of [-.45, 0, .45]) { const dir = dir0.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), a); const de = base.clone().addScaledVector(dir, 1.1); de.y = 1.2; lancar(de, null, { dir, time: h.time, fonte: h, vel: 24, max: 6, cor: d.cor, geo: geoBola, mat: matCor(d.cor), esc: .8, onHit: (w) => acertarHab(h, w, d, nv, dano * .5, { filho: true }) }); projeteis[projeteis.length - 1].atingidos.add(u); } }
+  if (d.divide && !extra.filho) { const base = u.obj.position.clone(); const dir0 = base.clone().sub(h.obj.position).setY(0).normalize(); for (const a of [-.45, 0, .45]) { const dir = dir0.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), a); const de = base.clone().addScaledVector(dir, 1.1); de.y = 1.2; lancar(de, null, { dir, time: h.time, fonte: h, vel: 24, max: 6, cor: d.cor, vis: d.vis && VK ? d.vis : null, geo: geoBola, mat: matCor(d.cor), esc: .8, onHit: (w) => acertarHab(h, w, d, nv, dano * .5, { filho: true }) }); projeteis[projeteis.length - 1].atingidos.add(u); } }
   if (d.gancho) { const dv = h.obj.position.clone().sub(u.obj.position).setY(0); const L = dv.length(); if (L > 1.8) empurrar(u, dv, L - 1.5, .3); if (u.tipo === 'heroi') textoInfo(u, 'Fisgado!'); }
   if (d.supressao) { if (u.estase > 0 || u.invulneravel) return; u.atord = Math.max(u.atord || 0, d.supressao); u.dash = null; u.empurrao = null; if (u.canal) u.canal = null; if (u.tipo === 'heroi') textoInfo(u, 'Preso debaixo do gigante!'); } // supressão: ignora imparável
   if (d.enfraquece) { u.fracoT = estado.tempo + d.enfraquece; if (u.tipo === 'heroi') textoInfo(u, 'Enfraquecido!'); }
@@ -901,6 +915,7 @@ function acertarHab(h, u, d, nv, dano, extra = {}) {
   if (d.ricochete && (extra.salto || 0) < d.ricochete - 1) { const ja = extra.ja || new Set(); ja.add(u); let px = null, bd = 7; for (const w of inimigosEm(u.obj.position, h.time, 7)) { if (ja.has(w) || w.tipo === 'monstro' && u.tipo !== 'monstro' || !visivelPara(w, h.time)) continue; const dd = w.obj.position.distanceTo(u.obj.position); if (dd < bd) { bd = dd; px = w; } } if (px) { const de = u.obj.position.clone(); de.y = 1.2; lancar(de, px, { time: h.time, fonte: h, vel: 30, cor: d.cor, geo: geoLanca, mat: matCor(d.cor), esc: 1.2, giro: false, onHit: (w) => acertarHab(h, w, d, nv, dano * .8, { salto: (extra.salto || 0) + 1, ja }) }); } } // Ninrode Q
   if (d.congelaCd && u.tipo === 'heroi' && !imune(u)) { u.cdCongelado = d.congelaCd; textoInfo(u, 'Recargas congeladas!'); }
   if (d.asPorAcerto && h.buffs.filter(b => b.queixada).length < 5) h.buffs.push({ tipo: 'as', v: d.asPorAcerto, t: 3, queixada: true });
+  if (KIT && u.vivo) KIT.aoAcertarHab(h, u, d, nv);
   if (d.atordoaLonge && extra.frac !== undefined && extra.frac >= d.atordoaLonge[1]) { atordoar(u, d.atordoaLonge[0]); aneis.add(u.obj.position, new THREE.Color(1, .9, .4), .3, 2.2, .5); if (h === jogador) aviso('Tiro Certeiro! Atordoou'); }
 }
 const temCC = (d) => !!(d.lento || d.atordoa || d.raiz || d.medo || d.encanta || d.arremessa || d.provoca || d.confunde || d.corrente || d.cega || d.silencia || d.aterra || d.conselho || d.congelaCd || d.atordoaLonge || d.puxa || d.empurraHab || d.sorte || d.arrasta || d.gancho);
@@ -928,12 +943,14 @@ function usarHab0(h, k) {
   const H = h.hab[k], d = h.def.hab[k];
   if (!h.vivo || estado.fim) return false;
   if (H.nv === 0) { if (h === jogador) aviso(h.pontos > 0 ? 'Toque em + para aprender esta habilidade' : 'Habilidade ainda não aprendida', true); return false; }
-  if (H.cd > 0 || controlado(h) || h.dash) return false;
+  if (KIT && !controlado(h) && !(h.silencio > 0)) { const rc = KIT.recast(h, k); if (rc !== undefined) return rc; } // reativações (Sarai Q/R, Lami E, Acabe Q, Hamã Q, Herodes R, leão do Daniel)
+  if (H.cd > 0 || controlado(h) || h.dash || h.estase > 0) return false;
   if (h.silencio > 0) { if (h === jogador) aviso('Silenciado: sem habilidades', true); return false; }
   if ((h.raiz > 0 || h.aterrado > 0) && (d.tipo === 'dash' || d.tipo === 'salto')) { if (h === jogador) aviso(h.raiz > 0 ? 'Enraizado: não pode avançar' : 'Aterrado: não pode avançar', true); return false; }
   const nv = H.nv, mana = d.mana[nv - 1];
   if (h.mana < mana) { if (h === jogador) aviso('Mana insuficiente', true); return false; }
   const m = mirar(h, d);
+  if (KIT && !KIT.pode(h, k, d, m)) return false;
   if ((d.tipo === 'salto' || d.tipo === 'marca') && !(m.alvo && m.alvo.obj.position.distanceTo(h.obj.position) < d.alc + 1)) { if (h === jogador) aviso('Nenhum inimigo ao alcance', true); return false; }
   const T0 = d.tipo; let pre = null; const sem = (t) => { if (h === jogador) aviso(t, true); return false; };
   if (d.tipo === 'troca' || d.tipo === 'cacada') { pre = m.alvo && m.alvo.tipo === 'heroi' && m.alvo.obj.position.distanceTo(h.obj.position) < d.alc + 1 ? m.alvo : heroiInimigoProximo(h, d.alc); if (!pre) return sem('Nenhum herói inimigo ao alcance'); }
@@ -946,10 +963,11 @@ function usarHab0(h, k) {
   if (d.cargas && !h._ecoAtivo) { if (H.cargasRest !== undefined && estado.tempo - (H.cargaUso || 0) > H.cd) H.cargasRest = undefined; H.cargasRest = (H.cargasRest === undefined ? d.cargas : H.cargasRest) - 1; H.cargaUso = estado.tempo; if (H.cargasRest > 0) H.cd = .7; else H.cargasRest = undefined; } // Sarai Q: 2 cargas
   if (d.tipo !== 'buff' || d.cura) h.olharPara(m.ponto, 1, 1);
   h.tocar(d.anim || 'Spell_Simple_Shoot', .08, true, d.velAnim || 1); h.travado = d.tipo === 'dash' ? .3 : .55;
-  if (h.id === 'gideao') h.gideaoBonus = true;
+  if (KIT) KIT.antesUsar(h, k, d);
   if (h === jogador) aviso(d.nome);
   const dano = valorHab(h, d, nv); const cor = new THREE.Color(...(d.cor || h.def.cor));
   const T = d.tipo;
+  if (T === 'kit') return KIT ? KIT.usar(h, k, d, nv, m, dano, cor) : false;
   if (T === 'proj') {
     agendar(d.atraso || .25, () => {
       if (!h.vivo) return; const de = posMao(h); de.y = Math.max(de.y, 1.3);
@@ -957,9 +975,9 @@ function usarHab0(h, k) {
       const lanca = d.visual === 'lanca' || d.icone === 'lanca' || d.icone === 'adaga'; const pj = PZ.proj(d);
       PZ.lancou(d, h, de, dir0);
       const jaLeque = new Set(); // Jônatas Q: cada inimigo leva dano de uma flecha só
-      for (const dir of (d.leque ? [-.24, 0, .24].map(a => dir0.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), a)) : [dir0])) lancar(de, null, { dir, time: h.time, fonte: h, vel: d.vel || 28, max: d.alc, perfura: d.perfura, larg: .9 + (d.tam || 1) * .15, cor: d.cor || h.def.cor, geo: pj ? pj.geo : lanca ? geoLanca : (d.icone === 'funda' ? geoPedra : geoBola), mat: pj ? pj.mat : d.icone === 'funda' ? MAT_PROJ.ouro : matCor(d.cor || h.def.cor), esc: pj ? pj.esc : d.tam || 1, giro: pj ? pj.giro : !lanca,
-        trilha: (p, dt, pp) => { if (PZ.trilha(d, p, pp.dir, (performance.now() - pp.t0) / 1000)) return; trilhaHab(d, p); for (let j = 0; j < 2; j++) fx.emit(p.x + (Math.random() - .5) * .3, p.y + (Math.random() - .5) * .3, p.z + (Math.random() - .5) * .3, { vel: [(Math.random() - .5), Math.random() * 1.5, (Math.random() - .5)], cor: d.cor || h.def.cor, vida: .45, t0: .7, t1: 0, alpha: .6 }); },
-        onHit: (u, pp) => { if (d.leque) { if (jaLeque.has(u)) return; jaLeque.add(u); } if (d.empurra && u.tipo === 'minion') u.obj.position.addScaledVector(dir, d.empurra); acertarHab(h, u, d, nv, dano, { frac: pp ? pp.dist / pp.max : 0 }); if (PZ.acerto(d, u, h)) { if (h === jogador) tremer(.1); return; } if (d.visual === 'encanto') visualArea('encanto', u.obj.position.clone(), 1.4, cor, h); if (h === jogador) tremer(.1); } });
+      for (const dir of (d.leque ? [-.24, 0, .24].map(a => dir0.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), a)) : [dir0])) lancar(de, null, { dir, time: h.time, fonte: h, vel: d.vel || 28, max: d.alc, perfura: d.perfura, vis: d.vis && VK ? d.vis : null, larg: .9 + (d.tam || 1) * .15, cor: d.cor || h.def.cor, geo: pj ? pj.geo : lanca ? geoLanca : (d.icone === 'funda' ? geoPedra : geoBola), mat: pj ? pj.mat : d.icone === 'funda' ? MAT_PROJ.ouro : matCor(d.cor || h.def.cor), esc: pj ? pj.esc : d.tam || 1, giro: pj ? pj.giro : !lanca,
+        trilha: (p, dt, pp) => { if (pp.vis) return; if (PZ.trilha(d, p, pp.dir, (performance.now() - pp.t0) / 1000)) return; trilhaHab(d, p); for (let j = 0; j < 2; j++) fx.emit(p.x + (Math.random() - .5) * .3, p.y + (Math.random() - .5) * .3, p.z + (Math.random() - .5) * .3, { vel: [(Math.random() - .5), Math.random() * 1.5, (Math.random() - .5)], cor: d.cor || h.def.cor, vida: .45, t0: .7, t1: 0, alpha: .6 }); },
+        onHit: (u, pp) => { if (d.leque) { if (jaLeque.has(u)) return; jaLeque.add(u); } if (d.empurra && u.tipo === 'minion') u.obj.position.addScaledVector(dir, d.empurra); acertarHab(h, u, d, nv, dano, { frac: pp ? pp.dist / pp.max : 0 }); if (pp && pp.vis && VK) { const c = u.obj.position.clone().setY(1.2); VK.brilho(c, d.cor || [1, .85, .5], 1.6); VK.magia(c, 4, d.cor || [1, .85, .5], .5, .5); if (d.visual === 'encanto') VK.detritos(c, 'petala', 8, 3, .2, [1, .5, .85], 3, 1); if (h === jogador) tremer(.1); return; } if (PZ.acerto(d, u, h)) { if (h === jogador) tremer(.1); return; } if (d.visual === 'encanto') visualArea('encanto', u.obj.position.clone(), 1.4, cor, h); if (h === jogador) tremer(.1); } });
       aneis.add(h.obj.position, cor, .4, 2.2, .35);
     });
   } else if (T === 'area') {
@@ -973,7 +991,7 @@ function usarHab0(h, k) {
       if (!h.vivo && d.centro === 'self') return;
       const c = segue ? h.obj.position.clone() : centro.clone(); if (n > 2) { const a = Math.random() * 6.28, r = Math.random() * d.raio * .6; c.x += Math.cos(a) * r; c.z += Math.sin(a) * r; }
       const rr = n > 2 ? d.raio * .55 : d.raio;
-      if (!PZ.area(d, c, rr, h, i)) visualArea(d.visual, c, rr, cor, h);
+      if (!(KIT && i === 0 && KIT.vis('area', d, h, c, rr)) && !PZ.area(d, c, rr, h, i)) visualArea(d.visual, c, rr, cor, h);
       for (const u of inimigosEm(c, h.time, rr)) acertarHab(h, u, d, nv, dano, { semAtordoar: n > 1 && i > 0, centro: c, ultimo: i === n - 1 });
       if (d.danoTorre) { const ja = new Set(); for (const e of estruturas) { if (!e.vivo || e.time === h.time || protegida(e) || e.obj.position.distanceTo(c) > rr + e.raio) continue; const dono = e.dono || e; if (ja.has(dono)) continue; ja.add(dono); danificar(h, e, dano * d.danoTorre); } }
     });
@@ -982,7 +1000,7 @@ function usarHab0(h, k) {
     const centro = d.centro === 'self' ? h.obj.position.clone() : m.manual ? m.ponto.clone() : (m.alvo && m.alvo.obj.position.distanceTo(h.obj.position) < d.alc + 1 ? m.alvo.obj.position.clone() : h.obj.position.clone().addScaledVector(m.dir, Math.min(d.alc || 6, 6)));
     if (d.armBuff) h.buffs.push({ tipo: 'arm', v: d.armBuff[0], t: d.armBuff[1] });
     if (d.ms) h.buffs.push({ tipo: 'ms', v: d.ms, t: d.msDur });
-    const vis = objetoZona(d.visual, centro, d.raio); PZ.zonaIni(d, centro);
+    const vis = objetoZona(d.visual, centro, d.raio); PZ.zonaIni(d, centro); if (KIT) KIT.vis('zona', d, h, centro, d.raio);
     if (d.jaula) for (const u of inimigosEm(centro, h.time, d.raio)) if (!imune(u)) { u.jaula = { c: centro.clone(), r: d.raio - .4, t: d.dur }; if (u.tipo === 'heroi') textoInfo(u, 'Na fornalha!'); }
     const raizJa = new Set(); if (d.raizZona) for (const u of inimigosEm(centro, h.time, d.raio)) { raizJa.add(u); enraizar(u, d.raizZona); }
     let tick = 0;
@@ -1007,8 +1025,8 @@ function usarHab0(h, k) {
     else if (h.ctrl.len > .2) dir = new THREE.Vector3(h.ctrl.x, 0, h.ctrl.y).normalize();
     if (d.recuo) { const ini = heroiInimigoProximo(h, 9); dir = ini ? h.obj.position.clone().sub(ini.obj.position).setY(0).normalize() : m.dir.clone().negate(); }
     h.obj.rotation.y = Math.atan2(dir.x, dir.z);
-    const fim = () => { if (d.msFim && h.vivo) h.buffs.push({ tipo: 'ms', v: d.msFim[0], t: d.msFim[1] }); if (d.atiraFim && h.vivo) { h.atkCd = 0; h.travado = 0; atacar(h); } PZ.dashFim(h, d); if (!h.vivo) return; if (d.danoFim) { const c = h.obj.position.clone(); if (!PZ.area(d, c, d.raioFim, h, 0)) visualArea(d.visualFim || 'golpe', c, d.raioFim, cor, h); for (const u of inimigosEm(c, h.time, d.raioFim)) acertarHab(h, u, { ...d, dano: d.danoFim }, nv, valorHab(h, { ...d, dano: d.danoFim }, nv), { centro: c }); } if (d.proxAtaque) h.proxBonus = d.proxAtaque; if (d.muroPedras) muroPedras(inicioDash, dir, d.muroPedras); if (d.blink && m.alvo) h.olharPara(m.alvo.obj.position, 1, 1); };
-    if (d.blink) { const a = h.obj.position.clone(); h.obj.position.addScaledVector(dir, dist); limitar(h.obj.position); if (!PZ.blink(h, d, a, h.obj.position.clone())) for (const p of [a, h.obj.position]) { for (let j = 0; j < 20; j++) fx.emit(p.x, 1 + Math.random(), p.z, { vel: [(Math.random() - .5) * 5, (Math.random() - .5) * 5, (Math.random() - .5) * 5], cor: [.6, .3, .9], vida: .45, t0: .6, t1: 0 }); } fim(); }
+    const fim = () => { if (KIT) KIT.dashFim(h, d); if (d.msFim && h.vivo) h.buffs.push({ tipo: 'ms', v: d.msFim[0], t: d.msFim[1] }); if (d.atiraFim && h.vivo) { h.atkCd = 0; h.travado = 0; atacar(h); } PZ.dashFim(h, d); if (!h.vivo) return; if (d.danoFim) { const c = h.obj.position.clone(); if (!(KIT && KIT.vis('dashFim', d, h, c, d.raioFim)) && !PZ.area(d, c, d.raioFim, h, 0)) visualArea(d.visualFim || 'golpe', c, d.raioFim, cor, h); for (const u of inimigosEm(c, h.time, d.raioFim)) acertarHab(h, u, { ...d, dano: d.danoFim }, nv, valorHab(h, { ...d, dano: d.danoFim }, nv), { centro: c }); } if (d.proxAtaque) h.proxBonus = d.proxAtaque; if (d.muroPedras) muroPedras(inicioDash, dir, d.muroPedras); if (d.blink && m.alvo) h.olharPara(m.alvo.obj.position, 1, 1); };
+    if (d.blink) { const a = h.obj.position.clone(); h.obj.position.addScaledVector(dir, dist); limitar(h.obj.position); if (KIT && VK) { KIT.vis('blink', d, h, a, 1); KIT.vis('blink', d, h, h.obj.position.clone(), 1); } else if (!PZ.blink(h, d, a, h.obj.position.clone())) for (const p of [a, h.obj.position]) { for (let j = 0; j < 20; j++) fx.emit(p.x, 1 + Math.random(), p.z, { vel: [(Math.random() - .5) * 5, (Math.random() - .5) * 5, (Math.random() - .5) * 5], cor: [.6, .3, .9], vida: .45, t0: .6, t1: 0 }); } fim(); }
     else h.dash = { dir, t: dist / d.vel, vel: d.vel, fim, d };
   } else if (T === 'buff') {
     const escC = h.mago ? h.st.ap : (h.st.ad - h.st.adBase);
@@ -1057,7 +1075,7 @@ function usarHab0(h, k) {
     const nL = d.impactos || 1; if (d.canaliza) { h.travado = t + nL * (d.intervalo || 0); h.canalFogo = estado.tempo + h.travado; }
     for (let i = 0; i < nL; i++) agendar(t + i * (d.intervalo || 0), () => {
       if (!h.vivo || (d.canaliza && (controlado(h) || h.silencio > 0))) return; // canal interrompido por controle
-      if (!PZ.linha(d, o, dir, d.comp, d.larg, h)) visualLinha(d.visual, o, dir, d.comp, d.larg, cor);
+      if (!(KIT && i === 0 && d.visual === 'colunas' && KIT.vis('linha', d, h, o, dir)) && !PZ.linha(d, o, dir, d.comp, d.larg, h)) visualLinha(d.visual, o, dir, d.comp, d.larg, cor);
       for (const u of inimigosEmLinha(o, dir, d.comp, d.larg, h.time)) acertarHab(h, u, d, nv, dano, { centro: o, semAtordoar: i > 0, dirL: dir });
       if (d.curaLinha) for (const u of inimigosEmLinha(o, dir, d.comp, d.larg, h.time === 'luz' ? 'trevas' : 'luz')) if (u.tipo === 'heroi' && u !== h && u.time === h.time) curarU(u, d.curaLinha[nv - 1] + .3 * h.st.ap, true, h); // Ester Q
       if (h === jogador) tremer(d.visual === 'colunas' ? .6 : nL > 1 ? .05 : .15);
@@ -1076,7 +1094,7 @@ function usarHab0(h, k) {
     const alvo = m.alvo; const a = h.obj.position.clone(); const b = alvo.obj.position.clone(); const dur = .5;
     h.travado = dur + .3; h.saltando = true;
     efeitos.push({ t: 0, vida: dur, up: (e) => { const k = Math.min(1, e.t / dur); h.obj.position.lerpVectors(a, b, k); h.obj.position.y = Math.sin(k * Math.PI) * 3.2; fx.emit(h.obj.position.x, h.obj.position.y + 1, h.obj.position.z, { cor: [1, .8, .4], vida: .4, t0: .8, t1: 0 });
-      if (k >= 1) { h.obj.position.y = 0; h.saltando = false; tremer(.35); if (!PZ.salto(d, h, h.obj.position.clone())) { visualArea('golpe', h.obj.position.clone(), d.raio, cor, h); visualArea(d.visual || 'onda', h.obj.position.clone(), d.raio, cor, h); } for (const u of inimigosEm(h.obj.position, h.time, d.raio)) acertarHab(h, u, d, nv, dano, { centro: h.obj.position.clone() }); return false; } return true; } });
+      if (k >= 1) { h.obj.position.y = 0; h.saltando = false; tremer(.35); if (!(KIT && KIT.vis('salto', d, h, h.obj.position.clone(), d.raio)) && !PZ.salto(d, h, h.obj.position.clone())) { visualArea('golpe', h.obj.position.clone(), d.raio, cor, h); visualArea(d.visual || 'onda', h.obj.position.clone(), d.raio, cor, h); } for (const u of inimigosEm(h.obj.position, h.time, d.raio)) acertarHab(h, u, d, nv, dano, { centro: h.obj.position.clone() }); return false; } return true; } });
   } else if (T === 'teleguiado') { // Acabe R: flecha que acha sozinha o herói mais ferido
     agendar(.3, () => { if (!h.vivo || !pre.vivo) return; const de = posMao(h); de.y = Math.max(de.y, 1.4); textoInfo(pre, 'Flecha de Ramote!');
       lancar(de, pre, { time: h.time, fonte: h, vel: 34, cor: d.cor, geo: geoLanca, mat: matCor(d.cor), esc: 1.6, giro: false, onHit: (u) => { acertarHab(h, u, d, nv, dano); aneis.add(u.obj.position, cor, .3, 2, .5); }, trilha: (p) => fx.emit(p.x, p.y, p.z, { cor: d.cor, vida: .5, t0: .9, t1: 0, alpha: .8 }) }); });
@@ -1092,17 +1110,17 @@ function usarHab0(h, k) {
       lancar(de, pre, { time: h.time, fonte: h, vel: 15, cor: d.cor, geo: geoLanca, mat: matCor(d.cor), esc: 1.3, giro: false, onHit: (u) => { acertarHab(h, u, d, nv, dano); aneis.add(u.obj.position, cor, .3, 1.6, .4); }, trilha: (p) => fx.emit(p.x, .5, p.z, { cor: d.cor, vida: .5, t0: .7, t1: 0, alpha: .7 }) }); });
   } else if (T === 'armadilha') { // Ninrode W: armadilha invisível para o inimigo
     const c = m.manual ? m.ponto.clone() : (m.alvo && m.alvo.obj.position.distanceTo(h.obj.position) < d.alc + 1 ? m.alvo.obj.position.clone() : h.obj.position.clone().addScaledVector(m.dir, Math.min(d.alc, 5)));
-    h.armadilhas = (h.armadilhas || []).filter(a => a.viva); if (h.armadilhas.length >= 3) h.armadilhas[0].viva = false;
+    h.armadilhas = (h.armadilhas || []).filter(a => a.viva); if (h.armadilhas.length >= (d.max || 3)) h.armadilhas[0].viva = false; if (KIT) KIT.vis('armadilha', d, h, c, d.raio || 1.3);
     const o = new THREE.Mesh(GEO_ARMADILHA, MAT_ARMADILHA); o.position.set(c.x, .06, c.z); scene.add(o); const A = { viva: true }; h.armadilhas.push(A);
-    efeitos.push({ t: 0, vida: 40, up: (e) => { o.visible = h.time === jogadorTime();
-      if (A.viva && e.t > .6) { const u = inimigosEm(o.position, h.time, 1.3).find(x => x.tipo === 'heroi'); if (u) { A.viva = false; acertarHab(h, u, d, nv, dano); u.revelado = estado.tempo + d.revela; u.revelaPara = h.time; textoInfo(u, 'Na armadilha!'); aneis.add(u.obj.position, cor, .3, 1.8, .5); } }
+    efeitos.push({ t: 0, vida: d.durArm || 40, up: (e) => { o.visible = h.time === jogadorTime();
+      if (A.viva && e.t > .6) { const u = inimigosEm(o.position, h.time, d.raio || 1.3).find(x => x.tipo === 'heroi'); if (u) { A.viva = false; if (KIT) KIT.vis('armadilhaPega', d, h, o.position.clone(), d.raio || 1.3); acertarHab(h, u, d, nv, dano); u.revelado = estado.tempo + (d.revela || 2); u.revelaPara = h.time; textoInfo(u, 'Na armadilha!'); aneis.add(u.obj.position, cor, .3, 1.8, .5); } }
       if (!A.viva || e.t >= e.vida) { A.viva = false; scene.remove(o); return false; } return true; } });
   } else if (T === 'torreta') { // Ninrode E: torrezinha que atira sozinha
     const c = m.manual ? m.ponto.clone() : h.obj.position.clone().addScaledVector(m.dir, Math.min(d.alc, 3)); if (c.distanceTo(h.obj.position) > d.alc) c.copy(h.obj.position).addScaledVector(c.sub(h.obj.position).normalize(), d.alc); limitar(c);
     const g = new THREE.Group(); const b = new THREE.Mesh(GEO_TORRETA, MAT_TORRETA); b.position.y = .75; g.add(b); const tp = new THREE.Mesh(GEO_TORRETA_T, MAT_TORRETA); tp.position.y = 1.75; g.add(tp); g.position.set(c.x, 0, c.z); g.scale.setScalar(.01); scene.add(g);
     let cdT = .6; efeitos.push({ t: 0, vida: d.dur, up: (e, dt) => { g.scale.setScalar(Math.min(1, .01 + e.t * 3)); cdT -= dt;
       if (cdT <= 0) { let alvo = null, bd = 7.5; for (const u of inimigosEm(g.position, h.time, 7)) { if (u.tipo === 'monstro' || !visivelPara(u, h.time)) continue; const dd = u.obj.position.distanceTo(g.position) - (u.tipo === 'heroi' ? 2 : 0); if (dd < bd) { bd = dd; alvo = u; } }
-        if (alvo) { cdT = 1; const de = g.position.clone(); de.y = 1.9; lancar(de, alvo, { time: h.time, fonte: h, vel: 26, cor: d.cor, geo: geoBola, mat: matCor(d.cor), esc: .7, onHit: (u) => acertarHab(h, u, d, nv, dano) }); } else cdT = .25; }
+        if (alvo) { cdT = 1; const de = g.position.clone(); de.y = 1.9; lancar(de, alvo, { time: h.time, fonte: h, vel: 30, cor: d.cor, vis: VK ? { malha: 'virote', trilha: 'virote' } : null, geo: geoBola, mat: matCor(d.cor), esc: .7, onHit: (u) => acertarHab(h, u, d, nv, dano) }); } else cdT = .25; }
       if (e.t >= e.vida) { scene.remove(g); return false; } return true; } });
   } else if (T === 'rajada') { // Ninrode R: 5 tiros longos seguidos
     h.travado = .4 + d.n * .35; textoInfo(h, 'Caçada Final!');
@@ -1400,7 +1418,7 @@ function fugir(h, inim) { const pos = h.obj.position, dir = FONTE[h.time].clone(
 // controla (peel/engage) quando vale, põe sentinela no rio/moitas, às vezes roda para o meio e recua com pouca vida.
 const CC_KEYS = ['silencia', 'encanta', 'lento', 'cega', 'arrasta', 'raiz', 'atordoa', 'atordoaLonge', 'conselho', 'dissipa', 'arremessa', 'aterra', 'medo', 'provoca', 'jaula', 'corrente', 'empurra', 'empurraHab', 'gancho'];
 const ehCC = (d) => CC_KEYS.some(k => d[k]);
-const ehDano = (d) => !!d.dano && ['proj', 'linha', 'area', 'zona', 'serpente', 'marca'].includes(d.tipo);
+const ehDano = (d) => !!d.dano && ['proj', 'linha', 'area', 'zona', 'serpente', 'marca', 'kit'].includes(d.tipo);
 const alcHab = (d) => d.alc || d.comp || (d.centro === 'frente' ? (d.dist || 2) + (d.raio || 2) * .8 : 0) || (d.centro === 'self' ? d.raio : 0) || d.raio || d.dist || 6;
 const habPronta = (h, k) => { const H = h.hab[k], d = h.def.hab[k]; return H.nv && H.cd <= 0 && h.mana >= d.mana[H.nv - 1] && !(h.silencio > 0); };
 // mira manual do bot num ponto (com um erro pequeno, como um jogador)
@@ -1422,6 +1440,7 @@ function pensarSuporte(h, dt, c) {
     for (const k of ['w', 'e', 'q', 'r']) { if (!habPronta(h, k)) continue; const d = h.def.hab[k];
       if (d.doaVida && hpF > .45 && dF < (d.alcDoa || 9)) { if (usarHab(h, k)) return true; }
       if (d.puxaAliado && fF < .32 && emLuta && dF > 3 && dF < d.puxaAliado) { if (usarHab(h, k)) return true; }
+      if (d.tipo === 'kit' && /aliado|alvoOuAliado/i.test(d.ia || '') && dF < (d.alc || 8) && (k !== 'r' || fF < .4)) { h.kitAlvo = ferido; const r = usarHab(h, k); h.kitAlvo = null; if (r) return true; }
       if (d.curaLinha && dF < d.comp - .5) { mirarEm(h, ferido.obj.position, d.comp, .08); const r = usarHab(h, k); h.mira = null; if (r) return true; }
       if ((d.escudoAliados || d.cura || d.curaAliados) && dF < (d.aliados || d.raio || 6)) { if (usarHab(h, k)) return true; }
       if (d.tipo === 'nuvem' && fF < .35 && emLuta && dF < d.alc) { mirarEm(h, ferido.obj.position, d.alc, .05); const r = usarHab(h, k); h.mira = null; if (r) return true; }
@@ -1474,7 +1493,8 @@ function usarHabsIA(h, inim, o) {
   for (const k of (o.poke ? ['q', 'w', 'e'] : ['r', 'e', 'w', 'q'])) { if (!habPronta(h, k)) continue; const d = h.def.hab[k]; if (k !== 'r' && !o.reage) continue;
     const alc = alcHab(d);
     if (k === 'r') { const vale = (o.L && (o.L.abate || o.L.danoR >= inim.hp * .8)) || nI >= 2 || (o.hpF < .35 && dI < 7) || (iHp < .35 && dI < alc + 1); if (!vale) continue; }
-    if (o.poke && (d.tipo === 'dash' || !ehDano(d) || h.mana < h.manaMax * .4 || o.sobTorre)) continue;
+    if (o.poke && (d.tipo === 'dash' || !ehDano(d) || h.mana < h.manaMax * .4 || o.sobTorre || (d.tipo === 'kit' && /dash|perto|global|self/.test(d.ia || '')))) continue;
+    if (d.tipo === 'kit') { if (KIT && KIT.ia(h, k, d, inim, o, { usarHab, lancarEm })) return true; continue; } // kits novos: cada um com a sua leitura (ia)
     if (d.tipo === 'dash') { if (dI > (d.dist || 5) + (d.paraAlvo || d.blink ? .5 : 1.5)) continue; if (o.hpF < .45 && !(o.L && o.L.abate)) continue; if (h.def.distancia && dI < h.alcance * .85) continue; if (o.sobTorre && !(o.L && o.L.abate)) continue;
       const dir = inim.obj.position.clone().sub(pos).setY(0).normalize(); h.olharPara(inim.obj.position, 1, 1); h.ctrl.x = dir.x; h.ctrl.y = dir.z; h.ctrl.len = 1; if (usarHab(h, k)) return true; continue; }
     if (['buff', 'invocar', 'moedas'].includes(d.tipo)) { if (d.doaVida || d.puxaAliado || d.profecia) continue; // estes o suporte decide
@@ -1693,10 +1713,7 @@ function atualizarHeroi(h, dt) {
   atualizarStatus(h, dt); if (!h.vivo) return;
   if (h.cdCongelado > 0) h.cdCongelado -= dt; else for (const k of ['q', 'w', 'e', 'r']) h.hab[k].cd = Math.max(0, h.hab[k].cd - dt); // Josué R congela as recargas
   if (h.carroT > estado.tempo) for (const u of inimigosEm(h.obj.position, h.time, 1.8)) { if ((h.carroHit.get(u) || 0) > estado.tempo) continue; h.carroHit.set(u, estado.tempo + 1); danificar(h, u, h.carroDano, { hab: true }); aplicarLento(u, .25, .6); } // Acabe W: atropela
-  if (h.id === 'jonatas') { const b = h.buffs.find(x => x.escudeiro); const perto = herois.some(a => a !== h && a.vivo && a.time === h.time && a.obj.position.distanceTo(h.obj.position) < 8); if (perto) { if (b) b.t = .5; else h.buffs.push({ tipo: 'as', v: .2, t: .5, escudeiro: true }); } } // Jônatas P: Escudeiro Fiel
   if (h.id === 'noe') { h.goferT = (h.goferT ?? 4) - dt; if (h.goferT <= 0) { h.goferT = 4; if (h.gofer >= 10) { darEscudo(h, h.gofer, 3); h.gofer = 0; } } }
-  if (h.id === 'moises') { h.manaCeuT = (h.manaCeuT ?? 20) - dt; if (h.manaCeuT <= 0) { h.manaCeuT = 60; cairMana(h); } }
-  if (h.id === 'herodes') h.paranoia = !herois.some(a => a !== h && a.vivo && a.time === h.time && a.obj.position.distanceTo(h.obj.position) < 9);
   if (h.id === 'balaao') for (const u of herois) if (u.vivo && u.time !== h.time && u.invis > 0 && u.obj.position.distanceTo(h.obj.position) < 9) { u.invis = 0; textoInfo(u, 'A jumenta viu!'); }
   if (h.conselhoT > 0) { h.conselhoT -= dt; h.consAtk -= dt; const al = h.encanto && h.encanto.por; if (!al || !al.vivo || h.conselhoT <= 0) { h.conselhoT = 0; if (h.encanto && h.encanto.por.time === h.time) h.encanto = null; } else if (h.consAtk <= 0 && al.obj.position.distanceTo(h.obj.position) < h.alcance + 1.5) { h.consAtk = .8; danificar(h, al, h.st.ad, { ataque: true }); } } // Balaão E
   if (h.estase > 0) { h.estase -= dt; h.travado = Math.max(h.travado, .2); h.ctrl.len = 0; }
@@ -1724,7 +1741,8 @@ function atualizarHeroi(h, dt) {
   if (h.dash) {
     h.dash.t -= dt; h.obj.position.addScaledVector(h.dash.dir, h.dash.vel * dt); limitar(h.obj.position);
     if (h.dash.d && h.dash.d.carrega) { const fr = h.obj.position.clone().addScaledVector(h.dash.dir, 1.4); h.dash.levados = h.dash.levados || new Set(); for (const u of inimigosEm(fr, h.time, 1.7)) if (!imune(u) && u.tipo !== 'monstro') h.dash.levados.add(u); for (const u of h.dash.levados) if (u.vivo) { u.obj.position.x = fr.x + (u.obj.position.x - fr.x) * .5; u.obj.position.z = fr.z + (u.obj.position.z - fr.z) * .5; limitar(u.obj.position); u.dash = null; } }
-    const p = h.obj.position; if (!(h.dash.d && PZ.dash(h, h.dash.d, p))) { fxD.emit(p.x, .3, p.z, { vel: [(Math.random() - .5) * 2, 1, (Math.random() - .5) * 2], cor: [.55, .45, .32], vida: .6, t0: .7, t1: 1.6, alpha: .6 }); fx.emit(p.x, 1.2, p.z, { cor: h.def.cor, vida: .3, t0: 1.1, t1: 0, alpha: .5 }); }
+    if (KIT && h.dash.d) KIT.dashTick(h, h.dash.d, dt); if (!h.dash) return;
+    const p = h.obj.position; if (!(h.dash.d && (h.dash.d._tick || h.dash.d.portoes)) && !(h.dash.d && PZ.dash(h, h.dash.d, p))) { fxD.emit(p.x, .3, p.z, { vel: [(Math.random() - .5) * 2, 1, (Math.random() - .5) * 2], cor: [.55, .45, .32], vida: .6, t0: .7, t1: 1.6, alpha: .6 }); fx.emit(p.x, 1.2, p.z, { cor: h.def.cor, vida: .3, t0: 1.1, t1: 0, alpha: .5 }); }
     if (h.dash.t <= 0) { const f = h.dash.fim; h.dash = null; if (f) f(); }
     return;
   }
@@ -1748,12 +1766,13 @@ function atualizarHeroi(h, dt) {
 function alvoMinion(u) {
   if (u.provoc && u.provoc.por.vivo) return u.provoc.por;
   let best = null, bd = 7.5, heroi = null, hd = 7.5, est = null, ed = 9;
-  for (const v of unidades) { if (!v.vivo || v.time === u.time || v.time === 'neutro' || v.spawnT > 0 || !visivelPara(v, u.time)) continue; const d = v.obj.position.distanceTo(u.obj.position) - v.raio; if (v.tipo === 'heroi') { if (d < hd) { hd = d; heroi = v; if (v.agrediuHeroiT && estado.tempo - v.agrediuHeroiT < 2.5 && d < 6) return v; } } else if (d < bd) { bd = d; best = v; } }
+  for (const v of unidades) { if (!v.vivo || v.time === u.time || v.time === 'neutro' || v.spawnT > 0 || !visivelPara(v, u.time) || v.disfarceAcabeT > estado.tempo || v.estase > 0) continue; const d = v.obj.position.distanceTo(u.obj.position) - v.raio; if (v.tipo === 'heroi') { if (d < hd) { hd = d; heroi = v; if (v.agrediuHeroiT && estado.tempo - v.agrediuHeroiT < 2.5 && d < 6) return v; } } else if (d < bd) { bd = d; best = v; } }
   for (const e of estruturas) { if (!e.vivo || e.time === u.time || protegida(e)) continue; const d = e.obj.position.distanceTo(u.obj.position) - e.raio; if (d < ed) { ed = d; est = e; } }
   return best || est || heroi;
 }
 function atualizarMinion(u, dt) {
   if (!u.vivo) { u.morteT += dt; if (u.morteT > 1.6) u.obj.position.y -= dt * 1.2; if (u.morteT > 3) u.remover = true; return; }
+  if (u.estase > 0) { u.estase -= dt; return; } // Balaão R: congelado
   atualizarStatus(u, dt); if (!u.vivo) return;
   if (u.invocado) { u.vidaT -= dt; if (u.vidaT <= 0 || !u.invocado.vivo) { u.xpV = 0; u.ouro = 0; aneis.add(u.obj.position, new THREE.Color(1, .7, .25), .3, 1.6, .5); morrer(u, null); return; } }
   if (u.atord > 0) { u.tocar(u.anim.idle, .2); return; }
@@ -1785,15 +1804,16 @@ function atualizarTorres(dt) {
     if (e.flash > 0) e.flash -= dt;
     if (!e.vivo || e.tipo !== 'torre' || e.portao) continue; // o portão não atira: é a barreira
     if (e.dentroMuralha && protegida(e)) continue; // a torre de dentro só acorda quando o portão cai
+    if (e.estase > 0) { e.estase -= dt; continue; } // Balaão R: torre em estase
     e.cd -= dt; if (e.cd > 0) continue;
     const tp = e.obj.position; let alvo = null;
     // 1) herói inimigo que atacou um herói aliado dentro do alcance
-    for (const h of herois) if (h.vivo && h.time !== e.time && visivelPara(h, e.time) && h.agrediuHeroiT && estado.tempo - h.agrediuHeroiT < 2.5 && h.obj.position.distanceTo(tp) < e.alcance) alvo = h;
+    for (const h of herois) if (h.vivo && h.time !== e.time && visivelPara(h, e.time) && !(h.disfarceAcabeT > estado.tempo) && h.agrediuHeroiT && estado.tempo - h.agrediuHeroiT < 2.5 && h.obj.position.distanceTo(tp) < e.alcance) alvo = h;
     // 2) mantém o alvo atual
-    if (!alvo && e.alvoAnt && e.alvoAnt.vivo && visivelPara(e.alvoAnt, e.time) && e.alvoAnt.obj.position.distanceTo(tp) < e.alcance) alvo = e.alvoAnt;
+    if (!alvo && e.alvoAnt && e.alvoAnt.vivo && !(e.alvoAnt.disfarceAcabeT > estado.tempo) && visivelPara(e.alvoAnt, e.time) && e.alvoAnt.obj.position.distanceTo(tp) < e.alcance) alvo = e.alvoAnt;
     // 3) tropa mais próxima, depois herói
     if (!alvo) { let bd = e.alcance; for (const u of unidades) { if (!u.vivo || u.time === e.time || u.tipo !== 'minion') continue; const d = u.obj.position.distanceTo(tp); if (d < bd) { bd = d; alvo = u; } } }
-    if (!alvo) { let bd = e.alcance; for (const h of herois) { if (!h.vivo || h.time === e.time || !visivelPara(h, e.time)) continue; const d = h.obj.position.distanceTo(tp); if (d < bd) { bd = d; alvo = h; } } }
+    if (!alvo) { let bd = e.alcance; for (const h of herois) { if (!h.vivo || h.time === e.time || !visivelPara(h, e.time) || h.disfarceAcabeT > estado.tempo) continue; const d = h.obj.position.distanceTo(tp); if (d < bd) { bd = d; alvo = h; } } }
     if (!alvo) { e.alvoAnt = null; e.serie = 0; continue; }
     if (alvo === e.alvoAnt && alvo.tipo === 'heroi') e.serie = Math.min(e.serie + 1, 4); else e.serie = 0;
     if (alvo === jogador && e.alvoAnt !== jogador) aviso('A torre está mirando em você!', true);
@@ -1869,7 +1889,7 @@ function atualizar(dt) {
   }
   perfStat.visU = visU;
   mundo.anim.forEach(f => f(dt, tempoU.value));
-  atualizarProjeteis(dt); fx.update(dt); fxD.update(dt); aneis.update(dt); if (poderes) poderes.atualizar(dt); if (jogador) ouvinteSom(jogador.obj.position);
+  atualizarProjeteis(dt); fx.update(dt); fxD.update(dt); aneis.update(dt); if (poderes) poderes.atualizar(dt); if (VK) VK.atualizar(dt); if (KIT && estado.iniciado) KIT.atualizar(estado.pausado ? 0 : dt); if (jogador) ouvinteSom(jogador.obj.position);
 }
 
 // ================= entrada (joystick + botões + teclado) =================
@@ -2087,7 +2107,10 @@ function atualizarHUD(dt) {
 let qualT = 0;
 // resolução dinâmica: abaixo de 55 FPS baixa a resolução em passos de 0,1 (mín. 0,75 no celular); acima de 59 por 3 s sobe de novo
 let prAlvo = null, quedaT = -1e9;
-const PODERES_NOVOS = P.get('poderes') !== 'antigos'; const GLB_PODERES = ['pedra_funda', 'lanca', 'espada_luz', 'cetro_farao', 'cristal_trevas', 'tocha_gideao']; let poderes = null;
+const PODERES_NOVOS = P.get('poderes') !== 'antigos'; const GLB_PODERES = ['pedra_funda', 'lanca', 'espada_luz', 'cetro_farao', 'cristal_trevas', 'tocha_gideao']; let poderes = null; let VK = null, KIT = null;
+// ataque básico à distância com malha real (vfx_kits): flecha é flecha, pedra é pedra
+const VIS_ATAQUE = { davi: { malha: 'pedra', trilha: 'pedra', crit: 'pedraOuro', vel: 32 }, debora: { malha: 'lancaLuz', trilha: 'luz' }, elias: { trilha: 'fogoP' }, acabe: { malha: 'flecha', trilha: 'flecha', vel: 38 }, herodes: { malha: 'cristal', trilha: 'trevas' }, hama: { malha: 'virote', trilha: 'virote', vel: 36 }, balaao: { trilha: 'maldicao' }, ester: { malha: 'anel', trilha: 'ouro' }, ninrode: { malha: 'flecha', trilha: 'flecha', vel: 38 }, moises: { trilha: 'agua' }, farao: { malha: 'serpente', trilha: 'veneno', vel: 24 }, daniel: { malha: 'pergaminho', trilha: 'ouro' }, jonatas: { malha: 'flecha', trilha: 'flecha', vel: 40 } };
+function depsKits() { return { THREE, estado, herois, unidades, estruturas, MUROS_T, jogador: () => jogador, VK: () => VK, aviso, textoInfo, tremer, agendar, efeitos, aneis, danificar, acertarHab, curarU, darEscudo, aplicarLento, atordoar, arremessar, empurrar, amedrontar, enraizar, silenciar, aterrar, limparControles, imune, controlado, inimigosEm, inimigosEmLinha, heroiInimigoProximo, visivelPara, lancar, ultimoProj, posMao, frente, limitar, valorHab, multRank, K_AP, arm, recalcular, novoMinion, mirar, avisoLinha, ganharOuro }; } // Parte C: VFX realistas (manifest) + kits novos
 const PZ = new Proxy({}, { get: (_, k) => poderes ? poderes[k] : () => false }); // ganchos dos poderes (no-op com ?poderes=antigos)
 function ajustarQualidade(fps) {
   if (CAPTURA) return; qualT++;
@@ -2125,6 +2148,7 @@ function aquecerShaders() {
   { const b = new THREE.Mesh(gq, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .5, depthWrite: false, blending: THREE.AdditiveBlending, wireframe: true })); tmp.add(b); }
   colunaLuz(tmp, new THREE.Vector3(), tempoU);
   tmp.add(new THREE.Sprite(new THREE.SpriteMaterial({ map: texB, color: 0xb040ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))); // geometria compartilhada dos sprites (Decreto de Jezabel)
+  if (VK) VK.preparar();
   tmp.position.copy(camAlvo || new THREE.Vector3());
   try { renderer.compile(scene, camera); renderer.shadowMap.needsUpdate = true; composer.render(0); for (const pr of renderer.info.programs || []) { pr.getUniforms(); pr.getAttributes(); } } catch (e) { console.warn('[aquecer]', e && e.message); } // 1 quadro completo (inclui o passe de sombra)
   for (const o of ocultos) o.visible = false; scene.remove(tmp); coroa.geometry.dispose();
@@ -2730,7 +2754,7 @@ async function comecarPartida(id, vs, funcao) {
   configurarHUD(); camIni = false; if (!EX.pronto) iniciarExtras(selvaDeps());
   if (TREINO) { for (const x of [bot, cacador]) if (x) { x.treino = true; } aviso('Treino: siga as dicas no alto da tela'); }
   if (CENA === 'vs') { $('hud').classList.remove('on'); window.__pronto = true; return; }
-  if (selvaIni) await Promise.race([selvaIni, esperar(Q.mobile ? 2500 : 5000)]); aquecerShaders(); // no iPhone a partida não espera os monstros (eles terminam de carregar durante a luta) // monstros/aliados/cacador: compila na tela VS, não na luta
+  if (VK) await VK.carregarHerois(herois.map(h => h.id)).catch(e => console.warn('[vfx kits]', e && e.message)); if (selvaIni) await Promise.race([selvaIni, esperar(Q.mobile ? 2500 : 5000)]); aquecerShaders(); // no iPhone a partida não espera os monstros (eles terminam de carregar durante a luta) // monstros/aliados/cacador: compila na tela VS, não na luta
   if (vsP) { await vsP; await esperar(250); $('vs').classList.add('sai'); setTimeout(() => $('vs').className = '', 450); }
   $('hud').classList.add('on'); estado.iniciado = true; armarVoltar();
   aviso(`${d.nome} x ${HEROIS[vsId].nome} — destrua o Núcleo inimigo!`);
@@ -2788,7 +2812,7 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, teste: { morrer, comprar, danificar, usarFeit, ping, definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
+window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, get KIT() { return KIT; }, get VK() { return VK; }, teste: { morrer, comprar, danificar, usarFeit, ping, definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);

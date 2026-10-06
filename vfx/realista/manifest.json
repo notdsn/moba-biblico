@@ -1,0 +1,2239 @@
+{
+  "version": 1,
+  "generated": "2026-10-04",
+  "base": "vfx/realista/",
+  "conventions": {
+    "frame_order": "left->right, top->bottom; frame i: col = i % cols, row = floor(i / cols)",
+    "uv": "WebP via TextureLoader (flipY=true) and KTX2 (encoded with --lower_left_maps_to_s0t0, KTX2Loader flipY=false) use the SAME UV math: uv = (vUv + vec2(col, rows - 1 - row)) / vec2(cols, rows)  (fx_explosao_5x5: cells start at the top-left and do not fill the sheet, so use c = cell_uv: uv = vec2((vUv.x + col) * c, 1.0 - (row + 1.0 - vUv.y) * c))",
+    "tiers": "pc = desktop (<=1024 per flipbook, decal atlas 2048); celular = phone (512, decal atlas 1024); baixa = ?q=baixa, 4x4 grid of 256 px (16 frames) for every animated flipbook",
+    "ktx2": "UASTC + Zstd, mipmaps, KTX2Loader with transcoder at public/basis/ (configurarKTX2 in perf.js). Prefer KTX2 on phones (GPU memory ~1 byte/px instead of 4)",
+    "frame_aspect": "width/height of the original frame when it was re-packed into square cells: scale the quad to (aspect, 1)",
+    "premultiplied": "colour already multiplied by alpha. Do not let three.js premultiply again (texture.premultiplyAlpha = false)"
+  },
+  "totals_bytes": {
+    "pc": {
+      "webp": 4739446,
+      "ktx2": 9695697,
+      "files": 25,
+      "gpu_rgba8": 110449997
+    },
+    "celular": {
+      "webp": 1666130,
+      "ktx2": 2829639,
+      "files": 23,
+      "gpu_rgba8": 27437731
+    },
+    "baixa": {
+      "webp": 299474,
+      "ktx2": 528354,
+      "files": 14,
+      "gpu_rgba8": 4893350
+    }
+  },
+  "files": [
+    {
+      "code": "T1",
+      "file": "fx_fogo_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 30,
+      "playback": "loop",
+      "blending": "additive (premultiplied sheet: also works with premultiplied blending)",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "frame_aspect": 0.5,
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_fogo_8x8.webp",
+          "ktx2": "pc/fx_fogo_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 348652,
+          "ktx2_bytes": 560797
+        },
+        "celular": {
+          "webp": "celular/fx_fogo_8x8.webp",
+          "ktx2": "celular/fx_fogo_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 135638,
+          "ktx2_bytes": 183525
+        },
+        "baixa": {
+          "webp": "baixa/fx_fogo_8x8_baixa.webp",
+          "ktx2": "baixa/fx_fogo_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 34098,
+          "ktx2_bytes": 51182,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Elias R (Carro de Fogo)",
+        "Moisés E (Coluna de Nuvem e Fogo)",
+        "Daniel R (Cova dos Leões)",
+        "Golias R (Avanço do Campeão)",
+        "Lami Passiva (Haste de Tear)",
+        "Lami Q (Lança como Eixo de Tear)",
+        "Lami W (Escudo de Ossos)",
+        "Faraó R (As Dez Pragas)",
+        "Nabucodonosor R (Fornalha Ardente)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Elias Passiva (chamas no alvo e coluna curta)",
+        "Elias W (coluna de fogo: UV rolando + 6 sprites)",
+        "Elias E (labareda no alvo)",
+        "Debora R (fogo preso as rochas)",
+        "Daniel R (fogo nas patas do leao)",
+        "Farao R"
+      ],
+      "source": "unity_labs_flipbooks/Flame02/Flame02_16x4.png",
+      "license": [
+        "CC0 (Unity Labs Paris VFX flipbooks)"
+      ],
+      "note": "RGB is emissive fire (already black where alpha=0); 16x4 tall frames (128x256) re-packed to 8x8 square cells: draw the quad 1 wide x 2 tall."
+    },
+    {
+      "code": "T1",
+      "file": "fx_fogo_bola_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 30,
+      "playback": "loop",
+      "blending": "additive",
+      "threejs": "blending: THREE.AdditiveBlending, transparent: true, depthWrite: false",
+      "alpha": "none (black background)",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_fogo_bola_8x8.webp",
+          "ktx2": "pc/fx_fogo_bola_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 155044,
+          "ktx2_bytes": 654831
+        },
+        "celular": {
+          "webp": "celular/fx_fogo_bola_8x8.webp",
+          "ktx2": "celular/fx_fogo_bola_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 57340,
+          "ktx2_bytes": 185508
+        },
+        "baixa": {
+          "webp": "baixa/fx_fogo_bola_8x8_baixa.webp",
+          "ktx2": "baixa/fx_fogo_bola_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 14696,
+          "ktx2_bytes": 50353,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Elias R (Carro de Fogo)",
+        "Moisés E (Coluna de Nuvem e Fogo)",
+        "Daniel R (Cova dos Leões)",
+        "Golias R (Avanço do Campeão)",
+        "Lami Passiva (Haste de Tear)",
+        "Lami Q (Lança como Eixo de Tear)",
+        "Lami W (Escudo de Ossos)",
+        "Faraó R (As Dez Pragas)",
+        "Nabucodonosor R (Fornalha Ardente)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Elias Q (nucleo da bola de fogo, 2-3 sprites girando)",
+        "Debora R (rochas incandescentes caindo)",
+        "Elias R (sprites presos ao carro e aos cavalos)"
+      ],
+      "source": "unity_labs_flipbooks/FireBall02/FireBall02_8x8.png",
+      "license": [
+        "CC0 (Unity Labs Paris VFX flipbooks)"
+      ],
+      "note": "rolling fire sphere loop: core of Elias Q fireball / Debora R meteors."
+    },
+    {
+      "code": "T1",
+      "file": "fx_fogo_chao_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 30,
+      "playback": "loop",
+      "blending": "additive",
+      "threejs": "blending: THREE.AdditiveBlending, transparent: true, depthWrite: false",
+      "alpha": "none (black background)",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_fogo_chao_8x8.webp",
+          "ktx2": "pc/fx_fogo_chao_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 115404,
+          "ktx2_bytes": 298055
+        },
+        "celular": {
+          "webp": "celular/fx_fogo_chao_8x8.webp",
+          "ktx2": "celular/fx_fogo_chao_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 36182,
+          "ktx2_bytes": 86804
+        },
+        "baixa": {
+          "webp": "baixa/fx_fogo_chao_8x8_baixa.webp",
+          "ktx2": "baixa/fx_fogo_chao_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 9116,
+          "ktx2_bytes": 24427,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Elias R (Carro de Fogo)",
+        "Moisés E (Coluna de Nuvem e Fogo)",
+        "Daniel R (Cova dos Leões)",
+        "Golias R (Avanço do Campeão)",
+        "Lami Passiva (Haste de Tear)",
+        "Lami Q (Lança como Eixo de Tear)",
+        "Lami W (Escudo de Ossos)",
+        "Faraó R (As Dez Pragas)",
+        "Nabucodonosor R (Fornalha Ardente)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Elias R (faixa em chamas: 1 sprite a cada 1,5 m PC / 3 m celular)",
+        "Nabucodonosor R (chao ardendo: sprites baixos)",
+        "Elias W (chao em brasa depois do impacto)"
+      ],
+      "source": "fab150/.../Flipbook/Fire/TX_F_Fire_01.png",
+      "license": [
+        "Fab Standard License (\"150++ Special Game VFX Textures Pack\", purchased) - no raw redistribution"
+      ],
+      "note": "low wide band of burning ground: Elias R burning lane, scorched zones. Content sits in the lower half of each cell."
+    },
+    {
+      "code": "T1",
+      "file": "fx_fogo_fornalha_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 30,
+      "playback": "loop",
+      "blending": "additive",
+      "threejs": "blending: THREE.AdditiveBlending, transparent: true, depthWrite: false",
+      "alpha": "none (black background)",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_fogo_fornalha_8x8.webp",
+          "ktx2": "pc/fx_fogo_fornalha_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 152940,
+          "ktx2_bytes": 450061
+        },
+        "celular": {
+          "webp": "celular/fx_fogo_fornalha_8x8.webp",
+          "ktx2": "celular/fx_fogo_fornalha_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 50512,
+          "ktx2_bytes": 134262
+        },
+        "baixa": {
+          "webp": "baixa/fx_fogo_fornalha_8x8_baixa.webp",
+          "ktx2": "baixa/fx_fogo_fornalha_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 12804,
+          "ktx2_bytes": 35912,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Elias R (Carro de Fogo)",
+        "Moisés E (Coluna de Nuvem e Fogo)",
+        "Daniel R (Cova dos Leões)",
+        "Golias R (Avanço do Campeão)",
+        "Lami Passiva (Haste de Tear)",
+        "Lami Q (Lança como Eixo de Tear)",
+        "Lami W (Escudo de Ossos)",
+        "Faraó R (As Dez Pragas)",
+        "Nabucodonosor R (Fornalha Ardente)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Nabucodonosor R (boca da fornalha: 12 sprites PC / 6 celular)",
+        "Golias R (skin de lava: fogo saindo das fendas)",
+        "Elias R (impacto do carro)"
+      ],
+      "source": "fab150/.../Flipbook/Fire/TX_F_Fire_02.png",
+      "license": [
+        "Fab Standard License (\"150++ Special Game VFX Textures Pack\", purchased) - no raw redistribution"
+      ],
+      "note": "big roaring bonfire, coloured with a blackbody ramp; 100 frames subsampled to 64 (no blending). Nabucodonosor furnace, Golias lava skin."
+    },
+    {
+      "code": "T1",
+      "file": "fx_fogo_tingivel_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 30,
+      "playback": "loop",
+      "blending": "additive",
+      "threejs": "blending: THREE.AdditiveBlending, transparent: true, depthWrite: false",
+      "alpha": "none (grayscale heat on black)",
+      "colorSpace": "srgb",
+      "frame_aspect": 0.625,
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_fogo_tingivel_8x8.webp",
+          "ktx2": "pc/fx_fogo_tingivel_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 55006,
+          "ktx2_bytes": 426419
+        },
+        "celular": {
+          "webp": "celular/fx_fogo_tingivel_8x8.webp",
+          "ktx2": "celular/fx_fogo_tingivel_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 24978,
+          "ktx2_bytes": 134087
+        },
+        "baixa": {
+          "webp": "baixa/fx_fogo_tingivel_8x8_baixa.webp",
+          "ktx2": "baixa/fx_fogo_tingivel_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 6352,
+          "ktx2_bytes": 38320,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Elias R (Carro de Fogo)",
+        "Moisés E (Coluna de Nuvem e Fogo)",
+        "Daniel R (Cova dos Leões)",
+        "Golias R (Avanço do Campeão)",
+        "Lami Passiva (Haste de Tear)",
+        "Lami Q (Lança como Eixo de Tear)",
+        "Lami W (Escudo de Ossos)",
+        "Faraó R (As Dez Pragas)",
+        "Nabucodonosor R (Fornalha Ardente)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Moises E (chama azul na arma)",
+        "Lami Passiva, Q e W (fogo-fantasma verde)",
+        "Gideao Passiva (opcional: fogo-fantasma ambar)"
+      ],
+      "source": "unity_labs_flipbooks/Flame02-temperature/Flame02-temperature_16x4.png",
+      "license": [
+        "CC0 (Unity Labs Paris VFX flipbooks)"
+      ],
+      "note": "heat mask: colour it with a gradient ramp in the shader (blue for Moses E, green ghost-fire for Gideon's phantom soldiers). Quad 1 wide x 1.6 tall."
+    },
+    {
+      "code": "T1",
+      "file": "fx_fogo_tocha_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 60,
+      "fps": 30,
+      "playback": "loop",
+      "blending": "additive (premultiplied sheet: also works with premultiplied blending)",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "frame_aspect": 0.53,
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_fogo_tocha_8x8.webp",
+          "ktx2": "pc/fx_fogo_tocha_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 421702,
+          "ktx2_bytes": 497893
+        },
+        "celular": {
+          "webp": "celular/fx_fogo_tocha_8x8.webp",
+          "ktx2": "celular/fx_fogo_tocha_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 156926,
+          "ktx2_bytes": 158226
+        },
+        "baixa": {
+          "webp": "baixa/fx_fogo_tocha_8x8_baixa.webp",
+          "ktx2": "baixa/fx_fogo_tocha_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 42230,
+          "ktx2_bytes": 44656,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Elias R (Carro de Fogo)",
+        "Moisés E (Coluna de Nuvem e Fogo)",
+        "Daniel R (Cova dos Leões)",
+        "Golias R (Avanço do Campeão)",
+        "Lami Passiva (Haste de Tear)",
+        "Lami Q (Lança como Eixo de Tear)",
+        "Lami W (Escudo de Ossos)",
+        "Faraó R (As Dez Pragas)",
+        "Nabucodonosor R (Fornalha Ardente)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Gideao Q (tocha dentro do cantaro)",
+        "Gideao R (12 chamas de tocha em circulo)",
+        "Gideao Passiva (tocha do soldado-fantasma)",
+        "Elias Passiva (1 a 3 chamas pequenas presas ao corpo)"
+      ],
+      "source": "unity_labs_flipbooks/SmallFlame01/SmallFlame01_16x4.png",
+      "license": [
+        "CC0 (Unity Labs Paris VFX flipbooks)"
+      ],
+      "note": "small torch/candle flame, 60 frames in an 8x8 grid (last 4 cells empty: loop over frames 0-59). Quad about 1 wide x 1.9 tall."
+    },
+    {
+      "code": "T2",
+      "file": "fx_explosao_5x5",
+      "extra": false,
+      "grid": {
+        "cols": 5,
+        "rows": 5
+      },
+      "frames": 25,
+      "fps": 30,
+      "playback": "once",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "cell_px": 204,
+      "cell_uv": 0.19921875,
+      "cell_uv_celular": 0.19921875,
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_explosao_5x5.webp",
+          "ktx2": "pc/fx_explosao_5x5.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 254688,
+          "ktx2_bytes": 488291
+        },
+        "celular": {
+          "webp": "celular/fx_explosao_5x5.webp",
+          "ktx2": "celular/fx_explosao_5x5.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 87948,
+          "ktx2_bytes": 149398
+        },
+        "baixa": {
+          "webp": "baixa/fx_explosao_5x5_baixa.webp",
+          "ktx2": "baixa/fx_explosao_5x5_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 27864,
+          "ktx2_bytes": 41773,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias R (Carro de Fogo)",
+        "Lami W (Escudo de Ossos)",
+        "Herodes W (Olhos do Trono)",
+        "Hamã Q (Lançar Sortes)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Debora R (3 impactos estelares)",
+        "Elias Passiva (detonacao das Brasas)",
+        "Elias W",
+        "Elias R (impacto do carro)",
+        "explosoes genericas grandes"
+      ],
+      "source": "unity_labs_flipbooks/Explosion02HD/Explosion02HD_5x5.png",
+      "license": [
+        "CC0 (Unity Labs Paris VFX flipbooks)"
+      ],
+      "note": "MAIN realistic explosion (fireball turning into dark smoke). 25 frames, 5x5 cells of 204px starting at (0,0); the last 4px column/row are empty padding -> use cell size 204/1024 in UV (phone: 102/512)."
+    },
+    {
+      "code": "T2",
+      "file": "fx_explosao_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 63,
+      "fps": 48,
+      "playback": "once",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_explosao_8x8.webp",
+          "ktx2": "pc/fx_explosao_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 211178,
+          "ktx2_bytes": 302785
+        },
+        "celular": {
+          "webp": "celular/fx_explosao_8x8.webp",
+          "ktx2": "celular/fx_explosao_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 71952,
+          "ktx2_bytes": 92101
+        },
+        "baixa": {
+          "webp": "baixa/fx_explosao_8x8_baixa.webp",
+          "ktx2": "baixa/fx_explosao_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 18058,
+          "ktx2_bytes": 25699,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias R (Carro de Fogo)",
+        "Lami W (Escudo de Ossos)",
+        "Herodes W (Olhos do Trono)",
+        "Hamã Q (Lançar Sortes)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Gideao Q (explosao pequena no alvo)",
+        "Elias Q (2 explosoes menores no impacto)",
+        "Lami W",
+        "Herodes W",
+        "Hama Q"
+      ],
+      "source": "fab150/.../Flipbook/Explosions/TX_F_Explosion_09.png",
+      "license": [
+        "Fab Standard License (\"150++ Special Game VFX Textures Pack\", purchased) - no raw redistribution"
+      ],
+      "note": "variant: smaller/faster blast, colour baked from a grayscale sheet (heat ramp fading over time). Use for small hits (Gideao Q, Lami W, Herodes W) so they differ from the big Unity blast."
+    },
+    {
+      "code": "T3",
+      "file": "fx_fumaca_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 24,
+      "playback": "loop",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_fumaca_8x8.webp",
+          "ktx2": "pc/fx_fumaca_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 329678,
+          "ktx2_bytes": 615397
+        },
+        "celular": {
+          "webp": "celular/fx_fumaca_8x8.webp",
+          "ktx2": "celular/fx_fumaca_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 123552,
+          "ktx2_bytes": 199481
+        },
+        "baixa": {
+          "webp": "baixa/fx_fumaca_8x8_baixa.webp",
+          "ktx2": "baixa/fx_fumaca_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 30694,
+          "ktx2_bytes": 55040,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Sansão Passiva (Força do Nazireu)",
+        "Sansão R (Derrubar as Colunas)",
+        "Débora Passiva (Juíza de Israel)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Josué R (Muralhas de Jericó)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Elias R (Carro de Fogo)",
+        "Sarai E (Riso de Sara)",
+        "Moisés Passiva (Maná do Céu)",
+        "Moisés E (Coluna de Nuvem e Fogo)",
+        "Daniel R (Cova dos Leões)",
+        "Jônatas E (Flechas do Sinal)",
+        "Lami W (Escudo de Ossos)",
+        "Lami R (Queda do Gigante)",
+        "Faraó E (Trevas Espessas)",
+        "Faraó R (As Dez Pragas)",
+        "Jezabel E (Passo Sombrio)",
+        "Jezabel R (Decreto de Jezreel)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Herodes Passiva (Paranoia Real)",
+        "Herodes Q (Ordem de Belém)",
+        "Herodes W (Olhos do Trono)",
+        "Herodes E (Magos Enganados)",
+        "Herodes R (Sinédrio Corrompido)",
+        "Hamã Q (Lançar Sortes)",
+        "Balaão Q (Maldição Revertida)",
+        "Ninrode Q (Flecha Rastreadora)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "fumaca de fogo de todos os efeitos (tingir preta/cinza)",
+        "Herodes (aura roxa)",
+        "Jonatas E (sinal)",
+        "Gideao Passiva (lufada do soldado)",
+        "Sansao Passiva (vapor branco)"
+      ],
+      "source": "unity_labs_flipbooks/WispySmoke02/WispySmoke02_8x8.png",
+      "license": [
+        "CC0 (Unity Labs Paris VFX flipbooks)"
+      ],
+      "note": "neutral grey rolling smoke loop, tint per particle (black, beige, purple, green, white)."
+    },
+    {
+      "code": "T3",
+      "file": "fx_fumaca_densa_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 20,
+      "playback": "loop",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_fumaca_densa_8x8.webp",
+          "ktx2": "pc/fx_fumaca_densa_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 287248,
+          "ktx2_bytes": 491586
+        },
+        "celular": {
+          "webp": "celular/fx_fumaca_densa_8x8.webp",
+          "ktx2": "celular/fx_fumaca_densa_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 114144,
+          "ktx2_bytes": 164285
+        },
+        "baixa": {
+          "webp": "baixa/fx_fumaca_densa_8x8_baixa.webp",
+          "ktx2": "baixa/fx_fumaca_densa_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 28706,
+          "ktx2_bytes": 50162,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Sansão Passiva (Força do Nazireu)",
+        "Sansão R (Derrubar as Colunas)",
+        "Débora Passiva (Juíza de Israel)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Josué R (Muralhas de Jericó)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Elias R (Carro de Fogo)",
+        "Sarai E (Riso de Sara)",
+        "Moisés Passiva (Maná do Céu)",
+        "Moisés E (Coluna de Nuvem e Fogo)",
+        "Daniel R (Cova dos Leões)",
+        "Jônatas E (Flechas do Sinal)",
+        "Lami W (Escudo de Ossos)",
+        "Lami R (Queda do Gigante)",
+        "Faraó E (Trevas Espessas)",
+        "Faraó R (As Dez Pragas)",
+        "Jezabel E (Passo Sombrio)",
+        "Jezabel R (Decreto de Jezreel)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Herodes Passiva (Paranoia Real)",
+        "Herodes Q (Ordem de Belém)",
+        "Herodes W (Olhos do Trono)",
+        "Herodes E (Magos Enganados)",
+        "Herodes R (Sinédrio Corrompido)",
+        "Hamã Q (Lançar Sortes)",
+        "Balaão Q (Maldição Revertida)",
+        "Ninrode Q (Flecha Rastreadora)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Farao E (trevas espessas)",
+        "Moises E e Passiva (nuvem e nevoa branca)",
+        "Sansao R e Josue R (fumaca bege lenta)",
+        "Lami R",
+        "Jezabel R",
+        "Elias R (redemoinho M22)"
+      ],
+      "source": "unity_labs_flipbooks/Cloud02/Cloud02_8x8.png",
+      "license": [
+        "CC0 (Unity Labs Paris VFX flipbooks)"
+      ],
+      "note": "thick volumetric cloud: Moses cloud pillar, Pharaoh darkness, beige rubble smoke."
+    },
+    {
+      "code": "T4",
+      "file": "fx_poeira_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 40,
+      "playback": "once",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_poeira_8x8.webp",
+          "ktx2": "pc/fx_poeira_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 79808,
+          "ktx2_bytes": 82636
+        },
+        "celular": {
+          "webp": "celular/fx_poeira_8x8.webp",
+          "ktx2": "celular/fx_poeira_8x8.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 31822,
+          "ktx2_bytes": 29953
+        },
+        "baixa": {
+          "webp": "baixa/fx_poeira_8x8_baixa.webp",
+          "ktx2": "baixa/fx_poeira_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 20158,
+          "ktx2_bytes": 28653,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi Q (Funda Certeira)",
+        "Davi W (Leão e Urso)",
+        "Davi E (Passo do Pastor)",
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Sansão Passiva (Força do Nazireu)",
+        "Sansão Q (Queixada Arremessada)",
+        "Sansão W (Rasgar o Leão)",
+        "Sansão E (Portões de Gaza)",
+        "Sansão R (Derrubar as Colunas)",
+        "Gideão W (Trombeta de Guerra)",
+        "Gideão E (Ataque da Meia-Noite)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué Passiva (Marcha de Sete Dias)",
+        "Josué Q (Lança do Comandante)",
+        "Josué W (Comandante do Exército)",
+        "Josué E (Arca da Aliança)",
+        "Josué R (Muralhas de Jericó)",
+        "Ester Q (Cetro Estendido)",
+        "Ester E (Mão do Rei)",
+        "Ester R (Se Perecer, Pereci)",
+        "Sarai Passiva (Caminho Longo)",
+        "Sarai Q (Adaga de Vidro)",
+        "Sarai W (Miragem do Deserto)",
+        "Sarai R (Promessa de Isaque)",
+        "Moisés W (Vara em Serpente)",
+        "Daniel Passiva (Três Vezes ao Dia)",
+        "Daniel Q (Investida do Leão)",
+        "Daniel W (Escrita na Parede)",
+        "Daniel R (Cova dos Leões)",
+        "Noé W (A Pomba e o Ramo)",
+        "Noé R (A Arca)",
+        "Jônatas Q (Rajada do Penhasco)",
+        "Jônatas W (Escalada de Micmás)",
+        "Jônatas R (Aliança de Sangue)",
+        "Golias Q (Lança de Tecelão)",
+        "Golias W (Desafio do Filisteu)",
+        "Golias E (Pisão do Gigante)",
+        "Golias R (Avanço do Campeão)",
+        "Lami Passiva (Haste de Tear)",
+        "Lami Q (Lança como Eixo de Tear)",
+        "Lami E (Golpe da Haste)",
+        "Lami R (Queda do Gigante)",
+        "Faraó Q (Cajado-Serpente)",
+        "Faraó W (Praga de Gafanhotos)",
+        "Nabucodonosor Passiva (Babilônia, a Grande)",
+        "Nabucodonosor Q (Golpe Real)",
+        "Nabucodonosor W (Sonho da Estátua)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Acabe Q (Flecha de Marfim)",
+        "Acabe W (Carro de Guerra)",
+        "Acabe E (Disfarce na Batalha)",
+        "Acabe R (Flecha ao Acaso)",
+        "Dalila W (Tear de Dalila)",
+        "Dalila E (Colo de Dalila)",
+        "Dalila R (Os Filisteus Sobre Ti)",
+        "Herodes E (Magos Enganados)",
+        "Hamã W (Forca de 50 Côvados)",
+        "Hamã E (Dez Mil Talentos)",
+        "Hamã R (Edito Real)",
+        "Balaão E (O Anjo no Caminho)",
+        "Balaão R (Não Posso Amaldiçoar)",
+        "Ninrode W (Rede de Caça)",
+        "Ninrode E (Torre de Babel)",
+        "Ninrode R (Terra do Caçador)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "todos os impactos no chao, avancos e rolamentos",
+        "Sarai W (tempestade de areia, tingir areia)",
+        "Davi Q/W/E",
+        "Sansao",
+        "Josue"
+      ],
+      "source": "fab150/.../Flipbook/Smoke/TX_F_Smoke_12.png",
+      "license": [
+        "Fab Standard License (\"150++ Special Game VFX Textures Pack\", purchased) - no raw redistribution"
+      ],
+      "note": "billowing dust puff that dissipates; baked light sand colour, multiply by vertex colour for earth/sand. 100 frames subsampled to 64."
+    },
+    {
+      "code": "T5",
+      "file": "fx_agua_respingo_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 40,
+      "playback": "once",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_agua_respingo_8x8.webp",
+          "ktx2": "pc/fx_agua_respingo_8x8.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 482686,
+          "ktx2_bytes": 516365
+        },
+        "celular": {
+          "webp": "celular/fx_agua_respingo_8x8.webp",
+          "ktx2": "celular/fx_agua_respingo_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 137606,
+          "ktx2_bytes": 148591
+        },
+        "baixa": {
+          "webp": "baixa/fx_agua_respingo_8x8_baixa.webp",
+          "ktx2": "baixa/fx_agua_respingo_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 33358,
+          "ktx2_bytes": 40154,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi E (Passo do Pastor)",
+        "Moisés Q (Água da Rocha)",
+        "Moisés R (Abrir o Mar)",
+        "Faraó R (As Dez Pragas)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Moises Q (coroas de respingo)",
+        "Moises R (respingos na frente da onda e spray das paredes)",
+        "Davi E (respingo do riacho)",
+        "Farao R (sangue: tingir vermelho escuro)"
+      ],
+      "source": "Tripo Image (user-owned): agua_coroa.png (photoreal crown splash), keyed from black and animated (rise, spread, collapse, dissolve)",
+      "license": [
+        "Tripo Image (generated by the user, user-owned, free to use)"
+      ],
+      "note": "one-shot water splash (side view, origin at the bottom-centre of the cell, ~16% from the bottom). Crown rises and spreads (frames 0-19), spray flies out and falls, crown collapses and breaks up (32-63). Tint red for the Pharaoh blood variant."
+    },
+    {
+      "code": "T5",
+      "file": "fx_agua_onda",
+      "extra": true,
+      "grid": {
+        "cols": 1,
+        "rows": 1
+      },
+      "frames": 1,
+      "fps": 0,
+      "playback": "static",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_agua_onda.webp",
+          "ktx2": "pc/fx_agua_onda.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 330908,
+          "ktx2_bytes": 915581
+        },
+        "celular": {
+          "webp": "celular/fx_agua_onda.webp",
+          "ktx2": "celular/fx_agua_onda.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 115042,
+          "ktx2_bytes": 247395
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi E (Passo do Pastor)",
+        "Moisés Q (Água da Rocha)",
+        "Moisés R (Abrir o Mar)",
+        "Faraó R (As Dez Pragas)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Noe (onda/frente do diluvio: billboard deslizando e crescendo)",
+        "Moises R (paredes do mar se fechando: 2 sprites espelhados)",
+        "Moises Q (opcional: onda baixa atras da coluna)"
+      ],
+      "source": "Tripo Image (user-owned): agua_onda.png, keyed from the black sky",
+      "license": [
+        "Tripo Image (generated by the user, user-owned, free to use)"
+      ],
+      "note": "crashing wave / flood front sprite (side view, wave breaks to the right, base fades out at the bottom). Billboard or camera-facing quad for Noé (dilúvio) and Moisés (mar se fechando); mirror U for the other direction, scale/slide it and fade with opacity."
+    },
+    {
+      "code": "T6",
+      "file": "fx_agua_faixa",
+      "extra": false,
+      "grid": {
+        "cols": 1,
+        "rows": 1
+      },
+      "frames": 1,
+      "fps": 0,
+      "playback": "scroll",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "tileable": "both axes",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_agua_faixa.webp",
+          "ktx2": "pc/fx_agua_faixa.ktx2",
+          "size": [
+            256,
+            1024
+          ],
+          "webp_bytes": 152460,
+          "ktx2_bytes": 291414
+        },
+        "celular": {
+          "webp": "celular/fx_agua_faixa.webp",
+          "ktx2": "celular/fx_agua_faixa.ktx2",
+          "size": [
+            128,
+            512
+          ],
+          "webp_bytes": 53444,
+          "ktx2_bytes": 79682
+        }
+      },
+      "usado_por_no_doc": [
+        "Moisés Q (Água da Rocha)",
+        "Moisés R (Abrir o Mar)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Moises Q (coluna M14)",
+        "Moises R (paredes e onda M14)"
+      ],
+      "source": "Tripo Image (user-owned): agua_onda.png (turbulent water band, rotated, crossfaded to tile)",
+      "license": [
+        "Tripo Image (generated by the user, user-owned, free to use)"
+      ],
+      "note": "running water with foam streaks, flows along V: scroll UV.y over time on the M14 wave/column mesh. Alpha 0.8 water, 1.0 foam."
+    },
+    {
+      "code": "T7",
+      "file": "fx_raio_1x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 1
+      },
+      "frames": 8,
+      "fps": 30,
+      "playback": "variation",
+      "blending": "additive",
+      "threejs": "blending: THREE.AdditiveBlending, transparent: true, depthWrite: false",
+      "alpha": "none (black background)",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_raio_1x8.webp",
+          "ktx2": "pc/fx_raio_1x8.ktx2",
+          "size": [
+            1024,
+            256
+          ],
+          "webp_bytes": 18410,
+          "ktx2_bytes": 75231
+        },
+        "celular": {
+          "webp": "celular/fx_raio_1x8.webp",
+          "ktx2": "celular/fx_raio_1x8.ktx2",
+          "size": [
+            512,
+            128
+          ],
+          "webp_bytes": 7600,
+          "ktx2_bytes": 25541
+        }
+      },
+      "usado_por_no_doc": [
+        "Débora Passiva (Juíza de Israel)",
+        "Débora Q (Lança Profética)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Debora Passiva (3 relampagos em volta do corpo)",
+        "Debora Q (relampagos na haste e nos pes dos enraizados)",
+        "skin de Davi (funda com raios)"
+      ],
+      "source": "seamproof/sheets/lightning_bolt_8x8.png",
+      "license": [
+        "SEAMPROOF VFX Sprite Sheets 2K (purchased, commercial use ok, no resale/redistribution of the sheets)"
+      ],
+      "note": "8 lightning variations, 128x256 cells side by side; switch variation every 2 game frames, additive, tint blue-white."
+    },
+    {
+      "code": "T8",
+      "file": "fx_detritos_4x4",
+      "extra": false,
+      "grid": {
+        "cols": 4,
+        "rows": 4
+      },
+      "frames": 16,
+      "fps": 0,
+      "playback": "static",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "cells": [
+        "brasa",
+        "faisca_alongada",
+        "gota",
+        "espuma",
+        "lasca_pedra",
+        "caco_barro",
+        "folha",
+        "petala",
+        "espinho",
+        "pena_preta",
+        "pena_branca",
+        "gafanhoto",
+        "granizo",
+        "fio_cabelo",
+        "cinza_papel",
+        "runa"
+      ],
+      "cell_blending": {
+        "brasa": "additive",
+        "faisca_alongada": "additive",
+        "gota": "normal",
+        "espuma": "normal",
+        "lasca_pedra": "normal",
+        "caco_barro": "normal",
+        "folha": "normal",
+        "petala": "normal",
+        "espinho": "normal",
+        "pena_preta": "normal",
+        "pena_branca": "normal",
+        "gafanhoto": "normal",
+        "granizo": "normal",
+        "fio_cabelo": "normal",
+        "cinza_papel": "normal",
+        "runa": "additive+normal"
+      },
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_detritos_4x4.webp",
+          "ktx2": "pc/fx_detritos_4x4.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 85896,
+          "ktx2_bytes": 209403
+        },
+        "celular": {
+          "webp": "celular/fx_detritos_4x4.webp",
+          "ktx2": "celular/fx_detritos_4x4.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 34036,
+          "ktx2_bytes": 64446
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi Q (Funda Certeira)",
+        "Davi W (Leão e Urso)",
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Sansão Q (Queixada Arremessada)",
+        "Sansão E (Portões de Gaza)",
+        "Sansão R (Derrubar as Colunas)",
+        "Débora Passiva (Juíza de Israel)",
+        "Débora Q (Lança Profética)",
+        "Débora W (Palmeira da Justiça)",
+        "Débora E (Cântico de Vitória)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão W (Trombeta de Guerra)",
+        "Gideão E (Ataque da Meia-Noite)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué Passiva (Marcha de Sete Dias)",
+        "Josué Q (Lança do Comandante)",
+        "Josué E (Arca da Aliança)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Ester Passiva (Para um Tempo Como Este)",
+        "Ester Q (Cetro Estendido)",
+        "Ester W (Selo do Anel do Rei)",
+        "Ester R (Se Perecer, Pereci)",
+        "Sarai Q (Adaga de Vidro)",
+        "Sarai W (Miragem do Deserto)",
+        "Sarai R (Promessa de Isaque)",
+        "Moisés Passiva (Maná do Céu)",
+        "Moisés Q (Água da Rocha)",
+        "Moisés W (Vara em Serpente)",
+        "Moisés R (Abrir o Mar)",
+        "Daniel W (Escrita na Parede)",
+        "Daniel E (Anjo que Fechou a Boca dos Leões)",
+        "Daniel R (Cova dos Leões)",
+        "Noé Passiva (Madeira de Gofer)",
+        "Noé Q (O Corvo Enviado)",
+        "Noé W (A Pomba e o Ramo)",
+        "Noé E (Porta da Arca)",
+        "Noé R (A Arca)",
+        "Jônatas Passiva (O Arco que Não Voltava)",
+        "Jônatas Q (Rajada do Penhasco)",
+        "Jônatas R (Aliança de Sangue)",
+        "Golias Passiva (Couraça de Bronze)",
+        "Golias Q (Lança de Tecelão)",
+        "Golias W (Desafio do Filisteu)",
+        "Golias E (Pisão do Gigante)",
+        "Golias R (Avanço do Campeão)",
+        "Lami W (Escudo de Ossos)",
+        "Lami E (Golpe da Haste)",
+        "Lami R (Queda do Gigante)",
+        "Faraó Passiva (Coração Endurecido)",
+        "Faraó W (Praga de Gafanhotos)",
+        "Faraó R (As Dez Pragas)",
+        "Jezabel Passiva (Olhos Pintados)",
+        "Jezabel Q (Cartas Seladas)",
+        "Jezabel W (Encanto Pintado)",
+        "Jezabel E (Passo Sombrio)",
+        "Jezabel R (Decreto de Jezreel)",
+        "Nabucodonosor W (Sonho da Estátua)",
+        "Nabucodonosor E (Carga Imperial)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Acabe Q (Flecha de Marfim)",
+        "Acabe R (Flecha ao Acaso)",
+        "Dalila Passiva (Navalha de Soreque)",
+        "Dalila Q (Navalha)",
+        "Herodes Q (Ordem de Belém)",
+        "Herodes E (Magos Enganados)",
+        "Hamã Q (Lançar Sortes)",
+        "Hamã W (Forca de 50 Côvados)",
+        "Balaão Passiva (Jumenta que Fala)",
+        "Balaão Q (Maldição Revertida)",
+        "Balaão W (Bênção Contrária)",
+        "Balaão R (Não Posso Amaldiçoar)",
+        "Ninrode Passiva (Caçador Diante do Senhor)",
+        "Ninrode Q (Flecha Rastreadora)",
+        "Ninrode W (Rede de Caça)",
+        "Ninrode R (Terra do Caçador)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "todos (substitui poderes.webp)"
+      ],
+      "source": "procedural (numpy/PIL, made for this project)",
+      "license": [
+        "original, procedural (made for this project)"
+      ],
+      "note": "static atlas (1 cell per particle, not an animation). Premultiplied: ember/spark cells have alpha 0, so in a premultiplied (ONE, ONE_MINUS_SRC_ALPHA) pass they add light like additive while the other cells occlude normally -> one material, one draw call."
+    },
+    {
+      "code": "T8",
+      "file": "fx_brasas_8x8",
+      "extra": true,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 40,
+      "playback": "once",
+      "blending": "additive",
+      "threejs": "blending: THREE.AdditiveBlending, transparent: true, depthWrite: false",
+      "alpha": "none (black background)",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_brasas_8x8.webp",
+          "ktx2": "pc/fx_brasas_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 17608,
+          "ktx2_bytes": 68410
+        },
+        "celular": {
+          "webp": "celular/fx_brasas_8x8.webp",
+          "ktx2": "celular/fx_brasas_8x8.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 5734,
+          "ktx2_bytes": 20507
+        },
+        "baixa": {
+          "webp": "baixa/fx_brasas_8x8_baixa.webp",
+          "ktx2": "baixa/fx_brasas_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 4360,
+          "ktx2_bytes": 19615,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi Q (Funda Certeira)",
+        "Davi W (Leão e Urso)",
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Sansão Q (Queixada Arremessada)",
+        "Sansão E (Portões de Gaza)",
+        "Sansão R (Derrubar as Colunas)",
+        "Débora Passiva (Juíza de Israel)",
+        "Débora Q (Lança Profética)",
+        "Débora W (Palmeira da Justiça)",
+        "Débora E (Cântico de Vitória)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão W (Trombeta de Guerra)",
+        "Gideão E (Ataque da Meia-Noite)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué Passiva (Marcha de Sete Dias)",
+        "Josué Q (Lança do Comandante)",
+        "Josué E (Arca da Aliança)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias E (Altar Encharcado)",
+        "Ester Passiva (Para um Tempo Como Este)",
+        "Ester Q (Cetro Estendido)",
+        "Ester W (Selo do Anel do Rei)",
+        "Ester R (Se Perecer, Pereci)",
+        "Sarai Q (Adaga de Vidro)",
+        "Sarai W (Miragem do Deserto)",
+        "Sarai R (Promessa de Isaque)",
+        "Moisés Passiva (Maná do Céu)",
+        "Moisés Q (Água da Rocha)",
+        "Moisés W (Vara em Serpente)",
+        "Moisés R (Abrir o Mar)",
+        "Daniel W (Escrita na Parede)",
+        "Daniel E (Anjo que Fechou a Boca dos Leões)",
+        "Daniel R (Cova dos Leões)",
+        "Noé Passiva (Madeira de Gofer)",
+        "Noé Q (O Corvo Enviado)",
+        "Noé W (A Pomba e o Ramo)",
+        "Noé E (Porta da Arca)",
+        "Noé R (A Arca)",
+        "Jônatas Passiva (O Arco que Não Voltava)",
+        "Jônatas Q (Rajada do Penhasco)",
+        "Jônatas R (Aliança de Sangue)",
+        "Golias Passiva (Couraça de Bronze)",
+        "Golias Q (Lança de Tecelão)",
+        "Golias W (Desafio do Filisteu)",
+        "Golias E (Pisão do Gigante)",
+        "Golias R (Avanço do Campeão)",
+        "Lami W (Escudo de Ossos)",
+        "Lami E (Golpe da Haste)",
+        "Lami R (Queda do Gigante)",
+        "Faraó Passiva (Coração Endurecido)",
+        "Faraó W (Praga de Gafanhotos)",
+        "Faraó R (As Dez Pragas)",
+        "Jezabel Passiva (Olhos Pintados)",
+        "Jezabel Q (Cartas Seladas)",
+        "Jezabel W (Encanto Pintado)",
+        "Jezabel E (Passo Sombrio)",
+        "Jezabel R (Decreto de Jezreel)",
+        "Nabucodonosor W (Sonho da Estátua)",
+        "Nabucodonosor E (Carga Imperial)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Acabe Q (Flecha de Marfim)",
+        "Acabe R (Flecha ao Acaso)",
+        "Dalila Passiva (Navalha de Soreque)",
+        "Dalila Q (Navalha)",
+        "Herodes Q (Ordem de Belém)",
+        "Herodes E (Magos Enganados)",
+        "Hamã Q (Lançar Sortes)",
+        "Hamã W (Forca de 50 Côvados)",
+        "Balaão Passiva (Jumenta que Fala)",
+        "Balaão Q (Maldição Revertida)",
+        "Balaão W (Bênção Contrária)",
+        "Balaão R (Não Posso Amaldiçoar)",
+        "Ninrode Passiva (Caçador Diante do Senhor)",
+        "Ninrode Q (Flecha Rastreadora)",
+        "Ninrode W (Rede de Caça)",
+        "Ninrode R (Terra do Caçador)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Elias Passiva/Q (brasas no impacto)",
+        "Gideao Q/E/R (brasas subindo)",
+        "Golias R (skin de lava)"
+      ],
+      "source": "seamproof/sheets/ember_sparks_8x8.png",
+      "license": [
+        "SEAMPROOF VFX Sprite Sheets 2K (purchased, commercial use ok, no resale/redistribution of the sheets)"
+      ],
+      "note": "extra: burst of embers/sparks for impacts and the Elias passive; additive."
+    },
+    {
+      "code": "T9",
+      "file": "fx_flash",
+      "extra": false,
+      "grid": {
+        "cols": 1,
+        "rows": 1
+      },
+      "frames": 1,
+      "fps": 0,
+      "playback": "static",
+      "blending": "additive",
+      "threejs": "blending: THREE.AdditiveBlending, transparent: true, depthWrite: false",
+      "alpha": "none (black background)",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_flash.webp",
+          "ktx2": "pc/fx_flash.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 1864,
+          "ktx2_bytes": 25985
+        },
+        "celular": {
+          "webp": "celular/fx_flash.webp",
+          "ktx2": "celular/fx_flash.ktx2",
+          "size": [
+            128,
+            128
+          ],
+          "webp_bytes": 840,
+          "ktx2_bytes": 8801
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi Passiva (Cinco Pedras Lisas)",
+        "Davi Q (Funda Certeira)",
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué Q (Lança do Comandante)",
+        "Elias Q (Fogo do Carmelo)",
+        "Sarai R (Promessa de Isaque)",
+        "Moisés W (Vara em Serpente)",
+        "Daniel E (Anjo que Fechou a Boca dos Leões)",
+        "Noé Q (O Corvo Enviado)",
+        "Noé E (Porta da Arca)",
+        "Jônatas R (Aliança de Sangue)",
+        "Golias Passiva (Couraça de Bronze)",
+        "Golias Q (Lança de Tecelão)",
+        "Golias W (Desafio do Filisteu)",
+        "Faraó Q (Cajado-Serpente)",
+        "Faraó R (As Dez Pragas)",
+        "Jezabel R (Decreto de Jezreel)",
+        "Nabucodonosor E (Carga Imperial)",
+        "Acabe Q (Flecha de Marfim)",
+        "Acabe W (Carro de Guerra)",
+        "Acabe R (Flecha ao Acaso)",
+        "Dalila Q (Navalha)",
+        "Dalila R (Os Filisteus Sobre Ti)",
+        "Herodes W (Olhos do Trono)",
+        "Hamã Passiva (Pur, a Sorte)",
+        "Hamã Q (Lançar Sortes)",
+        "Hamã W (Forca de 50 Côvados)",
+        "Balaão E (O Anjo no Caminho)",
+        "Ninrode Passiva (Caçador Diante do Senhor)",
+        "Ninrode R (Terra do Caçador)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "impacto de todos (InstancedMesh, ate 8 ao mesmo tempo)"
+      ],
+      "source": "procedural, made for this project",
+      "license": [
+        "original, procedural (made for this project)"
+      ],
+      "note": "impact flash: hot core + 6 short rays, additive, fixed pixel size on screen, 0.06-0.1 s; randomise rotation per hit."
+    },
+    {
+      "code": "T10",
+      "file": "fx_onda_choque_8x8",
+      "extra": false,
+      "grid": {
+        "cols": 8,
+        "rows": 8
+      },
+      "frames": 64,
+      "fps": 48,
+      "playback": "once",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_onda_choque_8x8.webp",
+          "ktx2": "pc/fx_onda_choque_8x8.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 69628,
+          "ktx2_bytes": 80421
+        },
+        "celular": {
+          "webp": "celular/fx_onda_choque_8x8.webp",
+          "ktx2": "celular/fx_onda_choque_8x8.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 27824,
+          "ktx2_bytes": 31184
+        },
+        "baixa": {
+          "webp": "baixa/fx_onda_choque_8x8_baixa.webp",
+          "ktx2": "baixa/fx_onda_choque_8x8_baixa.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 16980,
+          "ktx2_bytes": 22408,
+          "grid": {
+            "cols": 4,
+            "rows": 4
+          },
+          "frames": 16
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi Q (Funda Certeira)",
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão W (Trombeta de Guerra)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué W (Comandante do Exército)",
+        "Josué R (Muralhas de Jericó)",
+        "Elias R (Carro de Fogo)",
+        "Ester R (Se Perecer, Pereci)",
+        "Noé R (A Arca)",
+        "Jônatas R (Aliança de Sangue)",
+        "Golias R (Avanço do Campeão)",
+        "Faraó R (As Dez Pragas)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Herodes R (Sinédrio Corrompido)",
+        "Balaão E (O Anjo no Caminho)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "Debora R",
+        "Gideao W (3 aneis do shofar)",
+        "Golias W/R",
+        "Josue W/R",
+        "impactos de ult"
+      ],
+      "source": "fab150/.../Flipbook/ShockWave/TX_F_ShockWave_05.png",
+      "license": [
+        "Fab Standard License (\"150++ Special Game VFX Textures Pack\", purchased) - no raw redistribution"
+      ],
+      "note": "ragged ring of dust/air expanding (top view, lay flat on ground). Tint with dust colour; on PC add fx_onda_choque_normal for distortion."
+    },
+    {
+      "code": "T10",
+      "file": "fx_onda_choque_normal",
+      "extra": false,
+      "grid": {
+        "cols": 1,
+        "rows": 1
+      },
+      "frames": 1,
+      "fps": 0,
+      "playback": "static",
+      "blending": "none",
+      "threejs": "not blended directly (normal/distortion or emissive map)",
+      "alpha": "none",
+      "colorSpace": "linear (NoColorSpace)",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_onda_choque_normal.webp",
+          "ktx2": "pc/fx_onda_choque_normal.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 28400,
+          "ktx2_bytes": 32001
+        }
+      },
+      "pc_only": true,
+      "usado_por_no_doc": [
+        "Davi Q (Funda Certeira)",
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão W (Trombeta de Guerra)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué W (Comandante do Exército)",
+        "Josué R (Muralhas de Jericó)",
+        "Elias R (Carro de Fogo)",
+        "Ester R (Se Perecer, Pereci)",
+        "Noé R (A Arca)",
+        "Jônatas R (Aliança de Sangue)",
+        "Golias R (Avanço do Campeão)",
+        "Faraó R (As Dez Pragas)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Herodes R (Sinédrio Corrompido)",
+        "Balaão E (O Anjo no Caminho)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "PC: distorcao do ar no Gideao W e nos impactos de ult"
+      ],
+      "source": "fab150/.../Single/Normal/TX_N_Normal_07.png",
+      "license": [
+        "Fab Standard License (\"150++ Special Game VFX Textures Pack\", purchased) - no raw redistribution"
+      ],
+      "note": "PC only: ring-shaped normal map for the shockwave distortion pass (scale the quad up over time, fade strength out)."
+    },
+    {
+      "code": "T11",
+      "file": "fx_decais_4x4",
+      "extra": false,
+      "grid": {
+        "cols": 4,
+        "rows": 4
+      },
+      "frames": 16,
+      "fps": 0,
+      "playback": "static",
+      "blending": "normal",
+      "threejs": "blending: THREE.NormalBlending, transparent: true, depthWrite: false (polygonOffset for decals)",
+      "alpha": "straight",
+      "colorSpace": "srgb",
+      "cells": [
+        "queimado",
+        "rachadura",
+        "rachadura_lava",
+        "chao_molhado",
+        "pegadas_leao_humano",
+        "garras",
+        "buraco_pedra",
+        "mancha_escura",
+        "circulo_areia",
+        "marcas_rodas",
+        "laco_corda",
+        "runas_cuneiformes",
+        "mene_tequel",
+        "estrela_gravada",
+        "sulco_serpente",
+        "borda_aviso"
+      ],
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_decais_4x4.webp",
+          "ktx2": "pc/fx_decais_4x4.ktx2",
+          "size": [
+            2048,
+            2048
+          ],
+          "webp_bytes": 1011036,
+          "ktx2_bytes": 2340709
+        },
+        "celular": {
+          "webp": "celular/fx_decais_4x4.webp",
+          "ktx2": "celular/fx_decais_4x4.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 370702,
+          "ktx2_bytes": 616506
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi Q (Funda Certeira)",
+        "Davi W (Leão e Urso)",
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Sansão Passiva (Força do Nazireu)",
+        "Sansão Q (Queixada Arremessada)",
+        "Sansão W (Rasgar o Leão)",
+        "Sansão R (Derrubar as Colunas)",
+        "Débora Q (Lança Profética)",
+        "Débora W (Palmeira da Justiça)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão E (Ataque da Meia-Noite)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué Passiva (Marcha de Sete Dias)",
+        "Josué Q (Lança do Comandante)",
+        "Josué R (Muralhas de Jericó)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias R (Carro de Fogo)",
+        "Ester W (Selo do Anel do Rei)",
+        "Sarai W (Miragem do Deserto)",
+        "Moisés Q (Água da Rocha)",
+        "Moisés R (Abrir o Mar)",
+        "Daniel Passiva (Três Vezes ao Dia)",
+        "Daniel Q (Investida do Leão)",
+        "Daniel W (Escrita na Parede)",
+        "Daniel R (Cova dos Leões)",
+        "Noé R (A Arca)",
+        "Jônatas E (Flechas do Sinal)",
+        "Jônatas R (Aliança de Sangue)",
+        "Golias E (Pisão do Gigante)",
+        "Golias R (Avanço do Campeão)",
+        "Lami E (Golpe da Haste)",
+        "Lami R (Queda do Gigante)",
+        "Faraó Q (Cajado-Serpente)",
+        "Faraó W (Praga de Gafanhotos)",
+        "Faraó E (Trevas Espessas)",
+        "Jezabel Q (Cartas Seladas)",
+        "Nabucodonosor Q (Golpe Real)",
+        "Nabucodonosor W (Sonho da Estátua)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Acabe Q (Flecha de Marfim)",
+        "Acabe W (Carro de Guerra)",
+        "Acabe R (Flecha ao Acaso)",
+        "Dalila E (Colo de Dalila)",
+        "Dalila R (Os Filisteus Sobre Ti)",
+        "Herodes Passiva (Paranoia Real)",
+        "Herodes W (Olhos do Trono)",
+        "Herodes R (Sinédrio Corrompido)",
+        "Hamã W (Forca de 50 Côvados)",
+        "Balaão Passiva (Jumenta que Fala)",
+        "Balaão Q (Maldição Revertida)",
+        "Balaão E (O Anjo no Caminho)",
+        "Balaão R (Não Posso Amaldiçoar)",
+        "Ninrode Passiva (Caçador Diante do Senhor)",
+        "Ninrode Q (Flecha Rastreadora)",
+        "Ninrode R (Terra do Caçador)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "todos (pool de decais 10 PC / 6 celular)"
+      ],
+      "source": "Tripo Image (user-owned): chao_queimado, chao_rachado (rachadura + rachadura_lava), chao_molhado, pegadas_leao; procedural + Fab 150++ (TX_S_Crack_03, TX_S_MagicCircle_01) + Kenney Particle Pack (scratch_01)",
+      "license": [
+        "Fab Standard License (\"150++ Special Game VFX Textures Pack\", purchased) - no raw redistribution",
+        "CC0 (Kenney Particle Pack)",
+        "original, procedural (made for this project)",
+        "Tripo Image (generated by the user, user-owned, free to use)"
+      ],
+      "note": "static decal atlas, NORMAL alpha blending (straight alpha, colour dilated everywhere). borda_aviso is white: tint with the team colour. Cells rachadura_lava and mene_tequel have glow in fx_decais_4x4_emissivo (same UV layout). Cells 0-4 are photo patches from Tripo images (keyed from black, feathered, lightly desaturated); pegadas_leao_humano now has lion prints only."
+    },
+    {
+      "code": "T11",
+      "file": "fx_decais_4x4_emissivo",
+      "extra": false,
+      "grid": {
+        "cols": 4,
+        "rows": 4
+      },
+      "frames": 16,
+      "fps": 0,
+      "playback": "static",
+      "blending": "none",
+      "threejs": "not blended directly (normal/distortion or emissive map)",
+      "alpha": "none",
+      "colorSpace": "srgb",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_decais_4x4_emissivo.webp",
+          "ktx2": "pc/fx_decais_4x4_emissivo.ktx2",
+          "size": [
+            1024,
+            1024
+          ],
+          "webp_bytes": 24092,
+          "ktx2_bytes": 69169
+        },
+        "celular": {
+          "webp": "celular/fx_decais_4x4_emissivo.webp",
+          "ktx2": "celular/fx_decais_4x4_emissivo.ktx2",
+          "size": [
+            512,
+            512
+          ],
+          "webp_bytes": 8646,
+          "ktx2_bytes": 22295
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi Q (Funda Certeira)",
+        "Davi W (Leão e Urso)",
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Sansão Passiva (Força do Nazireu)",
+        "Sansão Q (Queixada Arremessada)",
+        "Sansão W (Rasgar o Leão)",
+        "Sansão R (Derrubar as Colunas)",
+        "Débora Q (Lança Profética)",
+        "Débora W (Palmeira da Justiça)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão E (Ataque da Meia-Noite)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué Passiva (Marcha de Sete Dias)",
+        "Josué Q (Lança do Comandante)",
+        "Josué R (Muralhas de Jericó)",
+        "Elias Passiva (Fogo que Consome)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias W (Fogo do Céu)",
+        "Elias R (Carro de Fogo)",
+        "Ester W (Selo do Anel do Rei)",
+        "Sarai W (Miragem do Deserto)",
+        "Moisés Q (Água da Rocha)",
+        "Moisés R (Abrir o Mar)",
+        "Daniel Passiva (Três Vezes ao Dia)",
+        "Daniel Q (Investida do Leão)",
+        "Daniel W (Escrita na Parede)",
+        "Daniel R (Cova dos Leões)",
+        "Noé R (A Arca)",
+        "Jônatas E (Flechas do Sinal)",
+        "Jônatas R (Aliança de Sangue)",
+        "Golias E (Pisão do Gigante)",
+        "Golias R (Avanço do Campeão)",
+        "Lami E (Golpe da Haste)",
+        "Lami R (Queda do Gigante)",
+        "Faraó Q (Cajado-Serpente)",
+        "Faraó W (Praga de Gafanhotos)",
+        "Faraó E (Trevas Espessas)",
+        "Jezabel Q (Cartas Seladas)",
+        "Nabucodonosor Q (Golpe Real)",
+        "Nabucodonosor W (Sonho da Estátua)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Acabe Q (Flecha de Marfim)",
+        "Acabe W (Carro de Guerra)",
+        "Acabe R (Flecha ao Acaso)",
+        "Dalila E (Colo de Dalila)",
+        "Dalila R (Os Filisteus Sobre Ti)",
+        "Herodes Passiva (Paranoia Real)",
+        "Herodes W (Olhos do Trono)",
+        "Herodes R (Sinédrio Corrompido)",
+        "Hamã W (Forca de 50 Côvados)",
+        "Balaão Passiva (Jumenta que Fala)",
+        "Balaão Q (Maldição Revertida)",
+        "Balaão E (O Anjo no Caminho)",
+        "Balaão R (Não Posso Amaldiçoar)",
+        "Ninrode Passiva (Caçador Diante do Senhor)",
+        "Ninrode Q (Flecha Rastreadora)",
+        "Ninrode R (Terra do Caçador)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "rachadura com lava (Debora R, Elias R, Golias) e MENE TEQUEL (Daniel W)"
+      ],
+      "source": "derived from fx_decais_4x4: lava in the cracks of the Tripo Image (user-owned) chao_rachado + procedural MENE TEQUEL glow",
+      "license": [
+        "original, procedural (made for this project)",
+        "Tripo Image (generated by the user, user-owned, free to use)"
+      ],
+      "note": "emissive map for the decal atlas (lava crack + warm MENE TEQUEL letters), same UV layout, half resolution. Use as emissiveMap or add in the decal shader."
+    },
+    {
+      "code": "T12",
+      "file": "fx_rastros_1x6",
+      "extra": false,
+      "grid": {
+        "cols": 1,
+        "rows": 6
+      },
+      "frames": 6,
+      "fps": 0,
+      "playback": "scroll",
+      "blending": "premultiplied",
+      "threejs": "blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor (or NormalBlending + material.premultipliedAlpha = true), transparent: true, depthWrite: false; texture.premultiplyAlpha = false",
+      "alpha": "premultiplied",
+      "colorSpace": "srgb",
+      "tileable": "U (along the trail)",
+      "rows": [
+        "ar",
+        "poeira",
+        "fogo",
+        "agua",
+        "fio_corda",
+        "sombra"
+      ],
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_rastros_1x6.webp",
+          "ktx2": "pc/fx_rastros_1x6.ktx2",
+          "size": [
+            512,
+            384
+          ],
+          "webp_bytes": 28680,
+          "ktx2_bytes": 73279
+        },
+        "celular": {
+          "webp": "celular/fx_rastros_1x6.webp",
+          "ktx2": "celular/fx_rastros_1x6.ktx2",
+          "size": [
+            256,
+            192
+          ],
+          "webp_bytes": 10924,
+          "ktx2_bytes": 25232
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi Passiva (Cinco Pedras Lisas)",
+        "Davi Q (Funda Certeira)",
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Sansão Q (Queixada Arremessada)",
+        "Sansão W (Rasgar o Leão)",
+        "Débora Q (Lança Profética)",
+        "Débora E (Cântico de Vitória)",
+        "Débora R (As Estrelas Pelejaram)",
+        "Gideão Passiva (Os Trezentos)",
+        "Gideão Q (Cântaro Quebrado)",
+        "Gideão E (Ataque da Meia-Noite)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué Q (Lança do Comandante)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias E (Altar Encharcado)",
+        "Elias R (Carro de Fogo)",
+        "Ester Passiva (Para um Tempo Como Este)",
+        "Ester W (Selo do Anel do Rei)",
+        "Ester E (Mão do Rei)",
+        "Sarai Passiva (Caminho Longo)",
+        "Sarai Q (Adaga de Vidro)",
+        "Sarai R (Promessa de Isaque)",
+        "Jônatas Q (Rajada do Penhasco)",
+        "Jônatas W (Escalada de Micmás)",
+        "Jônatas R (Aliança de Sangue)",
+        "Golias Q (Lança de Tecelão)",
+        "Golias R (Avanço do Campeão)",
+        "Lami Passiva (Haste de Tear)",
+        "Faraó R (As Dez Pragas)",
+        "Jezabel Q (Cartas Seladas)",
+        "Nabucodonosor Q (Golpe Real)",
+        "Nabucodonosor E (Carga Imperial)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Acabe Q (Flecha de Marfim)",
+        "Acabe R (Flecha ao Acaso)",
+        "Dalila Passiva (Navalha de Soreque)",
+        "Dalila Q (Navalha)",
+        "Dalila W (Tear de Dalila)",
+        "Dalila E (Colo de Dalila)",
+        "Herodes Q (Ordem de Belém)",
+        "Herodes E (Magos Enganados)",
+        "Herodes R (Sinédrio Corrompido)",
+        "Hamã W (Forca de 50 Côvados)",
+        "Ninrode Q (Flecha Rastreadora)",
+        "Ninrode R (Terra do Caçador)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "todos os projeteis, avancos e cortes (fitas de rastro)"
+      ],
+      "source": "procedural (periodic FFT noise), made for this project",
+      "license": [
+        "original, procedural (made for this project)"
+      ],
+      "note": "6 horizontal strips of 512x64; U = along the trail (tiles, scroll it), V = across. The fire row is emissive with low alpha (premultiplied -> additive look). Fade alpha to 0 toward the tail in the shader."
+    },
+    {
+      "code": "T13",
+      "file": "fx_feixe_luz",
+      "extra": false,
+      "grid": {
+        "cols": 1,
+        "rows": 1
+      },
+      "frames": 1,
+      "fps": 0,
+      "playback": "scroll",
+      "blending": "additive",
+      "threejs": "blending: THREE.AdditiveBlending, transparent: true, depthWrite: false",
+      "alpha": "none (black background)",
+      "colorSpace": "srgb",
+      "tileable": "both axes",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_feixe_luz.webp",
+          "ktx2": "pc/fx_feixe_luz.ktx2",
+          "size": [
+            256,
+            512
+          ],
+          "webp_bytes": 6228,
+          "ktx2_bytes": 66941
+        },
+        "celular": {
+          "webp": "celular/fx_feixe_luz.webp",
+          "ktx2": "celular/fx_feixe_luz.ktx2",
+          "size": [
+            128,
+            256
+          ],
+          "webp_bytes": 2738,
+          "ktx2_bytes": 21829
+        }
+      },
+      "usado_por_no_doc": [
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Débora W (Palmeira da Justiça)",
+        "Gideão R (Espada do Senhor e de Gideão)",
+        "Josué E (Arca da Aliança)",
+        "Ester Q (Cetro Estendido)",
+        "Ester R (Se Perecer, Pereci)",
+        "Balaão E (O Anjo no Caminho)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "colunaLuz das ultes",
+        "Josue E (Arca)",
+        "Balaao E (anjo)",
+        "Ester Q (feixe dourado)",
+        "Debora W (raios de sol na copa, PC)"
+      ],
+      "source": "procedural (periodic FFT noise + dust motes), made for this project",
+      "license": [
+        "original, procedural (made for this project)"
+      ],
+      "note": "soft volumetric light shafts with floating dust, additive; scroll UV.y slowly on colunaLuz / crossed planes; fade the plane edges in the shader."
+    },
+    {
+      "code": "T14",
+      "file": "fx_distorcao_normal",
+      "extra": false,
+      "grid": {
+        "cols": 1,
+        "rows": 1
+      },
+      "frames": 1,
+      "fps": 0,
+      "playback": "scroll",
+      "blending": "none",
+      "threejs": "not blended directly (normal/distortion or emissive map)",
+      "alpha": "none",
+      "colorSpace": "linear (NoColorSpace)",
+      "tileable": "both axes",
+      "variants": {
+        "pc": {
+          "webp": "pc/fx_distorcao_normal.webp",
+          "ktx2": "pc/fx_distorcao_normal.ktx2",
+          "size": [
+            256,
+            256
+          ],
+          "webp_bytes": 70202,
+          "ktx2_bytes": 62037
+        }
+      },
+      "pc_only": true,
+      "usado_por_no_doc": [
+        "Davi R (A Pedra que Derruba Gigantes)",
+        "Gideão W (Trombeta de Guerra)",
+        "Elias Q (Fogo do Carmelo)",
+        "Elias R (Carro de Fogo)",
+        "Sarai W (Miragem do Deserto)",
+        "Sarai E (Riso de Sara)",
+        "Jezabel Passiva (Olhos Pintados)",
+        "Nabucodonosor R (Fornalha Ardente)",
+        "Dalila R (Os Filisteus Sobre Ti)",
+        "Balaão R (Não Posso Amaldiçoar)"
+      ],
+      "uso_sugerido_deste_arquivo": [
+        "PC: calor/miragem/invisibilidade"
+      ],
+      "source": "procedural (periodic FFT noise -> tangent-space normal), made for this project",
+      "license": [
+        "original, procedural (made for this project)"
+      ],
+      "note": "PC only: heat haze / mirage / invisibility. Sample twice with different scroll speeds, offset the screen UV by (rgb*2-1).xy * strength. Load with colorSpace = NoColorSpace (linear)."
+    }
+  ],
+  "meshes": [
+    {
+      "code": "M1",
+      "file": "models/vfx/flecha.glb",
+      "bytes": 205304,
+      "source": "Tripo (generated for the project, optimized)",
+      "usado_por": [
+        "Jonatas",
+        "Acabe",
+        "Ninrode (flechas e torre)",
+        "Hama (virotes da ult, InstancedMesh)"
+      ]
+    },
+    {
+      "code": "M4",
+      "file": "models/vfx/queixada.glb",
+      "bytes": 263076,
+      "source": "Tripo (generated for the project, optimized: 1.7k quads, 512 WebP, meshopt)",
+      "usado_por": [
+        "Sansao (queixada de jumento: golpes e arremesso)"
+      ]
+    }
+  ]
+}

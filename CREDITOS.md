@@ -74,3 +74,6 @@ Os arquivos foram reduzidos (512–1024 px, JPG) e os mapas de cor foram "neutra
 - Heróis Davi, Sansão, Débora e Gideão; vilões Golias, Faraó, Jezabel e Nabucodonosor; tropas Guardião (Luz) e Sombra (Trevas); torres, Núcleos, fonte, árvore, pedra e coluna; e os 19 ícones de item da LOJA: gerados pelo Edson no Tripo AI (plano Pro, uso comercial).
 - Texturas `tex/pintado/*`: derivadas das texturas CC0 do ambientCG (filtro pintado feito por `tools/pintar_texturas.py`).
 - Texturas de UI `ui/madeira.webp` e `ui/pergaminho.webp`: originais, geradas processualmente (`tools/pintar_ui.py`).
+
+## VFX realistas (Parte C)
+Texturas processadas em `vfx/realista/` (flipbooks WebP/KTX2) e malhas em `models/vfx/`. Fontes e licenças arquivo por arquivo: `vfx/realista/LICENCAS.md` (CC0, Fab Standard License e SEAMPROOF compradas — só arquivos processados, sem os pacotes brutos; imagens Tripo do autor).
