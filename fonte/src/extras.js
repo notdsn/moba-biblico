@@ -14,7 +14,7 @@ export const SENT = { cd: 90, dur: 80, max: 2, raio: VIS.sentinela };
 function posMoitas() {
   const lz = D.laneZ, out = [], meia = [];
   meia.push([-7, lz(-7) + 9.5], [-7, lz(-7) - 9.5], [-36, lz(-36) + 8.5], [-36, lz(-36) - 8.5]);
-  meia.push([POCO_XZ[0] - 9, POCO_XZ[1] * .55], [DRAG_XZ[0] - 9, DRAG_XZ[1] * .55], [POCO_XZ[0] - 3, POCO_XZ[1] + 11], [DRAG_XZ[0] - 3, DRAG_XZ[1] - 11]);
+  meia.push([POCO_XZ[0] - 9, POCO_XZ[1] * .55], [DRAG_XZ[0] - 9, DRAG_XZ[1] * .55], [POCO_XZ[0] - 4.1, POCO_XZ[1] + 14.9], [DRAG_XZ[0] - 4.1, DRAG_XZ[1] - 14.9]);
   for (const c of CAMPOS) if (c.lado === 'luz') { const dz = lz(c.x) - c.z, n = Math.abs(dz) || 1; meia.push([c.x + 2, c.z + Math.sign(dz) * Math.min(7, n * .45)]); }
   for (const [x, z] of meia) { out.push([x, z]); out.push([-x + 2, -z]); } // mapa simétrico em ponto (centro ~ x=1)
   const ok = (x, z) => !D.estruturas.some(e => Math.hypot(e.obj.position.x - x, e.obj.position.z - z) < 7.5) && !CAMPOS.some(c => Math.hypot(c.x - x, c.z - z) < 5.5);

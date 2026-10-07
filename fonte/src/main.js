@@ -25,6 +25,7 @@ function andarNaRota(R, p, time, k) { // projeta p no trecho mais próximo e and
   if (!(resto < 1e4)) resto = 0; for (let guarda = 0; ; guarda++) { if (guarda > R.length * 2 + 4) return R[Math.max(0, Math.min(R.length - 1, i))].clone(); const a = R[i], b = R[i + 1], L = a.distanceTo(b) || 1e-3; if (fw) { const sobra = (1 - t) * L; if (resto <= sobra || i + 1 >= R.length - 1) { return a.clone().lerp(b, Math.min(1, t + resto / L)); } resto -= sobra; i++; t = 0; } else { const sobra = t * L; if (resto <= sobra || i <= 0) { return a.clone().lerp(b, Math.max(0, t - resto / L)); } resto -= sobra; i--; t = 1; } }
 }
 function progressoRota(R, p, time) { let mi = 0, md = 1e9; for (let i = 0; i < R.length; i++) { const d = R[i].distanceToSquared(p); if (d < md) { md = d; mi = i; } } return time === 'luz' ? mi : R.length - 1 - mi; }
+import { covasWR } from './covas_wr.js';
 import { SELVA_ON, SELVA_LARG, SELVA_SUL, empurrarCova, desvioCova, MAPA_WR, MAPA_C, MAPA_FOLGA, ROTA_TOPO, ROTA_BAIXO, TORRES_LATERAIS, POCO_XZ, DRAG_XZ } from './selva_mapa.js';
 import { iniciarSelva, atualizarSelva, monstroMorreu, multDano, aoAtacar, aoCriarMinion, botSelva, botUsarOlho, ajudarEpico, desenharSelvaMM, invocarBeemote, ping, PINGS, selva as SELVA, nascerTudo } from './selva.js';
 import { Unidade, anelHeroi, auraSombra } from './units.js';
@@ -252,6 +253,7 @@ async function iniciar() {
   NOMES_PROPS.forEach((n, i) => { modelos[n] = props[i].scene; props[i].scene.traverse(o => { if (o.isMesh) { o.material.roughness = .85; } }); });
   progTxt.textContent = 'Carregando texturas…'; await carregarTexturas(Q);
   mundo = criarMundo(scene, modelos, Q, tempoU);
+  if (MAPA_WR && SELVA_ON) COVAS_INI = covasWR(scene, loader, mundo.anim, Q.mobile).catch(e => console.warn('[covas]', e && e.message));
   if (MAPA_V2) mapaV2(scene, loader, POS, MAPA_C, PORTOES, tapaRota).then(g => { window.__mapaV2 = g ? g.children.length : -1; });
   // limite de partículas (buffers fixos, sem alocação durante a partida)
   fx = new Particulas(scene, Q.baixa ? 420 : Q.mobile ? 600 : 1600, true);
@@ -2201,6 +2203,7 @@ function liberarBasesForaDeUso() { const uso = basesEmUso(); const manter = new 
     b.cena.traverse(o => { if (!o.isMesh) return; if (o.geometry && !manter.has(o.geometry)) { o.geometry.dispose(); n++; } for (const m of [].concat(o.material)) if (m) for (const p in m) { const t = m[p]; if (t && t.isTexture && !manter.has(t)) { t.dispose(); n++; } } }); } // three.js reenvia sozinho se a base voltar a ser usada
   return n;
 }
+var COVAS_INI = null; // poços do Dragão/Leviatã (rodada 5): carregam junto com o mapa e entram no aquecimento
 const AQ_MATS = []; // materiais só do aquecimento: ficam vivos (dispose liberaria o programa compilado)
 function aquecerShaders() {
   const uso = basesEmUso(); const tmp = new THREE.Group(); for (const [k, b] of Object.entries(BASES)) if (b && b.cena && (!ehBaseHeroi(k) || uso.has(k))) tmp.add(skClone(b.cena)); scene.add(tmp);
@@ -2855,7 +2858,7 @@ async function comecarPartida(id, vs, funcao) {
   configurarHUD(); camIni = false; if (!EX.pronto) iniciarExtras(selvaDeps());
   if (TREINO) { for (const x of [bot, cacador]) if (x) { x.treino = true; } aviso('Treino: siga as dicas no alto da tela'); }
   if (CENA === 'vs') { $('hud').classList.remove('on'); window.__pronto = true; return; }
-  if (VK) await VK.carregarHerois(herois.map(h => h.id)).catch(e => console.warn('[vfx kits]', e && e.message)); if (selvaIni) await Promise.race([selvaIni, esperar(Q.mobile ? 2500 : 5000)]); aquecerShaders(); // no iPhone a partida não espera os monstros (eles terminam de carregar durante a luta) // monstros/aliados/cacador: compila na tela VS, não na luta
+  if (VK) await VK.carregarHerois(herois.map(h => h.id)).catch(e => console.warn('[vfx kits]', e && e.message)); if (selvaIni) await Promise.race([selvaIni, esperar(Q.mobile ? 2500 : 5000)]); if (COVAS_INI) await Promise.race([COVAS_INI, esperar(4000)]); aquecerShaders(); // no iPhone a partida não espera os monstros (eles terminam de carregar durante a luta) // monstros/aliados/cacador: compila na tela VS, não na luta
   // último aquecimento já com a câmera e as unidades da largada (ainda atrás da tela VS): o que nasceu depois do aquecerShaders
   // (anéis, marcadores, 1ª onda) compila agora, não no 1º segundo da partida
   try { atualizarCamera(1); renderer.shadowMap.needsUpdate = true; composer.render(0); } catch (e) { console.warn('[aquecer largada]', e && e.message); } VFX_ESTADO.ocultarVazios = true;

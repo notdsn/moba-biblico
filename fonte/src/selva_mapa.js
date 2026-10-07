@@ -34,13 +34,19 @@ for (const s of [-1, 1]) {
   const t = s < 0 ? 'luz' : 'trevas';
   for (const [tipo, p] of Object.entries(LUZ_CAMPOS)) { const [x, z] = ROT(s, p); CAMPOS.push({ id: tipo + '_' + t, tipo, lado: t, x, z }); }
 }
+export const COVA_RIN = 8.4, COVA_ROUT = 12.2; // poços (Dragão e Leviatã): miolo andável e borda externa
 export const POCO_XZ = MAPA_WR ? [0, -30 * K] : [7, -24], DRAG_XZ = MAPA_WR ? [2, 30 * K] : [-5, 24];
 CAMPOS.push({ id: 'dragao', tipo: 'dragao', lado: null, x: DRAG_XZ[0], z: DRAG_XZ[1] });
 CAMPOS.push({ id: 'poco', tipo: 'poco', lado: null, x: POCO_XZ[0], z: POCO_XZ[1] }); // Beemote e depois Leviatã
+// o Jordão: curva por fora dos dois poços (antes passava a 2,7 m do centro); do lado do rio fica uma das bocas
+const desvioRio = (z, zc, alvoX) => { const W = 30, t = (z - zc) / W; if (Math.abs(t) >= 1) return 0; const base = 1 + 2.2 * Math.sin(zc * .09); return (alvoX - base) * .5 * (1 + Math.cos(Math.PI * t)); };
+const RIO_LARG = 7.5;
+export function rioX(z) { let x = 1 + 2.2 * Math.sin(z * .09); if (MAPA_WR) { x += desvioRio(z, POCO_XZ[1], POCO_XZ[0] + COVA_ROUT + RIO_LARG / 2 + .6); x += desvioRio(z, DRAG_XZ[1], DRAG_XZ[0] - COVA_ROUT - RIO_LARG / 2 - .6); } return x; }
 // trilhas (segmentos) ligando rotas, acampamentos e as entradas diagonais dos dois poços do rio
 export const TRILHAS = [];
 { const R_POCO = 9, e = R_POCO * .72;
-  const pN1 = [POCO_XZ[0] - e, POCO_XZ[1] + e], pN2 = [POCO_XZ[0] + e, POCO_XZ[1] + e], dS1 = [DRAG_XZ[0] - e, DRAG_XZ[1] - e], dS2 = [DRAG_XZ[0] + e, DRAG_XZ[1] - e];
+  const eb = COVA_ROUT + 1.5; // trilhas chegam nas bocas (leste/oeste) dos poços
+  const pN1 = [POCO_XZ[0] - eb, POCO_XZ[1]], pN2 = [POCO_XZ[0] + eb, POCO_XZ[1]], dS1 = [DRAG_XZ[0] - eb, DRAG_XZ[1]], dS2 = [DRAG_XZ[0] + eb, DRAG_XZ[1]];
   const seg0 = (a, b) => TRILHAS.push([...a, ...b]);
   for (const s of [-1, 1]) {
     const R = (p) => ROT(s, p), L = (x) => { const q = R([x, 0]); return [q[0], laneZ(q[0])]; };
@@ -68,38 +74,50 @@ export function distCampo(x, z) { let m = 1e9, c = null; for (const k of CAMPOS)
 // covas (estilo WR): poços com muralha de pedra e duas entradas voltadas para a rota; buffs com meia-cova no lado de fora
 export const COVAS = CAMPOS.filter(c => ['dragao', 'poco', 'sarca', 'rocha'].includes(c.tipo)).map(c => {
   const poco = !c.lado; const r = poco ? 9 : 5; const dz = c.z > 0 ? -1 : 1; // direção da rota
-  const ent = poco ? [Math.atan2(dz, -1), Math.atan2(dz, 1)] : null; // duas entradas diagonais
+  // rodada 5: poços com a borda modular do Jarvys (dois arcos baixos, entradas opostas): uma boca para o rio (que contorna o poço) e outra para a selva
+  const ent = poco ? [0, Math.PI] : null;
   const fora = Math.atan2(-dz, 0); // buffs: arco de pedra só do lado de fora (longe da rota)
-  return { c, x: c.x, z: c.z, r, poco, ent, fora, arco: poco ? null : 1.25 };
+  const rIn = poco ? COVA_RIN : r + .3, rOut = poco ? COVA_ROUT : r + 2.2;
+  return { c, x: c.x, z: c.z, r, poco, ent, fora, arco: poco ? null : 1.25, rIn, rOut, meia: c.tipo === 'poco' ? .17 : .27 };
 });
 const angD = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
-export function naMuralha(cv, a) { return cv.poco ? cv.ent.every(e => angD(a, e) > .42) : angD(a, cv.fora) < cv.arco; }
+export function naMuralha(cv, a) { return cv.poco ? cv.ent.every(e => angD(a, e) > cv.meia) : angD(a, cv.fora) < cv.arco; }
 // altura extra do terreno: borda elevada das covas (o fundo fica no nível do chão, a borda sobe)
 export function bordaCova(x, z) {
   let h = 0;
-  for (const cv of COVAS) { const dx = x - cv.x, dz = z - cv.z; const d = Math.hypot(dx, dz); if (d > cv.r + 4) continue; if (!naMuralha(cv, Math.atan2(dz, dx))) continue;
+  for (const cv of COVAS) { const dx = x - cv.x, dz = z - cv.z; const d = Math.hypot(dx, dz); if (cv.poco || d > cv.r + 4) continue; if (!naMuralha(cv, Math.atan2(dz, dx))) continue;
     const k = Math.max(0, 1 - Math.abs(d - (cv.r + 1.2)) / 2.4); h = Math.max(h, k * k * (3 - 2 * k) * (cv.poco ? 1.5 : .9)); }
   return h;
 }
 // colisão com a muralha das covas (heróis) e desvio pelas entradas (IA)
 export function empurrarCova(p) {
-  for (const cv of COVAS) { const dx = p.x - cv.x, dz = p.z - cv.z, d = Math.hypot(dx, dz); if (d > cv.r + 3 || d < 1e-3) continue; if (!naMuralha(cv, Math.atan2(dz, dx))) continue;
-    const w0 = cv.r + .3, w1 = cv.r + 2.2; if (d > w0 && d < w1) { const nd = d - w0 < w1 - d ? w0 : w1; p.x = cv.x + dx / d * nd; p.z = cv.z + dz / d * nd; } }
+  for (const cv of COVAS) { const dx = p.x - cv.x, dz = p.z - cv.z, d = Math.hypot(dx, dz); if (d > cv.rOut + 1 || d < 1e-3) continue; if (!naMuralha(cv, Math.atan2(dz, dx))) continue;
+    const w0 = cv.rIn, w1 = cv.rOut; if (d > w0 && d < w1) { const nd = d - w0 < w1 - d ? w0 : w1; p.x = cv.x + dx / d * nd; p.z = cv.z + dz / d * nd; } }
 }
 export function desvioCova(p, alvo) {
   for (const cv of COVAS) {
-    const dp = Math.hypot(p.x - cv.x, p.z - cv.z), da = Math.hypot(alvo.x - cv.x, alvo.z - cv.z); const inP = dp < cv.r + 1.2, inA = da < cv.r + 1.2;
-    if (!inP && !inA) { // passa por fora: se o caminho reto cruza a cova, contorna pela borda (senão entra, bate na muralha e oscila)
+    const w0 = cv.rIn, w1 = cv.rOut;
+    const dp = Math.hypot(p.x - cv.x, p.z - cv.z), da = Math.hypot(alvo.x - cv.x, alvo.z - cv.z); const inP = dp < w0 + .2, inA = da < w0 + .2;
+    const ap = Math.atan2(p.z - cv.z, p.x - cv.x), aa = Math.atan2(alvo.z - cv.z, alvo.x - cv.x);
+    const es = cv.poco ? cv.ent : [cv.fora + Math.PI];
+    const naBoca = !inP && dp < w1 + .6 && !naMuralha(cv, ap); // dentro do corredor da entrada
+    if (!inP && !inA && !naBoca) { // passa por fora: se o caminho reto cruza a cova, contorna pela borda (senão entra, bate na muralha e oscila)
       const vx = alvo.x - p.x, vz = alvo.z - p.z, L2 = vx * vx + vz * vz; if (L2 < 1e-6) continue; const t = ((cv.x - p.x) * vx + (cv.z - p.z) * vz) / L2; if (t <= 0 || t >= 1) continue;
-      const qx = p.x + vx * t, qz = p.z + vz * t; let nx = qx - cv.x, nz = qz - cv.z; const dq = Math.hypot(nx, nz); if (dq > cv.r + 2.4) continue;
-      if (dq < .05) { nx = -vz; nz = vx; } const nl = Math.hypot(nx, nz); return { x: cv.x + nx / nl * (cv.r + 3.8), z: cv.z + nz / nl * (cv.r + 3.8) }; }
+      const qx = p.x + vx * t, qz = p.z + vz * t; let nx = qx - cv.x, nz = qz - cv.z; const dq = Math.hypot(nx, nz); if (dq > w1 + .2) continue;
+      if (dq < .05) { nx = -vz; nz = vx; } const nl = Math.hypot(nx, nz); return { x: cv.x + nx / nl * (w1 + 1.6), z: cv.z + nz / nl * (w1 + 1.6) }; }
     if (inP && inA) continue;
-    const es = cv.poco ? cv.ent : [cv.fora + Math.PI]; const ap = Math.atan2(p.z - cv.z, p.x - cv.x);
-    let best = es[0], bd = 1e9; for (const e of es) { const ex = cv.x + Math.cos(e) * (cv.r + 2.8), ez = cv.z + Math.sin(e) * (cv.r + 2.8); const c = Math.hypot(p.x - ex, p.z - ez) + Math.hypot(alvo.x - ex, alvo.z - ez); if (c < bd) { bd = c; best = e; } }
-    const aa = Math.atan2(alvo.z - cv.z, alvo.x - cv.x);
-    if (inP ? !naMuralha(cv, aa) : (!naMuralha(cv, ap) && dp < cv.r + 4)) return alvo; // caminho reto não cruza a muralha
-    const rr = inP ? (naMuralha(cv, ap) ? cv.r - 1.2 : cv.r + 3.2) : cv.r + 2.8; // de dentro: vai até a boca e depois sai por ela
-    return { x: cv.x + Math.cos(best) * rr, z: cv.z + Math.sin(best) * rr };
+    if (!inP && !inA) { // na boca, indo para fora: termina de sair pela boca
+      let e0 = es[0]; for (const e of es) if (angD(ap, e) < angD(ap, e0)) e0 = e; return { x: cv.x + Math.cos(e0) * (w1 + 1.4), z: cv.z + Math.sin(e0) * (w1 + 1.4) }; }
+    let best = es[0], bd = 1e9; for (const e of es) { const ex = cv.x + Math.cos(e) * (w1 + .6), ez = cv.z + Math.sin(e) * (w1 + .6); const c = Math.hypot(p.x - ex, p.z - ez) + Math.hypot(alvo.x - ex, alvo.z - ez); if (c < bd) { bd = c; best = e; } }
+    if (inA) { // entrando
+      if (naBoca) { let e0 = es[0]; for (const e of es) if (angD(ap, e) < angD(ap, e0)) e0 = e; if (angD(aa, e0) < cv.meia * .8 || dp < w0 + 1) return alvo; return { x: cv.x + Math.cos(e0) * (w0 - 1.2), z: cv.z + Math.sin(e0) * (w0 - 1.2) }; }
+      // contorna por fora até a boca (a reta até ela cortaria a muralha): passos de ~0,45 rad no anel externo
+      let da = Math.atan2(Math.sin(best - ap), Math.cos(best - ap)); if (Math.abs(da) > .35) { const a2 = ap + Math.sign(da) * Math.min(Math.abs(da), .45), rr = Math.max(w1 + 1.6, Math.min(dp, w1 + 3)); return { x: cv.x + Math.cos(a2) * rr, z: cv.z + Math.sin(a2) * rr }; }
+      return { x: cv.x + Math.cos(best) * (w1 + .8), z: cv.z + Math.sin(best) * (w1 + .8) };
+    }
+    // saindo (p dentro, alvo fora): vai até a boca por dentro e depois sai por ela
+    if (!naMuralha(cv, aa) && da < w1 + 2) return alvo;
+    return angD(ap, best) < cv.meia * .7 ? { x: cv.x + Math.cos(best) * (w1 + 1.4), z: cv.z + Math.sin(best) * (w1 + 1.4) } : { x: cv.x + Math.cos(best) * (w0 - 1.5), z: cv.z + Math.sin(best) * (w0 - 1.5) };
   }
   return alvo;
 }

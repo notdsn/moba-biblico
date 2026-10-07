@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { layoutBase } from './mapa_v2.js';
-import { SELVA_ON, SELVA_LARG, SELVA_SUL, distTrilha, distCampo, COVAS, naMuralha, bordaCova, MAPA_WR, MAPA_K, laneZ as laneZK, MAPA_C, MAPA_FOLGA, distLosango, distLateral, TORRES_LATERAIS, ROTA_TOPO, ROTA_BAIXO } from './selva_mapa.js';
+import { SELVA_ON, SELVA_LARG, SELVA_SUL, distTrilha, distCampo, COVAS, rioX, COVA_RIN, COVA_ROUT, naMuralha, bordaCova, MAPA_WR, MAPA_K, laneZ as laneZK, MAPA_C, MAPA_FOLGA, distLosango, distLateral, TORRES_LATERAIS, ROTA_TOPO, ROTA_BAIXO } from './selva_mapa.js';
 export { MAPA_WR };
 
 // ---------- utilidades ----------
@@ -44,7 +44,7 @@ const distRotaV = (x, z) => Math.min(x > -62 && x < 64 ? Math.abs(z - laneZ(x)) 
 let BASES_V2 = null; const naBaseV2 = (x, z) => { if (!BASES_V2) BASES_V2 = [layoutBase(POS.baseLuz, POS.nucleoLuz), layoutBase(POS.baseTrevas, POS.nucleoTrevas)]; return BASES_V2.some(L => Math.hypot(x - L.centro.x, z - L.centro.z) < L.R + 5); }; // muralha + saídas da base
 export function tapaRota(x, z, alt = 7, raio = 2.5) { const fol = LANE.largura + 1.5; if (distRotaV(x, z) < fol + raio + 3 || naBaseV2(x, z)) return true; const L = alt * .7 + raio; for (let s = 0; s <= L + 3; s += 1.5) { const px = x + .707 * s, pz = z - .707 * s; if ((s <= L && distRotaV(px, pz) < fol) || naBaseV2(px, pz)) return true; } return false; }
 export const distRota = (x, z) => MAPA_WR ? Math.min(Math.abs(z - laneZ(x)), distLateral(x, z)) : Math.abs(z - laneZ(x));
-const rioWR = (x, z) => Math.abs(x - 1 - 2.2 * Math.sin(z * .09)); // rio: cruza o mapa na outra diagonal (x ≈ 1)
+const rioWR = (x, z) => Math.abs(x - rioX(z)); // rio: cruza o mapa na outra diagonal (x ≈ 1)
 
 function canvasTex(w, h, draw, repeat = 1, srgb = true) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, w, h);
@@ -185,7 +185,7 @@ function criarChao(scene, q) {
 // o Jordão (prévia v2): faixa de água que segue o rio do mapa, com correnteza e espuma nas margens
 function criarJordao(scene, q) {
   const N = q.mobile ? 80 : 140, L = MAPA_C + MAPA_FOLGA + 6, larg = 7.5; const pos = [], uv = [], idx = [];
-  for (let i = 0; i <= N; i++) { const z = -L + 2 * L * i / N, x = 1 + 2.2 * Math.sin(z * .09); for (const sx of [-1, 1]) { pos.push(x + sx * larg / 2, .05, z); uv.push(sx < 0 ? 0 : 1, z / 8); } if (i < N) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
+  for (let i = 0; i <= N; i++) { const z = -L + 2 * L * i / N, x = rioX(z); for (const sx of [-1, 1]) { pos.push(x + sx * larg / 2, .05, z); uv.push(sx < 0 ? 0 : 1, z / 8); } if (i < N) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
   const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uT: { value: 0 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
@@ -624,7 +624,7 @@ export function criarMundo(scene, modelos, q, tempoU) {
     const PX = MAPA_WR ? 3.7 : 4.6, PZ = MAPA_WR ? 3.6 : 4.4; // mapa WR: mata mais fechada (paredes de mata entre as trilhas)
     for (let x = -58 * K; x <= 60 * K; x += PX) for (let zz = -ZL; zz <= (MAPA_WR ? MAPA_C : SELVA_SUL - 1); zz += PZ) {
       const xx = x + (rs() - .5) * 2.4, z = (MAPA_WR ? 0 : laneZ(xx)) + zz + (rs() - .5) * 2.2, d = MAPA_WR ? distRota(xx, z) : Math.abs(zz), q = rs(), q2 = rs();
-      if (d < LANE.largura + 5 || distTrilha(xx, z) < (LIMPO ? 5.5 : 4.2) || distCampo(xx, z)[0] < (distCampo(xx, z)[1].lado ? 7.5 : 10.5) || Math.abs(xx - 1) > 56 * K) continue;
+      if (d < LANE.largura + 5 || distTrilha(xx, z) < (LIMPO ? 5.5 : 4.2) || distCampo(xx, z)[0] < (distCampo(xx, z)[1].lado ? 7.5 : MAPA_WR ? COVA_ROUT + 3 : 10.5) || Math.abs(xx - 1) > 56 * K) continue;
       if (MAPA_WR && (distLosango(xx, z) > MAPA_C - 5 || rioWR(xx, z) < 5 || perto(xx, z, 6.5))) continue;
       if (LIMPO && q < .3 && q >= .08) continue; // prévia: 1 pedra a cada ~4 (pedras pequenas = ruído)
       if (q < .3) { if (TP) pedras.push({ x: xx, y: alturaChao(xx, z) - .08, z, alt: 1 + q2 * 1.6, ry: q2 * 6.28, cor: lado(xx) > .5 ? '#8a78a8' : '#ffffff' }); else { const o = colocar('rock_single_B', xx, z, 2.4 + q2 * 2); if (o) recolorir(o, lado(xx) > .5 ? '#5a4a70' : '#a89478'); } continue; }
@@ -697,17 +697,17 @@ function criarCovas(scene, q, anim, TP, pedras, colocar, recolorir) {
     const t = cv.c.tipo, esc = t === 'dragao' ? '#d8a890' : t === 'poco' ? '#a8c4d0' : t === 'sarca' ? '#e8c0a0' : '#c8d8f0';
     // muralha: pedras ao redor (só onde não há entrada)
     const passo = cv.poco ? (LIMPO ? .45 : .34) : (LIMPO ? .95 : .5);
-    for (let a = -Math.PI; a < Math.PI; a += passo) { if (!naMuralha(cv, a)) continue; const rr = cv.r + .9 + r() * .8, x = cv.x + Math.cos(a) * rr, z = cv.z + Math.sin(a) * rr; const alt = ((cv.poco ? 2.1 : 1.2) + r() * (cv.poco ? 1.3 : .7)) * (Math.sin(a) > .3 ? .55 : 1) * (LIMPO && !cv.poco ? 1.35 : 1); // lado da câmera mais baixo
+    for (let a = -Math.PI; a < Math.PI; a += passo) { if (cv.poco && MAPA_WR) break; if (!naMuralha(cv, a)) continue; const rr = cv.r + .9 + r() * .8, x = cv.x + Math.cos(a) * rr, z = cv.z + Math.sin(a) * rr; const alt = ((cv.poco ? 2.1 : 1.2) + r() * (cv.poco ? 1.3 : .7)) * (Math.sin(a) > .3 ? .55 : 1) * (LIMPO && !cv.poco ? 1.35 : 1); // lado da câmera mais baixo
       if (TP) pedras.push({ x, y: alturaChao(x, z) - .15, z, alt, ry: r() * 6.28, cor: esc }); else { const o = colocar('rock_single_C', x, z, alt * 1.4); if (o) recolorir(o, esc); } }
     if (t === 'dragao') { // brasas e rocha queimada
-      pulsos.push([plano(cv.x, cv.z, .05, cv.r * 2.2, 0xff5018, .2), .2]);
-      for (let i = 0; i < 14; i++) { const a = r() * 6.28, d = 1.5 + r() * (cv.r - 2); nBrasas.push([cv.x + Math.cos(a) * d, cv.z + Math.sin(a) * d, .5 + r() * .9, r() * 6]); }
+      pulsos.push([plano(cv.x, cv.z, .08, cv.r * 2.2, 0xff5018, MAPA_WR ? .1 : .2), MAPA_WR ? .1 : .2]);
+      for (let i = 0; i < 14; i++) { const a = r() * 6.28, d = 1.5 + r() * ((MAPA_WR ? COVA_RIN : cv.r) - 2.5); nBrasas.push([cv.x + Math.cos(a) * d, cv.z + Math.sin(a) * d, .5 + r() * .9, r() * 6]); }
     } else if (t === 'poco') { // água escura com brilho verde-azulado
       // água do poço (shader barato, sem luz): teal escuro, ondulações e anel de espuma onde o corpo do Leviatã entra na água.
       // O corpo submerso fica embaixo do chão (opaco), então a água só precisa cobrir a superfície.
-      const mA = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uT: { value: 0 }, uR: { value: cv.r - .5 }, uEsp: { value: 0 }, uRE: { value: 2.9 }, uPulso: { value: 0 } },
+      const mA = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uVeu: { value: MAPA_WR ? .22 : .9 }, uT: { value: 0 }, uR: { value: (MAPA_WR ? COVA_RIN + .4 : cv.r - .5) }, uEsp: { value: 0 }, uRE: { value: 2.9 }, uPulso: { value: 0 } },
         vertexShader: 'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-        fragmentShader: `uniform float uT, uR, uEsp, uRE, uPulso; varying vec2 vP;
+        fragmentShader: `uniform float uVeu, uT, uR, uEsp, uRE, uPulso; varying vec2 vP;
           void main(){ float d = length(vP); float a = atan(vP.y, vP.x);
             float on = sin(d * 2.6 - uT * 1.6) * .5 + .5; on *= sin(vP.x * 1.7 + uT * .9) * sin(vP.y * 1.9 - uT * .7) * .5 + .5;
             vec3 c = mix(vec3(.004, .025, .035), vec3(.012, .09, .1), on * .7 + .15 * (1. - d / uR));
@@ -716,11 +716,11 @@ function criarCovas(scene, q, anim, TP, pedras, colocar, recolorir) {
             float anel = uPulso * (1. - smoothstep(0., .5, abs(d - uRE - 1.2 - (1. - uPulso) * 4.)));
             float borda = 1. - smoothstep(uR - 1.2, uR, d);
             c += vec3(.45, .6, .58) * clamp(esp * .7 + anel * .5, 0., 1.) + vec3(.03, .2, .18) * pow(on, 6.) * .35;
-            gl_FragColor = vec4(c, (.9 + .1 * esp) * borda); }` });
-      const agua = new THREE.Mesh(new THREE.CircleGeometry(cv.r - .5, q.mobile ? 28 : 44), mA);
+            gl_FragColor = vec4(c, (uVeu + (1. - uVeu) * esp) * borda); }` });
+      const agua = new THREE.Mesh(new THREE.CircleGeometry(MAPA_WR ? COVA_RIN + .4 : cv.r - .5, q.mobile ? 28 : 44), mA);
       agua.rotation.x = -Math.PI / 2; agua.position.set(cv.x, .06, cv.z); agua.renderOrder = 1; scene.add(agua); scene.userData.aguaPoco = mA;
       anim.push((dt, tt) => { mA.uniforms.uT.value = tt; });
-      pulsos.push([plano(cv.x, cv.z, .07, cv.r * 2.6, 0x20e0d0, .28), .28]);
+      pulsos.push([plano(cv.x, cv.z, .07, cv.r * 2.6, 0x20e0d0, MAPA_WR ? .14 : .28), MAPA_WR ? .14 : .28]);
     } else if (t === 'sarca') { // clareira da sarça que arde sem se consumir
       pulsos.push([plano(cv.x, cv.z, .05, 6.5, 0xff7a20, .3), .3]);
       for (let i = 0; i < 7; i++) { const a = r() * 6.28, d = 1.2 + r() * 2.6; nBrasas.push([cv.x + Math.cos(a) * d, cv.z + Math.sin(a) * d, .4 + r() * .6, r() * 6]); }
