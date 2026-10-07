@@ -86,8 +86,8 @@ export function criarKits(K) {
   reg('sansao', 'q', (h, d, nv, m, dano) => { K.agendar(d.atraso, () => { if (!h.vivo) return; const dir = dirMira(h, m);
     proj(h, d, { dir, vel: d.vel, max: d.comp, perfura: true, larg: d.larg / 2 + .3, vis: { malha: 'queixada', trilha: 'osso' }, giro: true, onHit: (u) => { hit(h, u, d, nv, dano); vx.faiscas(yv(P(u), 1.2), 5, [1, .95, .8], 4); },
       onFim: (p) => { const c = yv(p, 0); vx.poeira(c, .8); const ms = malhaTemp('queixada', 6, (mm, e) => { mm.position.set(c.x, .35, c.z); mm.rotation.set(.5, e.t * .2, 0); if (pegarQueixada(h, c)) return false; }); if (!ms) efeito(6, () => !pegarQueixada(h, c)); } }); }); return true; });
-  const agarravel = (h, d) => { const f = K.frente(h); let u = null, bd = 1e9; for (const x of inimEst(h, P(h), d.alc + 1)) { const v = P(x).clone().sub(P(h)).setY(0); if (v.length() > .8 && v.normalize().dot(f) < 0) continue; const s = P(x).distanceTo(P(h)) - (x.tipo === 'heroi' ? 1 : 0); if (s < bd) { bd = s; u = x; } } return u; };
-  reg('sansao', 'w', (h, d, nv, m, dano) => { const u = agarravel(h, d); const f = K.frente(h); const destino = P(h).clone().addScaledVector(f, -4); K.limitar(destino);
+  const agarravel = (h, d, livre) => { const f = K.frente(h); let u = null, bd = 1e9; for (const x of inimEst(h, P(h), d.alc + 1)) { const v = P(x).clone().sub(P(h)).setY(0); if (!livre && v.length() > .8 && v.normalize().dot(f) < 0) continue; const s = P(x).distanceTo(P(h)) - (x.tipo === 'heroi' ? 1 : 0); if (s < bd) { bd = s; u = x; } } return u; };
+  reg('sansao', 'w', (h, d, nv, m, dano) => { const u = agarravel(h, d) || agarravel(h, d, true); if (!u) return false; const f = K.frente(h); const destino = P(h).clone().addScaledVector(f, -4); K.limitar(destino);
     if (!K.imune(u) && u.tipo !== 'monstro') { K.atordoar(u, .5); carregarU(u, destino, .45, 2.4); }
     K.agendar(.46, () => { if (!h.vivo) return; hit(h, u, d, nv, dano); vx.pedra(yv(P(u), .3), 1.2); vx.onda(P(u), 1.4, [.9, .8, .6], .4); if (u.tipo === 'heroi') K.curarU(h, (h.maxHp - h.hp) * .08, true); if (h === J()) K.tremer(.25); }); return true; },
     (h, d) => agarravel(h, d) ? true : msg(h, 'Ninguém à frente para agarrar'));
@@ -488,7 +488,7 @@ export function criarKits(K) {
   function cairMana(h) { const a = Math.random() * TAU, c = P(h).clone().add(vec(Math.cos(a) * 2.5, 0, Math.sin(a) * 2.5)); K.limitar(c); const ms = V() && V().pegarMalha('mana'); const o = { ms, p: c, t: T() + 25, dono: h, y: 6 }; manas.push(o); return o; }
   function pegarMana(o, a) { const h = o.dono; K.curarU(a, 60 + 8 * (h.nivel || 1), true, h); a.mana = Math.min(a.manaMax, a.mana + 30); marcaTxt(a, 'Maná do Céu!'); vx.estrelas(yv(P(a), 1.4), 5, [1, 1, .85], .5, .4); if (o.ms) V().soltarMalha(o.ms); o.t = 0; }
   function atualizar(dt) { if (!dt) return; const t = T(); acc += dt; const lento = acc >= .1; if (lento) acc = 0;
-    for (let i = zonas.length - 1; i >= 0; i--) { const z = zonas[i]; if (t >= z.fim) { zonas.splice(i, 1); if (z.aoFim) z.aoFim(z); continue; } if (z.tick) z.tick(dt, z); }
+    for (let i = zonas.length - 1; i >= 0; i--) { const z = zonas[i]; if (!z) continue; if (t >= z.fim) { zonas.splice(i, 1); try { if (z.aoFim) z.aoFim(z); } catch (e) { console.error('[erro] zona fim', e && e.message, e && e.stack); } continue; } try { if (z.tick) z.tick(dt, z); } catch (e) { console.error('[erro] zona', e && e.message, e && e.stack); zonas.splice(zonas.indexOf(z), 1); } }
     for (const h of K.herois) { if (!h.vivo) { h._ult = null; continue; }
       const p = P(h); if (h._ult) { const dd = Math.hypot(p.x - h._ult.x, p.z - h._ult.z); if (dd < 4) h.distAndada = (h.distAndada || 0) + dd * (h.dash ? 2 : 1); } else h._ult = new THREE.Vector3(); h._ult.copy(p);
       switch (h.id) {

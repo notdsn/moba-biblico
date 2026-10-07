@@ -113,10 +113,10 @@ export function criarMotorVFX(scene, camera, { qualidade = 'pc' } = {}) {
     const e = { upd(dt) { const alvoP = o.alvo ? _a.copy(o.alvo.position).setY(o.alvo.position.y + (o.alturaAlvo ?? 1.2)) : o.ate; _d.subVectors(alvoP, p); const L = _d.length(); const passo = o.vel * dt; _d.normalize();
         let fim = L <= passo + .05; if (fim) p.copy(alvoP); else p.addScaledVector(_d, passo); dist += passo; if (o.arco && tot) { const k = Math.min(1, dist / tot); p.y = base.y + (alvoP.y - base.y) * k + Math.sin(k * Math.PI) * o.arco; }
         if (m) { m.position.copy(p); m.lookAt(p.x + _d.x, p.y + _d.y, p.z + _d.z); if (o.giro) m.rotateZ(o.giro * dist); }
-        if (r) r.seguir(p, agora); (o.emissores || []).forEach((em, i) => { acc[i] += dt * em.taxa * Q.taxa; while (acc[i] >= 1) { acc[i] -= 1; emitir(em.flip, p, em.e(p, _d), true); } });
+        if (r) r.seguir(p, agora); (o.emissores || []).forEach((em, i) => { acc[i] += dt * em.taxa * Q.taxa; if (!(acc[i] < 64)) acc[i] = 64; while (acc[i] >= 1) { acc[i] -= 1; emitir(em.flip, p, em.e(p, _d), true); } });
         if (fim) { if (m) m.visible = false; if (r) r.solto = true; if (o.aoAcertar) o.aoAcertar(p.clone(), _d.clone()); return false; } return true; } };
     ativos.push(e); return e; }
-  function atualizar(dt) { agora += dt; for (let i = ativos.length - 1; i >= 0; i--) if (!ativos[i].upd(dt)) ativos.splice(i, 1);
+  function atualizar(dt) { agora += dt; for (let i = ativos.length - 1; i >= 0; i--) { let ok = false; try { ok = ativos[i].upd(dt); } catch (e) { console.error('[erro] vfx projetil', e && e.message); } if (!ok) ativos.splice(i, 1); }
     for (const s of Object.values(flips)) s.update(dt); for (const r of rastros) r.update(agora, camera);
     for (const x of decais) { if (x.livre) continue; x.t += dt; const k = x.t / x.vida; if (k >= 1) { x.livre = true; x.m.visible = false; continue; } const e = 1 - Math.pow(1 - Math.min(1, k * 3), 3); x.m.scale.setScalar((x.r0 + (x.r1 - x.r0) * e) * 2); x.m.material.opacity = x.op * Math.min(1, (1 - k) * 3); }
     if (luzI > 0) { luzT += dt; const k = luzT / luzD; luz.intensity = k >= 1 ? 0 : luzI * (1 - k) * (1 - k); if (k >= 1) luzI = 0; } }

@@ -22,7 +22,7 @@ function rotaPara(h) { return h.funcao === 'barao' ? ROTAS_L.barao : h.funcao ==
 function andarNaRota(R, p, time, k) { // projeta p no trecho mais próximo e anda k metros pela estrada (k > 0 = rumo ao inimigo)
   let mi = 0, mt = 0, md = 1e9; for (let i = 0; i < R.length - 1; i++) { const a = R[i], b = R[i + 1]; const vx = b.x - a.x, vz = b.z - a.z, L2 = vx * vx + vz * vz || 1; const t = Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.z - a.z) * vz) / L2)); const x = a.x + vx * t - p.x, z = a.z + vz * t - p.z, d = x * x + z * z; if (d < md) { md = d; mi = i; mt = t; } }
   const fw = (time === 'luz') === (k > 0); let resto = Math.abs(k); let i = mi, t = mt;
-  while (true) { const a = R[i], b = R[i + 1], L = a.distanceTo(b) || 1e-3; if (fw) { const sobra = (1 - t) * L; if (resto <= sobra || i + 1 >= R.length - 1) { return a.clone().lerp(b, Math.min(1, t + resto / L)); } resto -= sobra; i++; t = 0; } else { const sobra = t * L; if (resto <= sobra || i <= 0) { return a.clone().lerp(b, Math.max(0, t - resto / L)); } resto -= sobra; i--; t = 1; } }
+  if (!(resto < 1e4)) resto = 0; for (let guarda = 0; ; guarda++) { if (guarda > R.length * 2 + 4) return R[Math.max(0, Math.min(R.length - 1, i))].clone(); const a = R[i], b = R[i + 1], L = a.distanceTo(b) || 1e-3; if (fw) { const sobra = (1 - t) * L; if (resto <= sobra || i + 1 >= R.length - 1) { return a.clone().lerp(b, Math.min(1, t + resto / L)); } resto -= sobra; i++; t = 0; } else { const sobra = t * L; if (resto <= sobra || i <= 0) { return a.clone().lerp(b, Math.max(0, t - resto / L)); } resto -= sobra; i--; t = 1; } }
 }
 function progressoRota(R, p, time) { let mi = 0, md = 1e9; for (let i = 0; i < R.length; i++) { const d = R[i].distanceToSquared(p); if (d < md) { md = d; mi = i; } } return time === 'luz' ? mi : R.length - 1 - mi; }
 import { SELVA_ON, SELVA_LARG, SELVA_SUL, empurrarCova, desvioCova, MAPA_WR, MAPA_C, MAPA_FOLGA, ROTA_TOPO, ROTA_BAIXO, TORRES_LATERAIS, POCO_XZ, DRAG_XZ } from './selva_mapa.js';
@@ -499,7 +499,7 @@ const XP_NIVEL = (n) => MODO2 ? 190 + 130 * (n - 1) : 100 + 60 * (n - 1); // 2v2
 function darXp(h, v) {
   if (!h || h.nivel >= 15) return;
   if (h.tipo === 'heroi' && h.combateT < 6 && herois.some(e => e.id === 'ester' && e.vivo && e.time === h.time && e.obj.position.distanceTo(h.obj.position) < 10)) v *= 1.1; /* Ester P: Banquete de Ester */ h.xp += v;
-  while (h.nivel < 15 && h.xp >= XP_NIVEL(h.nivel)) {
+  if (!Number.isFinite(h.xp)) h.xp = 0; let gx = 0; while (h.nivel < 15 && h.xp >= XP_NIVEL(h.nivel) && gx++ < 15) {
     h.xp -= XP_NIVEL(h.nivel); h.nivel++; h.pontos++; recalcular(h);
     aneis.add(h.obj.position, new THREE.Color(1, .85, .4), .5, 2.6, .7);
     for (let k = 0; k < 26; k++) { const a = k / 26 * 6.28; fx.emit(h.obj.position.x + Math.cos(a) * .8, .2, h.obj.position.z + Math.sin(a) * .8, { vel: [0, 4 + Math.random() * 2, 0], cor: [1, .85, .4], vida: .8, t0: .4, t1: 0 }); }
@@ -967,7 +967,7 @@ function usarHab0(h, k) {
   if (h === jogador) aviso(d.nome);
   const dano = valorHab(h, d, nv); const cor = new THREE.Color(...(d.cor || h.def.cor));
   const T = d.tipo;
-  if (T === 'kit') return KIT ? KIT.usar(h, k, d, nv, m, dano, cor) : false;
+  if (T === 'kit') { if (!KIT) return false; let r = true; try { r = KIT.usar(h, k, d, nv, m, dano, cor); } catch (e) { relatarErro('hab ' + h.id + '.' + k, e); } if (!r) { h.mana += mana; H.cd = 0; } return r; }
   if (T === 'proj') {
     agendar(d.atraso || .25, () => {
       if (!h.vivo) return; const de = posMao(h); de.y = Math.max(de.y, 1.3);
@@ -1314,7 +1314,7 @@ function clarao(h, dirF) { if (!h.vivo || h.feit.clarao > 0 || h.atord > 0 || !t
 function recuar(h) { if (!h.vivo || h.canal || estado.fim) return; h.canal = { tipo: 'recuo', t: 0, dur: 4 }; if (h === jogador) aviso('Recuando para a base…'); }
 
 // ================= agendamentos / efeitos =================
-const agenda = []; const efeitos = [];
+const agenda = []; const efeitos = []; const AGENDA_MAX = 4000;
 function agendar(t, f) { agenda.push({ t, f }); }
 let shake = 0; function tremer(v) { if (CFG.tremor) shake = Math.max(shake, v); }
 let avisoT = 0; const avisoEl = document.getElementById('aviso');
@@ -1845,8 +1845,8 @@ function colisoes() {
 let ondaT = 5, regenT = 0, histT = 0;
 function atualizar(dt) {
   tempoU.value += dt;
-  for (let i = agenda.length - 1; i >= 0; i--) { agenda[i].t -= dt; if (agenda[i].t <= 0) { const f = agenda[i].f; agenda.splice(i, 1); f(); } }
-  for (let i = efeitos.length - 1; i >= 0; i--) { const e = efeitos[i]; e.t += dt; if (!e.up(e, dt)) efeitos.splice(i, 1); }
+  for (let i = Math.min(agenda.length, AGENDA_MAX) - 1; i >= 0; i--) { const a = agenda[i]; if (!a) continue; a.t -= dt; if (a.t <= 0) { agenda.splice(i, 1); try { a.f(); } catch (e) { relatarErro('agenda', e); } } }
+  for (let i = efeitos.length - 1; i >= 0; i--) { const e = efeitos[i]; if (!e) continue; e.t += dt; let vivo = false; try { vivo = e.up(e, dt) && e.t < (e.vida || 0) + 30; } catch (x) { relatarErro('efeito', x); } if (!vivo) { const j = efeitos.indexOf(e); if (j >= 0) efeitos.splice(j, 1); } }
   if (estado.iniciado && !estado.fim) {
     estado.tempo += dt;
     regenT += dt; if (regenT >= 1) { regenT -= 1; for (const h of herois) { h.ouro += 3; h.stats.ouroTotal += 3; if (h.vivo) darXp(h, 2); } }
@@ -1859,19 +1859,19 @@ function atualizar(dt) {
     if (jogador && jogador.reserva && podeComprar(jogador)) { const id = jogador.reserva; jogador.reserva = null; const e = comprar(jogador, id); if (!e) { aviso('Comprado: ' + ITENS[id].nome); som('moeda'); } }
     // entrada do jogador
     lerEntrada();
-    for (const h of herois) if ((h.bot || (AUTO && h === jogador)) && !h.treino) { h.pensarAcc = (h.pensarAcc || 0) + dt; if (h.pensarAcc < (h.pensarProx || 0)) continue; const acc = h.pensarAcc; h.pensarAcc = 0; h.pensarProx = REACAO[DIF_ID][0] + Math.random() * REACAO[DIF_ID][1]; pensarBot(h, acc); } // cada bot reage no próprio ritmo (nunca em sincronia com o jogador)
+    for (const h of herois) if ((h.bot || (AUTO && h === jogador)) && !h.treino) { h.pensarAcc = (h.pensarAcc || 0) + dt; if (h.pensarAcc < (h.pensarProx || 0)) continue; const acc = h.pensarAcc; h.pensarAcc = 0; h.pensarProx = REACAO[DIF_ID][0] + Math.random() * REACAO[DIF_ID][1]; try { pensarBot(h, acc); } catch (e) { relatarErro('bot ' + h.id, e); } } // cada bot reage no próprio ritmo (nunca em sincronia com o jogador)
     if (jogador && !jogador.bot && !AUTO && segurandoAtaque) { jogador.atkFixo = null; jogador.modoAlvo = segurandoModo; if (!atacar(jogador) && jogador.ctrl.len < .12 && jogador.atkCd <= 0) { const a = alvoAtaque(jogador, jogador.alcance + 6); if (a) mover2(jogador, a.obj.position); } jogador.modoAlvo = null; }
     else if (jogador && !AUTO && jogador.atkFixo) { // um toque = continua no mesmo alvo até ele morrer, sair do alcance ou você mexer o analógico
       const A = jogador.atkFixo, d = A.obj.position.distanceTo(jogador.obj.position) - (A.raio || 1);
       if (!CFG.atkContinuo || !A.vivo || !jogador.vivo || d > jogador.alcance + 7 || jogador.ctrl.len > .2 || !visivelPara(A, jogador.time) || (A.tipo !== 'heroi' && A.tipo !== 'minion' && A.tipo !== 'monstro' && protegida(A))) jogador.atkFixo = null;
       else { jogador.forcarAlvo = A; if (!atacar(jogador) && jogador.atkCd <= 0 && d > jogador.alcance) mover2(jogador, A.obj.position); }
     }
-    for (const h of herois) atualizarHeroi(h, dt);
-    for (const u of unidades) if (u.tipo === 'minion') atualizarMinion(u, dt);
-    colisoes(); if (LAY) muralhasV2();
-    atualizarTorres(dt);
-    if (SELVA_ON) atualizarSelva(dt, camAlvo);
-    atualizarExtras(dt);
+    for (const h of [...herois]) { try { atualizarHeroi(h, dt); } catch (e) { relatarErro('heroi ' + h.id, e); } }
+    for (const u of [...unidades]) if (u.tipo === 'minion') { try { atualizarMinion(u, dt); } catch (e) { relatarErro('tropa', e); } }
+    protegido('colisoes', () => { colisoes(); if (LAY) muralhasV2(); });
+    protegido('torres', () => atualizarTorres(dt));
+    if (SELVA_ON) protegido('selva', () => atualizarSelva(dt, camAlvo));
+    protegido('extras', () => atualizarExtras(dt));
     ondaT -= dt; if (ondaT <= 0) { ondaT = estado.tempo > 360 ? 22 : 25; for (const t of ['luz', 'trevas']) if (unidades.filter(u => u.time === t && u.tipo === 'minion' && u.vivo).length < (MODO2 ? 22 : 16)) onda(t, (MODO2 ? 6 : 4) + (estado.tempo > 300 ? 1 : 0) + (estruturas.some(e => e.time !== t && e.tipo === 'torre' && !e.vivo) ? 1 : 0)); }
   } else if (estado.fim) { for (const u of unidades) if (!u.vivo && u.tipo === 'minion') atualizarMinion(u, dt); }
   for (let i = unidades.length - 1; i >= 0; i--) if (unidades[i].remover) { const u = unidades[i]; scene.remove(u.obj); u.barra.remove(); unidades.splice(i, 1); }
@@ -1884,12 +1884,12 @@ function atualizar(dt) {
     if (u.modelo.userData.lod && !u.semLOD) aplicarLOD(u, camAlvo);
     // o seu herói anima em todo quadro; tropas: no celular a 30 Hz, de longe (LOD1) a 12 Hz; fora da câmera ~7 Hz
     const passo = u === jogador ? 0 : !vis ? .14 : u.tipo !== 'minion' ? (u.lodNivel === 1 ? (Q.mobile ? 1 / 20 : 1 / 24) : 0) : u.lodNivel === 1 ? (Q.mobile ? 1 / 12 : 1 / 15) : Q.mobile ? 1 / 31 : 0;
-    if (u.animAcc >= passo) { u.mixer.update(u.animAcc); u.animAcc = 0; }
+    if (u.animAcc >= passo) { try { u.mixer.update(u.animAcc); } catch (e) { relatarErro('anim', e); } u.animAcc = 0; }
     u.atualizarFlash(dt);
   }
   perfStat.visU = visU;
   mundo.anim.forEach(f => f(dt, tempoU.value));
-  atualizarProjeteis(dt); fx.update(dt); fxD.update(dt); aneis.update(dt); if (poderes) poderes.atualizar(dt); if (VK) VK.atualizar(dt); if (KIT && estado.iniciado) KIT.atualizar(estado.pausado ? 0 : dt); if (jogador) ouvinteSom(jogador.obj.position);
+  protegido('projeteis', () => atualizarProjeteis(dt)); protegido('fx', () => { fx.update(dt); fxD.update(dt); aneis.update(dt); }); if (poderes) protegido('poderes', () => poderes.atualizar(dt)); if (VK) protegido('vfx', () => VK.atualizar(dt)); if (KIT && estado.iniciado) protegido('kits', () => KIT.atualizar(estado.pausado ? 0 : dt)); if (jogador) protegido('som', () => ouvinteSom(jogador.obj.position));
 }
 
 // ================= entrada (joystick + botões + teclado) =================
@@ -2765,7 +2765,7 @@ async function comecarPartida(id, vs, funcao) {
 }
 
 // ================= cenários para prints / vídeo =================
-function nivelar(h, n) { while (h.nivel < n) { h.xp = XP_NIVEL(h.nivel); darXp(h, 0); } h.xp = XP_NIVEL(h.nivel) * .45; autoPontos(h); h.hp = h.maxHp; h.mana = h.manaMax; }
+function nivelar(h, n) { n = Math.min(15, n); let g = 0; while (h.nivel < n && g++ < 20) { h.xp = XP_NIVEL(h.nivel); darXp(h, 0); } h.xp = XP_NIVEL(h.nivel) * .45; autoPontos(h); h.hp = h.maxHp; h.mana = h.manaMax; }
 function limparTropas() { for (const u of [...unidades]) if (u.tipo === 'minion') { scene.remove(u.obj); u.barra.remove(); unidades.splice(unidades.indexOf(u), 1); } }
 function cenario() {
   const s = jogador.time === 'luz' ? 1 : -1;
@@ -2812,17 +2812,18 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, get KIT() { return KIT; }, get VK() { return VK; }, teste: { morrer, comprar, danificar, usarFeit, ping, definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
+window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, get KIT() { return KIT; }, get VK() { return VK; }, teste: { efeitos, morrer, comprar, danificar, usarFeit, ping, definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);
 let quadroN = 0;
 const contador = new ContadorFPS(renderer);
 if (P.has('fps') || localStorage.getItem('mobaFps') === '1') contador.mostrar(true);
-function passo(dt) { const t0 = performance.now(); renderer.info.reset(); if (SOMBRA_ALTERNADA) renderer.shadowMap.needsUpdate = (quadroN++ & (tempoU.value < ultAtivaT ? 3 : 1)) === 0; let dtL = estado.pausado ? 0 : dt; if (paradaT > 0 && dtL) { paradaT -= dt; dtL = dt * .1; } atualizar(dtL); if (blobs) blobs.atualizar(unidades.filter(u => u.tipo === 'minion')); atualizarCamera(dt); atualizarBarras(); atualizarAneisTorre(dt); textos.update(dt, W, H); atualizarHUD(dt); if (lojaAberta && jogador) { lojaT += dt; if (lojaT > .3) { lojaT = 0; const k = Math.floor(jogador.ouro) + '|' + podeComprar(jogador) + '|' + jogador.itens.join(); if (k !== lojaChave) desenharLoja(); } } if (avisoT > 0) { avisoT -= dt; if (avisoT <= 0) avisoEl.className = ''; } if (EX.pronto) aplicarFogVisual(); composer.render(dt); if (contador.on) contador.quadro(dt, performance.now() - t0, renderer.info.render, `res ${renderer.getPixelRatio().toFixed(2)}x · ${W}×${H}<br>tropas na tela ${perfStat.visU}/${unidades.length} · projéteis ${projCriados}`); }
+function passo(dt) { const t0 = performance.now(); renderer.info.reset(); if (SOMBRA_ALTERNADA) renderer.shadowMap.needsUpdate = (quadroN++ & (tempoU.value < ultAtivaT ? 3 : 1)) === 0; let dtL = estado.pausado ? 0 : dt; if (paradaT > 0 && dtL) { paradaT -= dt; dtL = dt * .1; } protegido('atualizar', () => atualizar(dtL)); if (blobs) protegido('blobs', () => blobs.atualizar(unidades.filter(u => u.tipo === 'minion'))); protegido('camera', () => atualizarCamera(dt)); protegido('barras', () => { atualizarBarras(); atualizarAneisTorre(dt); textos.update(dt, W, H); }); protegido('hud', () => atualizarHUD(dt)); if (lojaAberta && jogador) { lojaT += dt; if (lojaT > .3) { lojaT = 0; const k = Math.floor(jogador.ouro) + '|' + podeComprar(jogador) + '|' + jogador.itens.join(); if (k !== lojaChave) desenharLoja(); } } if (avisoT > 0) { avisoT -= dt; if (avisoT <= 0) avisoEl.className = ''; } if (EX.pronto) aplicarFogVisual(); composer.render(dt); if (contador.on) contador.quadro(dt, performance.now() - t0, renderer.info.render, `res ${renderer.getPixelRatio().toFixed(2)}x · ${W}×${H}<br>tropas na tela ${perfStat.visU}/${unidades.length} · projéteis ${projCriados}`); }
 window.__perf = () => ({ pr: renderer.getPixelRatio(), projCriados, visU: perfStat.visU, blobs: blobs ? blobs.m.count : 0, sombraAlternada: SOMBRA_ALTERNADA });
 // um erro num quadro nunca pode parar o jogo: registra (uma vez por mensagem) e segue no próximo quadro
 function relatarErro(onde, e) { const V = relatarErro.vistos || (relatarErro.vistos = new Map()); const m = onde + ': ' + (e && e.message || e); const n = (V.get(m) || 0) + 1; V.set(m, n); if (n === 1) console.error('[erro]', m, e && e.stack); }
+function protegido(onde, fn) { try { return fn(); } catch (e) { relatarErro(onde, e); } }
 function seguro(onde, fn) { return function (...a) { try { return fn.apply(this, a); } catch (e) { relatarErro(onde, e); } }; } // declaração de função: vale antes desta linha (os botões são ligados no início do arquivo)
 function loop() { requestAnimationFrame(loop); const dt = Math.min(relogio.getDelta(), 1 / 20); try { passo(dt); } catch (e) { relatarErro('passo', e); } }
 window.__info = () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geos: renderer.info.memory.geometries, tex: renderer.info.memory.textures, progs: renderer.info.programs.length });
