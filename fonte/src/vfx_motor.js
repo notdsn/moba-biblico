@@ -18,6 +18,8 @@ export function carregarTextura(url) {
 
 // ---------- sistema de flipbook instanciado ----------
 const GEO_QUAD = new THREE.PlaneGeometry(1, 1);
+// depois do aquecimento de shaders (main liga): sistema sem partículas sai do desenho (antes: 1 draw call vazia + upload de atributos por sistema, todo quadro)
+export const VFX_ESTADO = { ocultarVazios: false };
 export class SistemaFlip {
   // o: { cols, rows, quadros (padrão cols*rows), aditivo, fps (laço) ou uma vez pela vida, max, ancora: 'centro'|'base', base (fração da célula abaixo da origem, do manifest), suave }
   constructor(scene, tex, o = {}) {
@@ -57,6 +59,7 @@ export class SistemaFlip {
       const s = this.s0[i] + (this.s1[i] - this.s0[i]) * k; this.tam[i * 2] = s * this.asp[i]; this.tam[i * 2 + 1] = s;
       this.q[i] = this.estatico ? this.q0[i] : this.fps ? (this.q0[i] + this.vida[i] * this.fps) % this.N : Math.min(this.N - 1, this.q0[i] + k * (this.N - this.q0[i]));
       this.cor[i * 4 + 3] = this.a0[i] * Math.min(1, k * 12) * Math.min(1, (1 - k) * 4); i++; }
+    this.malha.visible = this.n > 0 || !VFX_ESTADO.ocultarVazios; if (this.n === 0 && this._n0 === 0) return; this._n0 = this.n;
     this.malha.geometry.instanceCount = this.n; for (const a of Object.values(this.at)) { a.needsUpdate = true; a.clearUpdateRanges && a.clearUpdateRanges(); a.addUpdateRange && a.addUpdateRange(0, this.n * a.itemSize); } }
   _troca(i, j) { const c = (arr, k) => { for (let m = 0; m < k; m++) arr[i * k + m] = arr[j * k + m]; };
     c(this.pos, 3); c(this.vel, 3); c(this.tam, 2); c(this.cor, 4); for (const a of [this.q, this.rot, this.vida, this.ttl, this.s0, this.s1, this.a0, this.grav, this.drag, this.giro, this.q0, this.asp]) a[i] = a[j]; }

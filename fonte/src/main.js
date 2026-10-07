@@ -43,6 +43,7 @@ import { som, destravarSom, ouvinteSom, somLigado, estadoSom } from './som.js';
 import { iniciarNuvem, entrarGoogle, sairGoogle, salvarNuvem, usuario, nuvemSincronizada, aoMudarUsuario } from './nuvem.js';
 import { listaVestes, definirLendarias } from './perfil.js';
 import { perfil, salvarPerfil, statsHeroi, VESTES, vesteDe, vesteLiberada, vesteEquipada, equipar, progressoVeste, conferirVestes, pontuacao, nota, medalhas, NARRADOR, VERSOS, DICAS, sortear, nivelConta, XP_CONTA, nomeJogador, mudarNome, resetarPerfil, xpPartida } from './perfil.js';
+import { VFX_ESTADO } from './vfx_motor.js';
 import { configurarKTX2, reduzirTexturas, juntarLOD, ativarCulling, atualizarFrustum, naTela, aplicarLOD, SombrasBlob, ContadorFPS } from './perf.js';
 
 // ================= parâmetros =================
@@ -132,12 +133,18 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), Q.pintado ? 0.55 
 // NaN/infinito num pixel (sombra, normal degenerada) vira a TELA INTEIRA preta quando o bloom espalha o borrão: limpa na entrada do bloom
 bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragmentShader.replace('vec4 texel = texture2D( tDiffuse, vUv );', 'vec4 texel = texture2D( tDiffuse, vUv ); if (any(isnan(texel)) || any(isinf(texel))) texel = vec4(0.); texel = clamp(texel, 0., 64.);'); bloom.materialHighPassFilter.needsUpdate = true;
 composer.addPass(bloom); if (Q.mobile) bloom.enabled = false; // celular: sem bloom (o pós mais caro); os brilhos já são aditivos
-composer.addPass(new OutputPass());
-const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, uCinza: { value: 0 }, uSat: { value: Q.pintado ? 1.1 : 1.18 }, uVig: { value: .38 } },
-  vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float uCinza; uniform float uSat; uniform float uVig; varying vec2 vUv;
-    void main(){ vec4 c=texture2D(tDiffuse,vUv); if (any(isnan(c)) || any(isinf(c))) c = vec4(0., 0., 0., 1.); c.rgb = clamp(c.rgb, 0., 64.); float l=dot(c.rgb,vec3(.299,.587,.114)); c.rgb=mix(vec3(l),c.rgb,uSat);
-      c.rgb = (c.rgb-.5)*1.06+.5; vec2 d=vUv-.5; d.x*=1.6; float v=1.-uVig*smoothstep(.25,.95,length(d)); c.rgb*=v; c.rgb = mix(c.rgb, vec3(dot(c.rgb, vec3(.299,.587,.114))) * .8, uCinza); gl_FragColor=c; }` });
+// saída (tone mapping ACES + sRGB) e grade de cor num passe só: mesma conta, um quadro inteiro a menos de leitura/escrita por frame (antes: OutputPass -> RT -> grade)
+const grade = new OutputPass();
+Object.assign(grade.uniforms, { uCinza: { value: 0 }, uSat: { value: Q.pintado ? 1.1 : 1.18 }, uVig: { value: .38 } });
+grade.material.fragmentShader = grade.material.fragmentShader.replace('uniform sampler2D tDiffuse;', 'uniform sampler2D tDiffuse; uniform float uCinza; uniform float uSat; uniform float uVig;').replace(/\}\s*$/, `
+    { vec4 c = gl_FragColor; if (any(isnan(c)) || any(isinf(c))) c = vec4(0., 0., 0., 1.); c.rgb = clamp(c.rgb, 0., 64.); float l=dot(c.rgb,vec3(.299,.587,.114)); c.rgb=mix(vec3(l),c.rgb,uSat);
+      c.rgb = (c.rgb-.5)*1.06+.5; vec2 d=vUv-.5; d.x*=1.6; float v=1.-uVig*smoothstep(.25,.95,length(d)); c.rgb*=v; c.rgb = mix(c.rgb, vec3(dot(c.rgb, vec3(.299,.587,.114))) * .8, uCinza); gl_FragColor=c; }
+  }`);
+{ /* OutputPass é RawShaderMaterial (GLSL ES 1.0, sem isnan/isinf): passa os dois shaders para GLSL ES 3.0, como era o ShaderPass antigo */
+  const m = grade.material; m.glslVersion = THREE.GLSL3;
+  m.vertexShader = m.vertexShader.replace('attribute vec3 position;', 'in vec3 position;').replace('attribute vec2 uv;', 'in vec2 uv;').replace('varying vec2 vUv;', 'out vec2 vUv;');
+  m.fragmentShader = m.fragmentShader.replace('varying vec2 vUv;', 'in vec2 vUv; out highp vec4 saidaCor;').replace(/gl_FragColor/g, 'saidaCor').replace(/texture2D\(/g, 'texture('); }
+grade.material.needsUpdate = true;
 composer.addPass(grade);
 // antisserrilhado extra (bordas de grama, partículas e shaders) — desligado no modo ?q=baixa
 const smaa = null; // um AA só: o MSAA do render target (SMAA em cima dele era custo dobrado)
@@ -161,6 +168,10 @@ man.onProgress = (u, a, b) => { progBarra.style.width = (a / b * 100).toFixed(0)
 // tela de carregamento: versículos e dicas se alternando
 { const vt = document.getElementById('carVerso'); if (vt) { const troca = () => { vt.innerHTML = `<b>${sortear(VERSOS)}</b><p>Dica: ${sortear(DICAS.geral)}</p>`; }; troca(); const iv = setInterval(() => { if (document.getElementById('carregando').classList.contains('fora')) clearInterval(iv); else troca(); }, 3500); } }
 const loader = new GLTFLoader(man); loader.setMeshoptDecoder(MeshoptDecoder); configurarKTX2(loader, renderer);
+// celular: variante KTX2 (<nome>_k.glb, mesma resolução; tools/ktx2_variante.mjs) dos modelos listados em models/ktx2.json — ~1 byte/px na GPU em vez de 4,
+// sem decodificar WebP nem gerar mipmaps no thread principal. PC continua no WebP. ?webp força o original; se a variante falhar, cai no original.
+if (Q.mobile && !P.has('webp')) { const orig = loader.load.bind(loader); let lk = null; const pk = fetch('models/ktx2.json').then(r => r.ok ? r.json() : []).then(a => { lk = new Set(a); }).catch(() => { lk = new Set(); });
+  loader.load = (url, ok, prog, err) => { pk.then(() => { const m = /^(.*?models\/)(.+?)\.glb(\?.*)?$/.exec(url); if (m && lk.has(m[2])) orig(m[1] + m[2] + '_k.glb' + (m[3] || ''), ok, prog, (e) => { console.warn('[ktx2] variante falhou, usando WebP', m[2], e && e.message); orig(url, ok, prog, err); }); else orig(url, ok, prog, err); }); }; }
 const NOMES_PROPS = ['tree_single_A', 'tree_single_B', 'trees_A_medium', 'trees_B_medium', 'trees_B_large', 'tree_pine_yellow_large', 'tree_pine_orange_medium', 'tree_dead_large', 'tree_dead_medium', 'rock_single_A', 'rock_single_B', 'rock_single_C', 'rock_single_D', 'rock_single_E', 'lantern_standing', 'pillar', 'fence_broken', 'post_lantern', 'arch'];
 const carregar = (n, v) => new Promise((res, rej) => loader.load('models/' + n + '.glb' + (v ? '?v=' + v : ''), res, undefined, rej));
 const VER_LENDA = '2'; // subir quando trocar o arquivo da veste lendária (fura o cache do navegador/CDN)
@@ -2803,7 +2814,7 @@ async function comecarPartida(id, vs, funcao) {
   if (VK) await VK.carregarHerois(herois.map(h => h.id)).catch(e => console.warn('[vfx kits]', e && e.message)); if (selvaIni) await Promise.race([selvaIni, esperar(Q.mobile ? 2500 : 5000)]); aquecerShaders(); // no iPhone a partida não espera os monstros (eles terminam de carregar durante a luta) // monstros/aliados/cacador: compila na tela VS, não na luta
   // último aquecimento já com a câmera e as unidades da largada (ainda atrás da tela VS): o que nasceu depois do aquecerShaders
   // (anéis, marcadores, 1ª onda) compila agora, não no 1º segundo da partida
-  try { atualizarCamera(1); renderer.shadowMap.needsUpdate = true; composer.render(0); } catch (e) { console.warn('[aquecer largada]', e && e.message); }
+  try { atualizarCamera(1); renderer.shadowMap.needsUpdate = true; composer.render(0); } catch (e) { console.warn('[aquecer largada]', e && e.message); } VFX_ESTADO.ocultarVazios = true;
   if (vsP) { await vsP; await esperar(250); $('vs').classList.add('sai'); setTimeout(() => $('vs').className = '', 450); }
   $('hud').classList.add('on'); estado.iniciado = true; armarVoltar();
   aviso(`${d.nome} x ${HEROIS[vsId].nome} — destrua o Núcleo inimigo!`);

@@ -23,7 +23,7 @@ export function layoutBase(base, nuc) {
 // No iPhone, com a memória de textura estourada, os props do mapa (os últimos a subir) eram desenhados pretos.
 function magro(mt) { if (!mt) return; for (const k of ['normalMap', 'metalnessMap', 'roughnessMap', 'aoMap']) { const t = mt[k]; if (t && t !== mt.map) { t.dispose(); if (t.image && t.image.close) t.image.close(); } mt[k] = null; } mt.metalness = 0; mt.roughness = .85; paraCanvas(mt.map); mt.needsUpdate = true; }
 // o mapa de cor passa de ImageBitmap para canvas (o mesmo caminho das texturas dos heróis, que aparecem certas no iPhone)
-function paraCanvas(t) { const im = t && t.image; if (!im || !im.width || im.tagName === 'CANVAS' || t.userData.canvas) return; const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; cv.getContext('2d').drawImage(im, 0, 0); if (im.close) im.close(); t.image = cv; t.userData.canvas = true; t.needsUpdate = true; }
+function paraCanvas(t) { const im = t && t.image; if (!im || !im.width || t.isCompressedTexture || im.tagName === 'CANVAS' || t.userData.canvas) return; const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; cv.getContext('2d').drawImage(im, 0, 0); if (im.close) im.close(); t.image = cv; t.userData.canvas = true; t.needsUpdate = true; }
 export async function mapaV2(scene, loader, POS, MAPA_C, portoes, tapa = null) {
   const lod = matchMedia('(pointer:coarse)').matches ? '_lod1' : '';
   const carregar = (n) => new Promise((ok) => loader.load(BASE + n + lod + '.glb', (g) => ok(g.scene), undefined, () => ok(null)));

@@ -66,12 +66,13 @@ export function porSentinela(h) {
   const minhas = EX.sentinelas.filter(w => w.vivo && w.dono === h).sort((a, b) => a.t - b.t); if (minhas.length >= SENT.max) minhas[0].vivo = false, esconder(minhas[0]);
   const w = EX.sentinelas.find(w => !w.vivo); if (!w) return false;
   const f = new THREE.Vector3(Math.sin(h.obj.rotation.y), 0, Math.cos(h.obj.rotation.y));
-  w.vivo = true; w.dono = h; w.time = h.time; w.t = t; w.fim = t + SENT.dur; w.g.position.copy(h.obj.position).addScaledVector(f, 1.6).setY(0); w.anel.position.copy(w.g.position).setY(.06); w.g.userData.o.material = matS[h.time];
+  w.vivo = true; w.g.visible = w.anel.visible = true; w.dono = h; w.time = h.time; w.t = t; w.fim = t + SENT.dur; w.g.position.copy(h.obj.position).addScaledVector(f, 1.6).setY(0); w.anel.position.copy(w.g.position).setY(.06); w.g.userData.o.material = matS[h.time];
   h.sentCd = t + SENT.cd; if (h.bot) h.sentPostas = (h.sentPostas || 0) + 1; if (D.som) try { D.som('ping', null, .4); } catch (e) { }
   return true;
 }
 function esconder(w) { w.g.position.set(0, -50, 0); w.anel.position.set(0, -50, 0); }
-function atualizarSentinelas(dt) { const t = D.estado.tempo; for (const w of EX.sentinelas) { if (!w.vivo) continue; if (t >= w.fim) { w.vivo = false; esconder(w); continue; } w.g.userData.o.rotation.y += dt * 1.5; w.g.userData.o.position.y = Math.sin(t * 2 + w.t) * .08; } }
+// guardadas embaixo do mapa continuavam visíveis: 8 × (poste + cristal + anel) = 24 draw calls por quadro à toa. Ficam visíveis só no aquecimento de shaders (t < 1 s) e quando postas.
+function atualizarSentinelas(dt) { const t = D.estado.tempo; for (const w of EX.sentinelas) { if (!w.vivo) { if (w.g.visible && t > 1) w.g.visible = w.anel.visible = false; continue; } if (t >= w.fim) { w.vivo = false; esconder(w); continue; } w.g.userData.o.rotation.y += dt * 1.5; w.g.userData.o.position.y = Math.sin(t * 2 + w.t) * .08; } }
 // bots: põem sentinela nas moitas do rio / entradas dos poços (dificuldade decide quanto)
 const PONTOS_SENT = () => EX.moitas.filter(m => Math.abs(m.x) < 30);
 // suporte (bot): ponto de sentinela ainda sem visão aliada, perto de p (moitas do rio/selva)
