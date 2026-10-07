@@ -21,11 +21,20 @@ function posMoitas() {
   return out.filter(([x, z]) => ok(x, z)).map(([x, z]) => ({ x, z, r: 2.9 }));
 }
 function criarMoitas() {
-  EX.moitas = posMoitas(); const N = 26, geo = new THREE.ConeGeometry(.26, 1.7, 4); geo.translate(0, .85, 0);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x3d7a2e, roughness: .9, flatShading: true });
-  const im = new THREE.InstancedMesh(geo, mat, EX.moitas.length * N); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3(); let k = 0;
+  // moita = mancha densa e arredondada com borda nítida (estilo WR): 1 tufo grande no centro, 5 no anel interno e 7 menores na borda.
+  // A área de esconder (posMoitas, r = 2,9 m) não muda; os tufos só desenham o contorno dela. Tudo num único InstancedMesh (1 draw call).
+  EX.moitas = posMoitas();
+  const geo = new THREE.SphereGeometry(1, 8, 5); const pa = geo.attributes.position, cols = new Float32Array(pa.count * 3);
+  for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i); const n = 1 + .13 * Math.sin(x * 5.1 + z * 3.7) * Math.cos(y * 4.3 + x * 2.2); // contorno orgânico (folhagem), sem quinas
+    pa.setXYZ(i, x * n, Math.max(-.35, y) * n * .68, z * n); const k = .45 + .55 * Math.min(1, Math.max(0, (y + .35) / 1.35)); cols[i * 3] = cols[i * 3 + 1] = cols[i * 3 + 2] = k; } // base mais escura (oclusão)
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3)); geo.computeVertexNormals(); geo.translate(0, .32, 0);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .92 });
+  const LAY = [[0, 0, 1.35]]; for (let i = 0; i < 5; i++) LAY.push([i / 5 * 6.283, .45, 1.08]); for (let i = 0; i < 7; i++) LAY.push([(i + .5) / 7 * 6.283, .8, .74]);
+  const im = new THREE.InstancedMesh(geo, mat, EX.moitas.length * LAY.length); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3(); let k = 0;
   const cor = new THREE.Color();
-  for (const b of EX.moitas) for (let i = 0; i < N; i++) { const a = Math.random() * 6.28, r = Math.sqrt(Math.random()) * b.r; p.set(b.x + Math.cos(a) * r, 0, b.z + Math.sin(a) * r); e.set((Math.random() - .5) * .5, Math.random() * 6, (Math.random() - .5) * .5); q.setFromEuler(e); const h = .75 + Math.random() * .55; s.set(1, h, 1); m4.compose(p, q, s); im.setMatrixAt(k, m4); im.setColorAt(k, cor.setHSL(.27 + Math.random() * .04, .5, .22 + Math.random() * .1)); k++; }
+  for (const b of EX.moitas) { const giro = Math.random() * 6.283; for (const [a0, rf, sc] of LAY) { const a = a0 + giro + (Math.random() - .5) * .35, r = b.r * rf * (.92 + Math.random() * .16), w = sc * (.9 + Math.random() * .22);
+    p.set(b.x + Math.cos(a) * r, 0, b.z + Math.sin(a) * r); e.set((Math.random() - .5) * .2, Math.random() * 6.283, (Math.random() - .5) * .2); q.setFromEuler(e); s.set(w, w * (.85 + Math.random() * .3), w); m4.compose(p, q, s); im.setMatrixAt(k, m4);
+    const tv = b.x > 8 ? 1 : 0; im.setColorAt(k, cor.setHSL(tv ? .3 + Math.random() * .03 : .26 + Math.random() * .03, tv ? .42 : .55, (rf > .7 ? .115 : .095) + Math.random() * .03)); k++; } } // verde-escuro de mata (um pouco mais frio do lado das Trevas)
   im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = false; im.computeBoundingSphere(); D.scene.add(im); EX.imMoitas = im;
 }
 export function moitaDe(p) { const M = EX.moitas; for (let i = 0; i < M.length; i++) { const m = M[i], dx = p.x - m.x, dz = p.z - m.z; if (dx * dx + dz * dz < m.r * m.r) return i; } return -1; }

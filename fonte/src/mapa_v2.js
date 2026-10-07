@@ -2,7 +2,7 @@
 // Portão destrutível: substitui a torre da base; muralha em volta da fonte + Núcleo; quando o portão cai, a muralha INTEIRA desaba (base aberta por todos os lados).
 import * as THREE from 'three';
 import { ROTA_TOPO, ROTA_BAIXO } from './selva_mapa.js';
-const BASE = 'models/mapa_biblico/';
+const BASE = 'models/mapa_biblico/'; const LIMPO = true; // mapa menos poluído (rodada 4)
 const ALT = { templo_luz: 15, templo_trevas: 15, portao_jerusalem: 9, muralha_reta: 5.5, oliveira: 6, palmeira: 9, tenda: 3.6, poco_pedra: 2.2, rochas_deserto: 2.8, jarro_barro: 1.1 };
 export const MURO_N = 18, MURO_ABRE = 1; // segmentos da muralha; segmentos vizinhos do portão que caem com ele (de cada lado)
 // geometria da muralha de uma base: círculo que envolve fonte e Núcleo, portão voltado para o mapa
@@ -32,7 +32,7 @@ export async function mapaV2(scene, loader, POS, MAPA_C, portoes, tapa = null) {
   const g = new THREE.Group(); g.name = 'mapaV2'; scene.add(g);
   let ESC_PORTA = 1; if (M.portao_jerusalem && M.muralha_reta) { const bp = new THREE.Box3().setFromObject(M.portao_jerusalem), bm = new THREE.Box3().setFromObject(M.muralha_reta); window.__medidasV2 = { portao: bp.getSize(new THREE.Vector3()).toArray().map(v => +v.toFixed(2)), muro: bm.getSize(new THREE.Vector3()).toArray().map(v => +v.toFixed(2)) }; }
   const ALTO = { oliveira: [6, 3], palmeira: [9, 2.5], tenda: [3.6, 2.5], rochas_deserto: [2.8, 1.5], poco_pedra: [2.2, 1.5], jarro_barro: [1.1, .5] }; let tirados = 0;
-  const por = (n, x, z, rot = 0, esc = 1, pai = g) => { if (!M[n]) return null; if (tapa && ALTO[n] && tapa(x, z, ALTO[n][0] * esc, ALTO[n][1] * esc)) { tirados++; return null; } const o = M[n].clone(); o.position.set(x, 0, z); o.rotation.y = rot; o.scale.setScalar(esc); pai.add(o); return o; };
+  const por = (n, x, z, rot = 0, esc = 1, pai = g) => { if (!M[n]) return null; if (tapa && ALTO[n] && tapa(x, z, ALTO[n][0] * esc, ALTO[n][1] * esc)) { tirados++; return null; } const o = M[n].clone(); o.userData.tipo = n; o.position.set(x, 0, z); o.rotation.y = rot; o.scale.setScalar(esc); pai.add(o); return o; };
   const muros = {};
   for (const [time, base, nuc, tem] of [['luz', POS.baseLuz, POS.nucleoLuz, 'templo_luz'], ['trevas', POS.baseTrevas, POS.nucleoTrevas, 'templo_trevas']]) {
     const L = layoutBase(base, nuc);
@@ -60,15 +60,21 @@ export async function mapaV2(scene, loader, POS, MAPA_C, portoes, tapa = null) {
   // vegetação e props: oliveiras na Luz, palmeiras no Jordão e nas Trevas, tendas de Israel atrás da muralha da Luz, poços de pedra nas margens, rochas do deserto nas bordas
   let sem = 7; const rnd = () => { sem = (sem * 16807) % 2147483647; return sem / 2147483647; };
   for (let i = 0; i < 26; i++) { const x = -70 + rnd() * 140, lim = MAPA_C - Math.abs(x) * .55; const z = (rnd() < .5 ? -1 : 1) * (lim - 4 - rnd() * 6); por(x < 0 ? 'oliveira' : 'palmeira', x, z, rnd() * 6.28, .8 + rnd() * .4); }
-  for (let i = 0; i < 8; i++) { const z = (i % 2 ? 1 : -1) * (14 + i * 4); por('palmeira', 1 + (rnd() - .5) * 8 + (rnd() < .5 ? -6 : 6), z, rnd() * 6.28, .9 + rnd() * .3); }
+  for (let i = 0; i < 8; i++) { const z = (i % 2 ? 1 : -1) * (14 + i * 4); if (LIMPO && i !== 2 && i !== 3) { rnd(); rnd(); rnd(); rnd(); continue; } por('palmeira', 1 + (rnd() - .5) * 8 + (rnd() < .5 ? -6 : 6), z, rnd() * 6.28, .9 + rnd() * .3); }
   { const L = layoutBase(POS.baseLuz, POS.nucleoLuz); for (let i = 0; i < 6; i++) { const a = L.ang + Math.PI + (i - 2.5) * .32; const r = L.R + 6 + (i % 2) * 3; por('tenda', L.centro.x + Math.sin(a) * r, L.centro.z + Math.cos(a) * r, a + Math.PI, 1 + rnd() * .2); } }
-  for (const [x, z] of [[-9, 22], [11, -24], [-7, -46], [9, 48]]) { por('poco_pedra', x, z, rnd() * 6.28, 1); for (let k = 0; k < 3; k++) { const a = rnd() * 6.28; por('jarro_barro', x + Math.sin(a) * 2.6, z + Math.cos(a) * 2.6, rnd() * 6.28, .8 + rnd() * .5); } } // jarros de barro junto aos poços
-  { const L = layoutBase(POS.baseLuz, POS.nucleoLuz); for (let i = 0; i < 5; i++) { const a = L.ang + Math.PI + (i - 2) * .4 + .16; const r = L.R + 7.5; por('jarro_barro', L.centro.x + Math.sin(a) * r, L.centro.z + Math.cos(a) * r, rnd() * 6.28, .8 + rnd() * .4); } } // e entre as tendas
+  for (const [x, z] of [[-9, 22], [11, -24], [-7, -46], [9, 48]]) { const longe = Math.abs(z) < 30; if (!LIMPO || longe) por('poco_pedra', x, z, rnd() * 6.28, 1); else rnd(); for (let k = 0; k < 3; k++) { const a = rnd() * 6.28; if (LIMPO) { rnd(); rnd(); continue; } por('jarro_barro', x + Math.sin(a) * 2.6, z + Math.cos(a) * 2.6, rnd() * 6.28, .8 + rnd() * .5); } } // jarros de barro junto aos poços
+  { const L = layoutBase(POS.baseLuz, POS.nucleoLuz); for (let i = 0; i < (LIMPO ? 0 : 5); i++) { const a = L.ang + Math.PI + (i - 2) * .4 + .16; const r = L.R + 7.5; por('jarro_barro', L.centro.x + Math.sin(a) * r, L.centro.z + Math.cos(a) * r, rnd() * 6.28, .8 + rnd() * .4); } } // e entre as tendas
   for (let i = 0; i < 16; i++) { const x = -75 + rnd() * 150, lim = MAPA_C - Math.abs(x) * .55; const z = (rnd() < .5 ? -1 : 1) * (lim - 2 - rnd() * 4); por('rochas_deserto', x, z, rnd() * 6.28, .8 + rnd() * .8); }
+  if (LIMPO) {
+    const TR = 24; const porTipo = {}; for (const o of [...g.children]) if (o.userData.tipo && !o.userData.muro && !/templo/.test(o.userData.tipo)) { const k = o.userData.tipo + '|' + Math.floor(o.position.x / TR) + ',' + Math.floor(o.position.z / TR); (porTipo[k] = porTipo[k] || []).push(o); } // por TIPO e por TRECHO de 24 m: cada InstancedMesh tem esfera pequena e é cortado fora da tela
+    let nIm = 0; for (const [kk, lista] of Object.entries(porTipo)) { const n = kk.split('|')[0]; const tpl = M[n]; tpl.updateMatrixWorld(true); const subs = []; tpl.traverse(mm => { if (mm.isMesh) subs.push(mm); });
+      for (const mm of subs) { const geo = mm.geometry.clone(); geo.applyMatrix4(mm.matrixWorld); const im = new THREE.InstancedMesh(geo, mm.material, lista.length); im.castShadow = !lod; im.receiveShadow = true; lista.forEach((o, i) => { o.updateMatrix(); im.setMatrixAt(i, o.matrix); }); im.computeBoundingSphere(); g.add(im); nIm++; }
+      for (const o of lista) g.remove(o); }
+    console.log('[mapa v2] props soltos instanciados por trecho:', Object.keys(porTipo).length, 'grupos ->', nIm, 'InstancedMesh, sombra:', !lod); }
   // entulho pré-montado (um InstancedMesh, já compilado no carregamento escondido embaixo do chão): troca na hora da queda
   const geo = new THREE.DodecahedronGeometry(.9, 0); const mat = new THREE.MeshStandardMaterial({ color: 0xb8a888, roughness: .95, flatShading: true });
   const entulho = new THREE.InstancedMesh(geo, mat, 2 * (8 + 4 * (MURO_N - 1))); entulho.frustumCulled = false; entulho.castShadow = false; entulho.receiveShadow = true;
-  const m4 = new THREE.Matrix4(); for (let i = 0; i < entulho.count; i++) { m4.makeTranslation(0, -60, 0); entulho.setMatrixAt(i, m4); } scene.add(entulho);
+  const m4 = new THREE.Matrix4(); for (let i = 0; i < entulho.count; i++) { m4.makeTranslation(0, -60, 0); entulho.setMatrixAt(i, m4); } scene.add(entulho); if (LIMPO) entulho.visible = false; // prévia: não desenha 152 pedras escondidas embaixo do chão todo quadro
   if (tirados) console.log('[mapa v2] props tirados da frente das rotas:', tirados);
   window.__portaoV2 = { muros, entulho, usado: 0 };
   return g;
@@ -88,5 +94,5 @@ export function derrubarPortao(time, e, POS, fx, agendar, efeitos) {
   // entulho: reposiciona instâncias já existentes (1 draw call, nenhum shader novo)
   // entulho: reposiciona instâncias já existentes (1 draw call, nenhum shader novo), 4 pedras por trecho conforme a onda chega nele
   if (S) { const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), v = new THREE.Vector3();
-    for (const p of ini) agendar(p.d + .9, () => { const n = p.o === e.obj ? 8 : 4; for (let i = 0; i < n; i++) { p.o.getWorldPosition(v); v.x += (Math.random() - .5) * 4; v.z += (Math.random() - .5) * 4; q.setFromEuler(new THREE.Euler(Math.random() * 3, Math.random() * 3, Math.random() * 3)); const s = .6 + Math.random() * .9; sc.set(s, s * .7, s); v.y = s * .2; m4.compose(v, q, sc); S.entulho.setMatrixAt(S.usado++ % S.entulho.count, m4); } S.entulho.instanceMatrix.needsUpdate = true; p.o.userData.caiu = true; }); }
+    for (const p of ini) agendar(p.d + .9, () => { const n = p.o === e.obj ? 8 : 4; for (let i = 0; i < n; i++) { p.o.getWorldPosition(v); v.x += (Math.random() - .5) * 4; v.z += (Math.random() - .5) * 4; q.setFromEuler(new THREE.Euler(Math.random() * 3, Math.random() * 3, Math.random() * 3)); const s = .6 + Math.random() * .9; sc.set(s, s * .7, s); v.y = s * .2; m4.compose(v, q, sc); S.entulho.setMatrixAt(S.usado++ % S.entulho.count, m4); } S.entulho.instanceMatrix.needsUpdate = true; S.entulho.visible = true; p.o.userData.caiu = true; }); }
 }

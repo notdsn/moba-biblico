@@ -9,7 +9,8 @@ export function rng(seed = 1) { let s = seed >>> 0; return () => ((s = (s * 1664
 const R = rng(7);
 const _Q = new URLSearchParams(location.search); // padrão agora: mapa v2 + 3 rotas 5v5; ?mapa=v1 volta ao mapa antigo (2v2 no Meio), ?rotas=1 tira as rotas laterais
 export const MAPA_5V5 = MAPA_WR && SELVA_ON && _Q.get('mapa') !== 'v1' && _Q.get('rotas') !== '1' && _Q.get('modo') !== '1v1'; // prévia 5v5: torres laterais viram torres de verdade (criadas no main)
-export const MAPA_V2 = MAPA_WR && _Q.get('mapa') !== 'v1'; // prévia do mapa bíblico v2 (areia, pedra e o Jordão)
+export const MAPA_V2 = MAPA_WR && _Q.get('mapa') !== 'v1';
+export const LIMPO = true; // mapa menos poluído (plano do Jarvys, rodada 4): sem pedrinhas/tufos, rota pintada no chão, menos props soltos
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp, smooth = THREE.MathUtils.smoothstep;
 
 // Traçado da rota (lane): x de -70 a 70, com uma leve curva
@@ -144,13 +145,13 @@ function criarChao(scene, q) {
       const areia = new THREE.Color('#e0c48a').lerp(new THREE.Color('#c9a466'), nn); const bas = new THREE.Color('#3b3340').lerp(new THREE.Color('#5a4a52'), nn);
       c.copy(areia).lerp(bas, smooth(t, .2, .8));
       if (n3 > .45) c.lerp(new THREE.Color(t < .5 ? '#9aa35a' : '#6a3a3a'), (n3 - .45) * 1.1 * (t < .5 ? .55 : .35));
-      c.lerp(new THREE.Color('#d9ccb0').lerp(new THREE.Color('#6e6470'), t), terraF * .8);
+      c.lerp(LIMPO ? new THREE.Color('#e8dcc0').lerp(new THREE.Color('#8c8296'), t) : new THREE.Color('#d9ccb0').lerp(new THREE.Color('#6e6470'), t), terraF * (LIMPO ? .95 : .8)); // prévia: faixa de rota mais clara e contínua (substitui as pedrinhas)
       const rv = rioWR(x, z); if (rv < 10) { c.lerp(new THREE.Color('#7f9248'), (1 - smooth(rv, 6, 10)) * .75); c.lerp(new THREE.Color('#5f6a4a'), (1 - smooth(rv, 3.5, 6.5)) * .8); }
       c.multiplyScalar(lerp(1, .6, smooth(distLosango(x, z), MAPA_C + 5, MAPA_C + 14)));
     }
     terras[i] = Math.min(1, terraF * 1.05);
     // escurecer bordas da rota (sombra das pedras) e o horizonte
-    c.multiplyScalar(1 - .12 * smooth(d, LANE.largura + 2, LANE.largura + 3.5) * (1 - smooth(d, LANE.largura + 3.5, LANE.largura + 8)));
+    c.multiplyScalar(1 - (LIMPO ? .3 : .12) * smooth(d, LANE.largura + 2, LANE.largura + 3.5) * (1 - smooth(d, LANE.largura + 3.5, LANE.largura + 8)));
     c.multiplyScalar(MAPA_WR ? lerp(1, .6, smooth(distLosango(x, z), MAPA_C + 5, MAPA_C + 14)) : lerp(1, .78, smooth(Math.abs(z), 18, 45)));
     cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
     // relevo suave fora da rota
@@ -198,6 +199,7 @@ function criarJordao(scene, q) {
 
 // Pedras do caminho (instanciadas)
 function criarCaminho(scene, q) {
+  // mapa limpo: a rota é lida pela faixa clara pintada no chão (aTerra); pedras só no vau, onde a rota atravessa o Jordão (a água cobre a faixa)
   const base = new THREE.CylinderGeometry(0.5, 0.56, 0.22, 7, 1); base.translate(0, 0.02, 0);
   // chanfro leve: achata a parte de cima com ruído
   const pa = base.attributes.position; for (let i = 0; i < pa.count; i++) { if (pa.getY(i) > .1) { pa.setY(i, pa.getY(i) + (Math.sin(i * 12.9) * .03)); pa.setX(i, pa.getX(i) * .9); pa.setZ(i, pa.getZ(i) * .9); } }
@@ -216,6 +218,7 @@ function criarCaminho(scene, q) {
   if (MAPA_WR) { const pl = MAPA_V2 ? passo : q.mobile ? 1.25 : 1.0; // estradas do topo e de baixo: mesmo estilo, passo um pouco maior no celular
     for (const rota of [ROTA_TOPO, ROTA_BAIXO]) for (let i = 0; i < rota.length - 1; i++) { const [ax, az] = rota[i], [bx, bz] = rota[i + 1]; const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
       for (let t = 0; t < L; t += pl) for (let w = -LANE.largura; w <= LANE.largura; w += pl) { const edge = Math.abs(w) / LANE.largura; if (edge > .82 && R() < (edge - .82) * 4) continue; const jx = (R() - .5) * pl * .5, jz = (R() - .5) * pl * .5; pts.push([ax + ux * t - uz * w + jx, az + uz * t + ux * w + jz]); } } }
+  if (LIMPO) { const vau = pts.filter(([x, z]) => rioWR(x, z) < 4.4); pts.length = 0; pts.push(...vau); }
   if (MAPA_WR) { // um InstancedMesh por trecho de 24 x 24: o que está fora da câmera nem é desenhado
     const grupos = new Map(); for (const pt of pts) { const k = Math.floor(pt[0] / 24) + ':' + Math.floor(pt[1] / 24); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(pt); }
     const m4 = new THREE.Matrix4(), qv = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color();
@@ -239,6 +242,7 @@ function criarCaminho(scene, q) {
 
 // Tufos de grama instanciados com vento
 function criarTufos(scene, q, tempoU) {
+  if (LIMPO) return null;
   const blade = new THREE.ConeGeometry(0.07, 0.55, 3, 1); blade.translate(0, .27, 0);
   const g = new THREE.BufferGeometry();
   const parts = []; for (let k = 0; k < 5; k++) { const b = blade.clone(); b.rotateZ((Math.random() - .5) * .7); b.rotateY(k / 5 * Math.PI * 2); b.translate(Math.cos(k) * .09, 0, Math.sin(k) * .09); parts.push(b); }
@@ -606,7 +610,7 @@ export function criarMundo(scene, modelos, q, tempoU) {
     }
   }
   // rochas espalhadas
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < (LIMPO ? 0 : 70); i++) {
     if (TP && i % 3 === 2) { r(); r(); r(); r(); continue; } // pedra do Tripo é maior: 2/3 das pedras
     const x = (r() - .5) * 140, sgn = r() > .5 ? 1 : -1, z = laneZ(x) + sgn * (LANE.largura + 1 + r() * 6);
     const n = ['rock_single_A', 'rock_single_B', 'rock_single_C', 'rock_single_D', 'rock_single_E'][(r() * 5) | 0];
@@ -620,20 +624,21 @@ export function criarMundo(scene, modelos, q, tempoU) {
     const PX = MAPA_WR ? 3.7 : 4.6, PZ = MAPA_WR ? 3.6 : 4.4; // mapa WR: mata mais fechada (paredes de mata entre as trilhas)
     for (let x = -58 * K; x <= 60 * K; x += PX) for (let zz = -ZL; zz <= (MAPA_WR ? MAPA_C : SELVA_SUL - 1); zz += PZ) {
       const xx = x + (rs() - .5) * 2.4, z = (MAPA_WR ? 0 : laneZ(xx)) + zz + (rs() - .5) * 2.2, d = MAPA_WR ? distRota(xx, z) : Math.abs(zz), q = rs(), q2 = rs();
-      if (d < LANE.largura + 5 || distTrilha(xx, z) < 4.2 || distCampo(xx, z)[0] < (distCampo(xx, z)[1].lado ? 7.5 : 10.5) || Math.abs(xx - 1) > 56 * K) continue;
+      if (d < LANE.largura + 5 || distTrilha(xx, z) < (LIMPO ? 5.5 : 4.2) || distCampo(xx, z)[0] < (distCampo(xx, z)[1].lado ? 7.5 : 10.5) || Math.abs(xx - 1) > 56 * K) continue;
       if (MAPA_WR && (distLosango(xx, z) > MAPA_C - 5 || rioWR(xx, z) < 5 || perto(xx, z, 6.5))) continue;
+      if (LIMPO && q < .3 && q >= .08) continue; // prévia: 1 pedra a cada ~4 (pedras pequenas = ruído)
       if (q < .3) { if (TP) pedras.push({ x: xx, y: alturaChao(xx, z) - .08, z, alt: 1 + q2 * 1.6, ry: q2 * 6.28, cor: lado(xx) > .5 ? '#8a78a8' : '#ffffff' }); else { const o = colocar('rock_single_B', xx, z, 2.4 + q2 * 2); if (o) recolorir(o, lado(xx) > .5 ? '#5a4a70' : '#a89478'); } continue; }
       if (q > .78 || (zz > 0 && !MAPA_WR)) { if (zz > 0 && q < .5 && TP) pedras.push({ x: xx, y: alturaChao(xx, z) - .08, z, alt: .8 + q2 * 1.2, ry: q2 * 6.28, cor: lado(xx) > .5 ? '#8a78a8' : '#ffffff' }); continue; } const t = lado(xx);
-      if (TP) arvores.push({ x: xx, y: alturaChao(xx, z) - .1, z, alt: 5.2 + q2 * 2.4, ry: q2 * 6.28, cor: t < .45 ? '#f4ffe8' : '#9a78b8' });
+      if (TP) arvores.push({ x: xx, y: alturaChao(xx, z) - .1, z, alt: LIMPO ? 6.4 + q2 * 2 : 5.2 + q2 * 2.4, ry: q2 * 6.28, cor: t < .45 ? '#f4ffe8' : '#9a78b8' });
       else { const o = colocar(t < .45 ? 'trees_B_medium' : 'trees_A_medium', xx, z, 4 + q2 * 2); if (o && t >= .45) recolorir(o, '#6a4a80'); }
     }
   }
   if (SELVA_ON) criarCovas(scene, q, anim, TP, pedras, colocar, recolorir);
   // detalhes: Luz — estandartes, lanternas; Trevas — pilares quebrados, lanternas roxas
-  [[-24, 1], [-9, 1], [-26, -1], [-40, 1]].forEach(([x, s]) => { const z = laneZ(x) + s * (LANE.largura + .9); const o = colocar('lantern_standing', x, z, 1.1, 0); if (o) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: brilhoTex, color: 0xffb850, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .75 })); sp.scale.setScalar(2.2); sp.position.set(x, .75, z); scene.add(sp); const ch = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), new THREE.MeshBasicMaterial({ map: brilhoTex, color: 0x6a4a18, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); ch.rotation.x = -Math.PI / 2; ch.position.set(x, .08, z); scene.add(ch); } });
-  [[14, -1], [30, -1], [33, 1], [6, -1]].forEach(([x, s]) => { const z = laneZ(x) + s * (LANE.largura + 1.6); const pil = r() > .5; if (TP) { colunas.push({ x, y: alturaChao(x, z) - .05, z, alt: 3.2 + r() * .6, ry: r() * 6.28, cor: '#b8a8c8' }); return; } const o = colocar(pil ? 'pillar' : 'fence_broken', x, z, .7 + r() * .3); if (o) o.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.color.set('#4a3a5a'); } }); });
-  [[12, -1], [28, 1]].forEach(([x, s]) => { const z = laneZ(x) + s * (LANE.largura + 1.2); const o = colocar('post_lantern', x, z, 1, s > 0 ? Math.PI : 0); if (o) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: brilhoTex, color: 0xb040ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .8 })); sp.scale.setScalar(2.4); sp.position.set(x, 2.6, z + (s > 0 ? -1.1 : 1.1)); scene.add(sp); } });
-  colocar('arch', 30, laneZ(30), 1.3, Math.PI / 2);
+  if (!LIMPO) [[-24, 1], [-9, 1], [-26, -1], [-40, 1]].forEach(([x, s]) => { const z = laneZ(x) + s * (LANE.largura + .9); const o = colocar('lantern_standing', x, z, 1.1, 0); if (o) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: brilhoTex, color: 0xffb850, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .75 })); sp.scale.setScalar(2.2); sp.position.set(x, .75, z); scene.add(sp); const ch = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), new THREE.MeshBasicMaterial({ map: brilhoTex, color: 0x6a4a18, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); ch.rotation.x = -Math.PI / 2; ch.position.set(x, .08, z); scene.add(ch); } });
+  if (!LIMPO) [[14, -1], [30, -1], [33, 1], [6, -1]].forEach(([x, s]) => { const z = laneZ(x) + s * (LANE.largura + 1.6); const pil = r() > .5; if (TP) { colunas.push({ x, y: alturaChao(x, z) - .05, z, alt: 3.2 + r() * .6, ry: r() * 6.28, cor: '#b8a8c8' }); return; } const o = colocar(pil ? 'pillar' : 'fence_broken', x, z, .7 + r() * .3); if (o) o.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.color.set('#4a3a5a'); } }); });
+  if (!LIMPO) [[12, -1], [28, 1]].forEach(([x, s]) => { const z = laneZ(x) + s * (LANE.largura + 1.2); const o = colocar('post_lantern', x, z, 1, s > 0 ? Math.PI : 0); if (o) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: brilhoTex, color: 0xb040ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .8 })); sp.scale.setScalar(2.4); sp.position.set(x, 2.6, z + (s > 0 ? -1.1 : 1.1)); scene.add(sp); } });
+  if (!LIMPO) colocar('arch', 30, laneZ(30), 1.3, Math.PI / 2);
 
   // junta a vegetação estática em poucos draw calls (por material e por trecho do mapa)
   estatico.updateMatrixWorld(true);
@@ -652,7 +657,7 @@ export function criarMundo(scene, modelos, q, tempoU) {
   let lodProps = null;
   if (TP) {
     for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28; if (Math.sin(a) > -.3 || Math.cos(a) > .5) continue; const x = POS.baseLuz.x + Math.cos(a) * 6.8, z = POS.baseLuz.z + Math.sin(a) * 6.8; colunas.push({ x, y: 0, z, alt: 3.4, ry: a, cor: '#ffffff' }); }
-    if (MAPA_V2) { const filtra = (L, raio) => { const n0 = L.length; for (let i = L.length - 1; i >= 0; i--) if (tapaRota(L[i].x, L[i].z, L[i].alt, raio)) L.splice(i, 1); return n0 - L.length; }; console.log('[mapa v2] tirados da frente das rotas: árvores', filtra(arvores, 3), 'pedras', filtra(pedras, 1)); for (const a of arvores) if (BASES_V2.some(L => Math.hypot(a.x - L.centro.x, a.z - L.centro.z) < L.R + 22)) a.alt *= .6; } // atrás da base (borda do mapa): árvores menores, não tapam as saídas laterais
+    if (MAPA_V2) { const filtra = (L, raio) => { const n0 = L.length; for (let i = L.length - 1; i >= 0; i--) if (tapaRota(L[i].x, L[i].z, L[i].alt, raio)) L.splice(i, 1); return n0 - L.length; }; console.log('[mapa v2] tirados da frente das rotas: árvores', filtra(arvores, 3), 'pedras', filtra(pedras, 1)); if (LIMPO) { const tapaTrilha = (it) => { const L = it.alt * .7 + 3; for (let s = 0; s <= L; s += 1.5) { const px = it.x + .707 * s, pz = it.z - .707 * s; if (distTrilha(px, pz) < 2.2 || distCampo(px, pz)[0] < 4) return true; } return false; }; const n0 = arvores.length; for (let i = arvores.length - 1; i >= 0; i--) if (distLosango(arvores[i].x, arvores[i].z) < MAPA_C && tapaTrilha(arvores[i])) arvores.splice(i, 1); console.log('[limpo] árvores tiradas da frente das trilhas:', n0 - arvores.length); } for (const a of arvores) if (BASES_V2.some(L => Math.hypot(a.x - L.centro.x, a.z - L.centro.z) < L.R + 22)) a.alt *= .6; } // atrás da base (borda do mapa): árvores menores, não tapam as saídas laterais
     const iA = instanciar(scene, TP.arvore, arvores, { trecho: 16, sombra: !q.mobile, lod: TP.arvore_lod1, distLOD: q.baixa ? -99 : q.mobile ? 3 : 18, distMax: q.mobile ? (MAPA_WR ? 38 : 40) : 60, lod2: TP.arvore_lod2, distLOD2: q.mobile ? 18 : 34, altoSoFundo: q.mobile }); // celular: o lado de perto da câmera quase só aparece na borda de baixo
     const iP = instanciar(scene, TP.pedra, pedras, { trecho: 16, sombra: !q.mobile, lod: TP.pedra_lod1, distLOD: q.baixa ? -99 : q.mobile ? 3 : 18, distMax: q.mobile ? (MAPA_WR ? 34 : 34) : 60, altoSoFundo: q.mobile });
     const iC = instanciar(scene, TP.coluna, colunas, { trecho: 60, sombra: !q.mobile });
@@ -669,10 +674,10 @@ export function criarMundo(scene, modelos, q, tempoU) {
   const nevMat = new THREE.MeshBasicMaterial({ map: nevTex, color: 0x6a2a8a, transparent: true, opacity: .35, depthWrite: false, blending: THREE.AdditiveBlending });
   // 18 manchas de névoa + 12 de brilho: InstancedMesh (2 draw calls em vez de 30)
   const planoChao = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-  const nevs = new THREE.InstancedMesh(planoChao, nevMat, 18); const nevD = [];
-  for (let i = 0; i < 18; i++) { const x = 12 + r() * 50, z = laneZ(x) + (r() - .5) * 22; nevD.push({ x, y: .4 + r() * .6, z, s: 8 + r() * 10, a: 0 }); }
+  const NNEV = LIMPO ? 6 : 18; const nevs = new THREE.InstancedMesh(planoChao, nevMat, NNEV); const nevD = [];
+  for (let i = 0; i < NNEV; i++) { const x = 12 + r() * 50, z0 = (r() - .5) * 22, z = laneZ(x) + (LIMPO ? Math.sign(z0 || 1) * (10 + Math.abs(z0)) : z0); nevD.push({ x, y: .4 + r() * .6, z, s: 8 + r() * 10, a: 0 }); }
   const solMat = nevMat.clone(); solMat.color.set(0x8a6a20); solMat.opacity = .22;
-  const sols = new THREE.InstancedMesh(planoChao, solMat, 12); const mI = new THREE.Matrix4(), qI = new THREE.Quaternion(), eixoY = new THREE.Vector3(0, 1, 0), vI = new THREE.Vector3(), sI = new THREE.Vector3();
+  const sols = new THREE.InstancedMesh(planoChao, solMat, 12); if (LIMPO) sols.count = 0; const mI = new THREE.Matrix4(), qI = new THREE.Quaternion(), eixoY = new THREE.Vector3(0, 1, 0), vI = new THREE.Vector3(), sI = new THREE.Vector3();
   for (let i = 0; i < 12; i++) { const x = (-60 + r() * 45) * K, z = laneZ(x) + (r() - .5) * 20, sc = 8 + r() * 10; mI.compose(vI.set(x, .3, z), qI.identity(), sI.set(sc, 1, sc)); sols.setMatrixAt(i, mI); }
   const posNev = () => { nevD.forEach((d, i) => { mI.compose(vI.set(d.x, d.y, d.z), qI.setFromAxisAngle(eixoY, d.a), sI.set(d.s, 1, d.s)); nevs.setMatrixAt(i, mI); }); nevs.instanceMatrix.needsUpdate = true; };
   posNev(); nevs.frustumCulled = sols.frustumCulled = false; scene.add(nevs, sols);
@@ -691,8 +696,8 @@ function criarCovas(scene, q, anim, TP, pedras, colocar, recolorir) {
   for (const cv of COVAS) {
     const t = cv.c.tipo, esc = t === 'dragao' ? '#d8a890' : t === 'poco' ? '#a8c4d0' : t === 'sarca' ? '#e8c0a0' : '#c8d8f0';
     // muralha: pedras ao redor (só onde não há entrada)
-    const passo = cv.poco ? .34 : .5;
-    for (let a = -Math.PI; a < Math.PI; a += passo) { if (!naMuralha(cv, a)) continue; const rr = cv.r + .9 + r() * .8, x = cv.x + Math.cos(a) * rr, z = cv.z + Math.sin(a) * rr; const alt = ((cv.poco ? 2.1 : 1.2) + r() * (cv.poco ? 1.3 : .7)) * (Math.sin(a) > .3 ? .55 : 1); // lado da câmera mais baixo
+    const passo = cv.poco ? (LIMPO ? .45 : .34) : (LIMPO ? .95 : .5);
+    for (let a = -Math.PI; a < Math.PI; a += passo) { if (!naMuralha(cv, a)) continue; const rr = cv.r + .9 + r() * .8, x = cv.x + Math.cos(a) * rr, z = cv.z + Math.sin(a) * rr; const alt = ((cv.poco ? 2.1 : 1.2) + r() * (cv.poco ? 1.3 : .7)) * (Math.sin(a) > .3 ? .55 : 1) * (LIMPO && !cv.poco ? 1.35 : 1); // lado da câmera mais baixo
       if (TP) pedras.push({ x, y: alturaChao(x, z) - .15, z, alt, ry: r() * 6.28, cor: esc }); else { const o = colocar('rock_single_C', x, z, alt * 1.4); if (o) recolorir(o, esc); } }
     if (t === 'dragao') { // brasas e rocha queimada
       pulsos.push([plano(cv.x, cv.z, .05, cv.r * 2.2, 0xff5018, .2), .2]);
