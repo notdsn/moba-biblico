@@ -152,9 +152,10 @@ function nascer(m) {
   m.maxHp = m.hp = Math.round(m.T.hp * k); m.dano = m.T.dano * kd; m.vivo = true; m.estadoM = 'ocioso'; m.surgeT = .7; m.alvo = null; m.morteT = 0;
   m.obj.position.copy(m.casa); m.obj.visible = true; m.corpo.scale.setScalar(.01); for (const mt of m.mats) { mt.transparent = false; mt.opacity = 1; }
   m.lento = 0; m.dots.length = 0; m.hpAnt = m.hp; m.invulneravel = false;
+  m.spawnT = SPAWN_DUR; m._spawnFx = false; for (const mt of m.mats) { mt.transparent = true; mt.opacity = 0; } /* emerge do chão (ver emergir) */
   if (m.sub === 'dragao') anunciarObj('dragaoSurge'); else if (m.sub === 'beemote') anunciarObj('beemoteSurge'); else if (m.sub === 'leviata') anunciarObj('leviataSurge');
 }
-export function nascerTudo(t = D.estado.tempo) { for (const m of monstros) if (!m.vivo && m.modo !== 'arauto' && m.nasceEm != null && m.nasceEm <= t + 1e4) { if ((m.sub === 'beemote' && t >= T_LEV) || (m.sub === 'leviata' && t < T_LEV)) continue; nascer(m); m.surgeT = 0; m.corpo.scale.setScalar(1); } }
+export function nascerTudo(t = D.estado.tempo) { for (const m of monstros) if (!m.vivo && m.modo !== 'arauto' && m.nasceEm != null && m.nasceEm <= t + 1e4) { if ((m.sub === 'beemote' && t >= T_LEV) || (m.sub === 'leviata' && t < T_LEV)) continue; nascer(m); m.surgeT = 0; m.spawnT = 0; for (const mt of m.mats) { mt.transparent = false; mt.opacity = 1; } m.corpo.scale.setScalar(1); } }
 function anunciarObj(tipo, h) { if (D.anunciar) D.anunciar(tipo, h || null, null); }
 
 // chamado por morrer() no main.js
@@ -273,10 +274,24 @@ function atualizarMonstro(m, dt, t, camAlvo) {
     m.hp = Math.min(m.maxHp, m.hp + m.maxHp * .25 * dt); if (!m.T.cuspe) virar(m, m.casa, dt);
     if (p.distanceTo(m.casa) < .4) { m.estadoM = 'ocioso'; m.invulneravel = false; m.hp = m.maxHp; m.dots.length = 0; } else mv = mover(m, m.casa, 6, dt);
   }
-  if (longe && m.surgeT <= 0 && m.investida <= 0) return; // animação só perto da câmera
+  if (longe && m.surgeT <= 0 && m.investida <= 0 && !(m.spawnT > 0)) return; // animação só perto da câmera (o surgimento sempre termina)
   if (m.T.afunda) { const ag = D.scene.userData.aguaPoco; if (ag) { const u = ag.uniforms; u.uEsp.value = aprox(u.uEsp.value, m.vivo && m.estadoM !== 'morrendo' ? 1 : 0, 2, dt); u.uPulso.value = Math.max(0, u.uPulso.value - dt * .9); } }
   if (m.cuspeT >= 0) { const t0 = m.cuspeT; m.cuspeT += dt; if (t0 === 0) respingo(m, 26); if (t0 < .55 && m.cuspeT >= .55 && m.vivo && m.cuspeAlvo && m.cuspeAlvo.vivo) lancarCuspe(m, m.cuspeAlvo); if (m.cuspeT > 1.3) m.cuspeT = -1; }
   animarCorpo(m, dt, mv);
+  if (m.spawnT > 0) emergir(m, dt);
+}
+// surgimento: sobe do chão (ease-out), aparece em fade e levanta poeira + coluna de luz; só usa os sistemas de partículas que já existem (sem shader novo)
+const SPAWN_DUR = 1.2;
+function emergir(m, dt) {
+  const p = m.obj.position, fx = D.fx, fxD = D.fxD, R = m.T.raio || 1;
+  if (!m._spawnFx) { m._spawnFx = true; const n = m.T.obj ? 26 : m.T.peq ? 8 : 14;
+    if (fxD) for (let k = 0; k < n; k++) { const an = Math.random() * 6.28, r = R * (.6 + Math.random() * .7), v = .8 + Math.random() * 1.6; fxD.emit(p.x + Math.cos(an) * r, .25, p.z + Math.sin(an) * r, { vel: [Math.cos(an) * v, .5 + Math.random() * .8, Math.sin(an) * v], cor: [.66, .54, .38], vida: 1.1 + Math.random() * .5, t0: .7 * R, t1: 2.2 * R, alpha: .55 }); }
+    if (fx) for (let k = 0; k < n; k++) { const an = Math.random() * 6.28, r = Math.random() * R * .8; fx.emit(p.x + Math.cos(an) * r, .3 + Math.random() * .6, p.z + Math.sin(an) * r, { vel: [Math.cos(an) * .4, 2.5 + Math.random() * 3.5, Math.sin(an) * .4], cor: m.T.obj ? [1, .78, .4] : [1, .9, .6], vida: .7 + Math.random() * .4, t0: .55, t1: 0, drag: .6 }); } }
+  m.spawnT -= dt; const k = Math.min(1, 1 - Math.max(0, m.spawnT) / SPAWN_DUR), e = 1 - Math.pow(1 - k, 3);
+  m.corpo.position.y -= Math.min(2.4, m.T.tam * .45) * (1 - e);
+  if (fxD && k < .65 && Math.random() < (m.T.peq ? .25 : .55)) { const an = Math.random() * 6.28; fxD.emit(p.x + Math.cos(an) * R, .2, p.z + Math.sin(an) * R, { vel: [Math.cos(an) * .9, .6, Math.sin(an) * .9], cor: [.62, .5, .36], vida: 1, t0: .6 * R, t1: 1.8 * R, alpha: .45 }); }
+  const f = Math.min(1, k / .55); for (const mt of m.mats) { mt.transparent = f < 1; mt.opacity = f; }
+  if (m.spawnT <= 0) { m.spawnT = 0; for (const mt of m.mats) { mt.transparent = false; mt.opacity = 1; } }
 }
 // ---- animação procedural: tudo passa por molas amortecidas (sem trancos entre estados) ----
 // bob = quique ao andar; stomp = pisada pesada; roll = balanço lateral ao andar; pulse = pulso lento (Rocha); flick = chama tremulando (Sarça); fly = flutua

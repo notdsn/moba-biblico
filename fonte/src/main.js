@@ -486,7 +486,7 @@ function iniciarStatus(u) { u.lento = 0; u.lentoT = 0; u.atord = 0; u.escudos = 
 function criarHeroi(id, time, ehBot, baseK = null) {
   const d = HEROIS[id]; const b = BASES[baseK || id];
   const u = new Unidade(b.cena, b.clips || clips, { time, tipo: 'heroi', nome: d.nome, escala: ESC_HEROI * d.esc, raio: d.esc > 1.2 ? .95 : .75, hp: d.base.hp, vel: d.base.vel, alcance: d.base.alcance, dano: d.base.ad, cadencia: d.base.cad, anim: { ...d.anim } });
-  Object.assign(u, { baseK: baseK || id, id, def: d, bot: ehBot, nivel: 1, xp: 0, pontos: 1, ouro: 500, itens: [], abates: 0, mortes: 0, assist: 0, cs: 0, atkCd: 0, travado: 0, contAtaque: 0, proxBonus: 0, proxMag: 0, ctrl: { x: 0, y: 0, len: 0 }, canal: null, dash: null, morteT: 0, feit: { clarao: 0, curar: 0, purificar: 0, incendiar: 0, barreira: 0, exaustao: 0, fantasma: 0 }, feitSel: ehBot ? feitDoBot(d, id) : feitDoJogador(), cdPassiva: 0, cdEscudoFe: 0 });
+  Object.assign(u, { baseK: baseK || id, id, def: d, bot: ehBot, nivel: 1, xp: 0, pontos: 1, ouro: 500, itens: [], abates: 0, mortes: 0, assist: 0, cs: 0, atkCd: 0, travado: 0, contAtaque: 0, proxBonus: 0, proxMag: 0, ctrl: { x: 0, y: 0, len: 0 }, canal: null, dash: null, morteT: 0, feit: { clarao: 0, curar: 0, purificar: 0, incendiar: 0, barreira: 0, exaustao: 0, fantasma: 0, golpear: 0 }, feitSel: ehBot ? feitDoBot(d, id) : feitDoJogador(), cdPassiva: 0, cdEscudoFe: 0 });
   u.mago = ['debora', 'farao', 'jezabel'].includes(id);
   u.hab = { q: { nv: 0, cd: 0 }, w: { nv: 0, cd: 0 }, e: { nv: 0, cd: 0 }, r: { nv: 0, cd: 0 } };
   u.stats = { danoHerois: 0, danoSofrido: 0, danoEstr: 0, danoTropas: 0, torres: 0, cura: 0, controles: 0, primeiro: false, mortes: 0, maiorSerie: 0, ouroTotal: 500, historico: [500] }; u.sequencia = 0;
@@ -677,7 +677,7 @@ function moverForcado(u, dt) {
 function textoInfo(u, t) { textos.add(u.obj.position.clone().add(new THREE.Vector3(0, 1, 0)), t, 'info'); }
 
 function morrer(u, fonte) {
-  if (u.tipo === 'monstro') { if (fonte && fonte.id === 'sarai') ganharOuro(fonte, 15, u.obj.position); if (fonte && fonte.tipo === 'heroi') { fonte.monstrosAbatidos = (fonte.monstrosAbatidos || 0) + 1; monstroAbatidoPor(fonte); } return monstroMorreu(u, fonte); }
+  if (u.tipo === 'monstro') { if (fonte && fonte.id === 'sarai') ganharOuro(fonte, 15, u.obj.position); if (fonte && fonte.tipo === 'heroi') { fonte.monstrosAbatidos = (fonte.monstrosAbatidos || 0) + 1; monstroAbatidoPor(fonte); acumuloGolpear(fonte, u); } return monstroMorreu(u, fonte); }
   u.vivo = false; u.morteT = 0; u.tocar(u.anim.morte, .1, true); u.canal = null; u.dash = null;
   if (KIT) KIT.aoMorrer(u, fonte);
   const heroiFonte = fonte && fonte.tipo === 'heroi' ? fonte : null;
@@ -1293,7 +1293,7 @@ function particulasZona(tipo, c, r, dt) {
 
 // ================= feitiços e recuo =================
 // ================= feitiços de invocador: cada herói leva 2 (como no Wild Rift) =================
-const FEIT = { clarao: 120, curar: 90, purificar: 90, incendiar: 90, barreira: 90, exaustao: 90, fantasma: 90 };
+const FEIT = { clarao: 120, curar: 90, purificar: 90, incendiar: 90, barreira: 90, exaustao: 90, fantasma: 90, golpear: 10 };
 const FEIT_INFO = {
   clarao: { nome: 'Clarão', desc: 'Salta 5 m na direção do joystick.', cor: '#fff09a', ico: 'M18 2 6 18h8l-2 12 14-18h-9Z' },
   curar: { nome: 'Curar', desc: 'Cura você e o aliado mais ferido por perto; corrida curta.', cor: '#9dffb0', ico: 'M12 4h8v8h8v8h-8v8h-8v-8H4v-8h8Z' },
@@ -1301,13 +1301,14 @@ const FEIT_INFO = {
   incendiar: { nome: 'Incendiar', desc: 'Queima o herói inimigo mais próximo (6 m): dano verdadeiro por 3 s e −50% de cura.', cor: '#ff9a5a', ico: 'M16 2c2 6 9 8 9 17a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 3 4 3 4 0-4 0-7 2-10Z' },
   barreira: { nome: 'Barreira', desc: 'Escudo forte por 2,5 s.', cor: '#ffe6a0', ico: 'M16 3 27 7v8c0 7-5 12-11 14C10 27 5 22 5 15V7Z' },
   exaustao: { nome: 'Exaustão', desc: 'Herói inimigo mais próximo (6 m): −30% de velocidade e −35% de dano por 3 s.', cor: '#d6b0ff', ico: 'M8 3h16v5l-6 8 6 8v5H8v-5l6-8-6-8Z' },
+  golpear: { nome: 'Golpear', desc: '600 de dano verdadeiro num monstro grande/épico ou tropa e cura 70 + 10% da vida máx. 2 cargas (1 a cada 45 s). Evolui com abates na selva: 1000 (8 acúmulos) e 1400 (20 acúmulos); evoluído também atinge herói (40 + lentidão).', cor: '#ffcf6a', ico: 'M17 2 9 17h6l-3 13 11-17h-6l4-11Z' },
   fantasma: { nome: 'Fantasma', desc: '+40% de velocidade por 6 s.', cor: '#b8fff4', ico: 'M16 3a10 10 0 0 1 10 10v16l-4-3-3 3-3-3-3 3-3-3-4 3V13A10 10 0 0 1 16 3Zm-4 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm8 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z' },
 };
 function feitDoJogador() { try { const v = JSON.parse(localStorage.getItem('mobaFeit') || 'null'); if (Array.isArray(v) && v.length === 2 && v[0] !== v[1] && FEIT[v[0]] && FEIT[v[1]]) return v; } catch (e) { /* padrão */ } return ['clarao', 'curar']; }
 function feitDoBot(d, id) { const f = d && d.funcao; const par = (id || '').length % 2; const seg = f === 'atirador' ? (par ? 'curar' : 'barreira') : f === 'mago' ? 'incendiar' : f === 'assassino' ? (par ? 'incendiar' : 'fantasma') : f === 'lutador' ? (par ? 'purificar' : 'fantasma') : f === 'tanque' ? 'exaustao' : f === 'suporte' ? (par ? 'exaustao' : 'barreira') : 'curar'; return ['clarao', seg]; }
 // tela de escolha dos 2 feitiços (no menu de heróis); grava em localStorage
 function abrirFeitTela() { let t = $('feitTela'); if (!t) { t = document.createElement('div'); t.id = 'feitTela'; document.body.appendChild(t); } let sel = feitDoJogador().slice();
-  const desenhar = () => { t.innerHTML = `<div class="caixa"><h2>Feitiços</h2><p>Escolha 2 · ${sel.map(k => FEIT_INFO[k].nome).join(' + ')}</p><div class="lista">${Object.keys(FEIT).map(k => { const I = FEIT_INFO[k], i = sel.indexOf(k); return `<button data-k="${k}" class="${i >= 0 ? 'on' : ''}" style="--c:${I.cor}"><svg viewBox="0 0 32 32"><path d="${I.ico}" fill="currentColor"/></svg><b>${I.nome}${i >= 0 ? ` <i>${i ? 'C' : 'X'}</i>` : ''}</b><small>${I.desc}<br>Recarga ${FEIT[k]} s</small></button>`; }).join('')}</div><button class="ok">Pronto</button></div>`;
+  const desenhar = () => { t.innerHTML = `<div class="caixa"><h2>Feitiços</h2><p>Escolha 2 · ${sel.map(k => FEIT_INFO[k].nome).join(' + ')}</p><div class="lista">${Object.keys(FEIT).map(k => { const I = FEIT_INFO[k], i = sel.indexOf(k); return `<button data-k="${k}" class="${i >= 0 ? 'on' : ''}" style="--c:${I.cor}">${iconeFeit(k)}<b>${I.nome}${i >= 0 ? ` <i>${i ? 'C' : 'X'}</i>` : ''}</b><small>${I.desc}<br>Recarga ${FEIT[k]} s</small></button>`; }).join('')}</div><button class="ok">Pronto</button></div>`;
     t.querySelectorAll('.lista button').forEach(b => b.onclick = () => { const k = b.dataset.k; if (sel.includes(k)) return; sel = [sel[1], k]; localStorage.setItem('mobaFeit', JSON.stringify(sel)); desenhar(); });
     t.querySelector('.ok').onclick = () => { t.className = ''; atualizarBotaoFeit(); }; };
   desenhar(); t.className = 'on'; }
@@ -1318,7 +1319,7 @@ function chuvaFx(p, cor, n = 26, sobe = 3) { for (let k = 0; k < n; k++) fx.emit
 function avisoFeit(h, t) { if (h === jogador) aviso(t, true); return false; }
 function usarFeit(h, k, dir) {
   if (!h || !h.vivo || !k || !FEIT[k] || !temFeit(h, k)) return false; if (h.feit[k] > 0) return avisoFeit(h, `${FEIT_INFO[k].nome} recarregando`);
-  if (k === 'clarao') return clarao(h, dir) !== false; if (k === 'curar') return curar(h) !== false;
+  if (k === 'clarao') return clarao(h, dir) !== false; if (k === 'curar') return curar(h) !== false; if (k === 'golpear') return golpear(h);
   const p = h.obj.position; const C = (hx) => new THREE.Color(hx);
   if (k === 'purificar') { limparControles(h); h.imparavel = Math.max(h.imparavel || 0, 1); h.dots = h.dots.filter(d => !d.ignite); chuvaFx(p, [.75, .92, 1]); aneis.add(p, C('#bfe8ff'), .4, 2.2, .5); }
   else if (k === 'incendiar' || k === 'exaustao') { const a = heroiInimigoPerto(h, 6.5); if (!a) return avisoFeit(h, 'Nenhum herói inimigo perto (6 m)');
@@ -1331,6 +1332,7 @@ function usarFeit(h, k, dir) {
 }
 // IA: cada bot usa o 2º feitiço na hora certa (o Clarão e o Curar já têm regras próprias)
 function botFeiticos(h, inim, dInim, hpF) {
+  if (temFeit(h, 'golpear')) botGolpear(h, hpF);
   const k = h.feitSel[1]; if (!k || h.feit[k] > 0 || k === 'curar' || k === 'clarao') return;
   if (k === 'purificar') { if ((h.atord > .5 || h.raiz > .5 || h.medo || h.encanto || h.provoc) && inim && dInim < 9) usarFeit(h, k); return; }
   if (!inim || inim.tipo !== 'heroi') return;
@@ -1339,6 +1341,40 @@ function botFeiticos(h, inim, dInim, hpF) {
   else if (k === 'exaustao') { if (dInim < 5.5 && (hpF < .45 || (inim.def.funcao === 'assassino' && h.combateT < 2))) usarFeit(h, k); }
   else if (k === 'fantasma') { if ((hpF < .25 && dInim < 7) || (DIF.clarao && inim.hp / inim.maxHp < .25 && dInim > h.alcance + 1 && dInim < 10)) usarFeit(h, k); }
 }
+// ================= Golpear (Smite, como no Wild Rift atual) =================
+// 600 de dano verdadeiro em monstro grande/épico ou tropa (alcance ~5 m), cura 70 + 10% da vida máx. ao golpear monstro; 2 cargas (1 a cada 45 s),
+// 10 s entre usos (e 10 s no começo). Sem item de selva: evolui sozinho com acúmulos de abates na selva (monstro +1, épico +2):
+// 8 → Golpear II (1000), 20 → Golpear III (1400). Evoluído também pode ser usado em herói inimigo (40 verdadeiro + 25% de lentidão por 2 s, como o Golpe Gélido).
+const GOLP = { alc: 5.2, dano: [0, 600, 1000, 1400], cargasMax: 2, recarga: 45, nv2: 8, nv3: 20 };
+function iniGolpear(h) { if (h.golpearCargas == null) { h.golpearCargas = 1; h.golpearRec = GOLP.recarga; h.golpearAc = 0; h.golpearNv = 1; h.feit.golpear = 10; } }
+function atualizarGolpear(h, dt) { iniGolpear(h); if (h.golpearCargas < GOLP.cargasMax) { h.golpearRec -= dt; if (h.golpearRec <= 0) { h.golpearCargas++; h.golpearRec = GOLP.recarga; } } else h.golpearRec = GOLP.recarga; }
+function cdGolpear(h) { iniGolpear(h); const a = h.feit.golpear || 0; return h.golpearCargas > 0 ? [a, FEIT.golpear] : [Math.max(a, h.golpearRec), GOLP.recarga]; }
+function acumuloGolpear(h, m) { if (!h || !temFeit(h, 'golpear')) return; iniGolpear(h); const nv0 = h.golpearNv; h.golpearAc += m.T && m.T.obj ? 2 : 1;
+  h.golpearNv = h.golpearAc >= GOLP.nv3 ? 3 : h.golpearAc >= GOLP.nv2 ? 2 : 1; if (h.golpearNv > nv0) { textoInfo(h, h.golpearNv === 3 ? 'Golpear III!' : 'Golpear II!'); if (h === jogador) { aviso(`Golpear evoluiu: ${GOLP.dano[h.golpearNv]} de dano${nv0 === 1 ? ' e agora atinge heróis' : ''}`); som('nivel'); } } }
+function alvoGolpear(h, soMonstro) { const p = h.obj.position; let best = null, bp = -1, bd = 1e9;
+  for (const u of unidades) { if (!u.vivo || u.spawnT > 0 || u.time === h.time) continue; let pr = 0;
+    if (u.tipo === 'monstro') { if (u.T.peq || u.modo === 'arauto' || u.estadoM === 'morrendo') continue; pr = u.T.obj ? 3 : 2; } else if (u.tipo === 'minion' && !soMonstro) { if (!visivelPara(u, h.time)) continue; pr = 1; } else continue;
+    const d = u.obj.position.distanceTo(p) - (u.raio || .5); if (d > GOLP.alc) continue; if (pr > bp || (pr === bp && d < bd)) { best = u; bp = pr; bd = d; } }
+  return best; }
+function golpear(h, alvo) { iniGolpear(h); if (h.golpearCargas < 1) return avisoFeit(h, 'Golpear sem cargas');
+  let u = alvo || alvoGolpear(h); let heroi = false;
+  if (!u && h.golpearNv > 1) { const a = heroiInimigoPerto(h, GOLP.alc); if (a) { u = a; heroi = true; } }
+  if (!u) return avisoFeit(h, h.golpearNv > 1 ? 'Nada para golpear por perto (5 m)' : 'Nenhum monstro grande ou tropa perto (5 m)');
+  const q = u.obj.position; h.golpearCargas--; h.feit.golpear = FEIT.golpear; if (h.golpearCargas < GOLP.cargasMax && h.golpearRec >= GOLP.recarga) h.golpearRec = GOLP.recarga;
+  if (heroi) { danificar(h, u, 40, { puro: true }); aplicarLento(u, .25, 2); h.buffs.push({ tipo: 'ms', v: .25, t: 2 }); }
+  else { danificar(h, u, GOLP.dano[h.golpearNv], { puro: true, golpear: true }); if (u.tipo === 'monstro') curarU(h, 70 + h.maxHp * .1, true); }
+  const cor = h.golpearNv === 3 ? [1, .55, .2] : h.golpearNv === 2 ? [.6, .85, 1] : [1, .88, .45];
+  for (let k = 0; k < 22; k++) fx.emit(q.x + (Math.random() - .5) * .5, 5.5 - k * .24, q.z + (Math.random() - .5) * .5, { vel: [0, -3, 0], cor, vida: .35, t0: .9, t1: .2 }); // feixe do céu
+  chuvaFx(q, cor, 24, 2.4); aneis.add(q, new THREE.Color(...cor), .3, 2.2, .45); h.olharPara && h.olharPara(q, 1, 1);
+  textoInfo(h, 'Golpear'); if (h === jogador) som('nivel'); return true; }
+// bot: garante o último golpe em Dragão/Leviatã/monstro grande (inclusive roubo), usa para se curar quando aperta, e não desperdiça as 2 cargas
+function botGolpear(h, hpF) { iniGolpear(h); if (h.golpearCargas < 1 || h.feit.golpear > 0) return; const u = alvoGolpear(h, true); if (!u) return;
+  const dano = GOLP.dano[h.golpearNv]; const epico = u.T && u.T.obj; const inimPerto = herois.some(e => e.vivo && e.time !== h.time && e.obj.position.distanceTo(u.obj.position) < 12);
+  if (u.hp <= dano) { golpear(h, u); return; } // último golpe (Dragão/Leviatã: garante contra o caçador inimigo)
+  if (epico) return; // épico: guarda a carga para o último golpe
+  if (inimPerto) return;
+  if (hpF < .3 && u.estadoM === 'luta') { golpear(h, u); return; } // cura quando aperta
+  if (h.golpearCargas >= GOLP.cargasMax && u.hp <= dano * 1.8 && u.hp > dano * .5) golpear(h, u); } // não deixa a 2ª carga parada
 function curar(h) { if (!h.vivo || h.feit.curar > 0 || !temFeit(h, 'curar')) return false; h.feit.curar = FEIT.curar; curarU(h, 90 + 15 * h.nivel + h.maxHp * .1, true); { let al = null; for (const u of herois) if (u !== h && u.vivo && u.time === h.time && u.obj.position.distanceTo(h.obj.position) < 6 && (!al || u.hp / u.maxHp < al.hp / al.maxHp)) al = u; if (al) { curarU(al, (90 + 15 * h.nivel) * .8, true, h); aneis.add(al.obj.position, new THREE.Color(.5, 1, .6), .4, 2, .5); } } textoInfo(h, 'Curar'); h.buffs.push({ tipo: 'ms', v: .3, t: 1 }); aneis.add(h.obj.position, new THREE.Color(.5, 1, .6), .5, 2.5, .6); for (let k = 0; k < 30; k++) fx.emit(h.obj.position.x + (Math.random() - .5) * 2, .3, h.obj.position.z + (Math.random() - .5) * 2, { vel: [0, 3 + Math.random() * 2, 0], cor: [.5, 1, .6], vida: .9, t0: .4, t1: 0 }); }
 function clarao(h, dirF) { if (!h.vivo || h.feit.clarao > 0 || h.atord > 0 || !temFeit(h, 'clarao')) return false; h.feit.clarao = FEIT.clarao; const dir = dirF || (h.ctrl.len > .1 ? new THREE.Vector3(h.ctrl.x, 0, h.ctrl.y).normalize() : frente(h)); const a = h.obj.position.clone(); h.obj.position.addScaledVector(dir, 5); limitar(h.obj.position); h.canal = null; for (const p of [a, h.obj.position]) { for (let k = 0; k < 24; k++) fx.emit(p.x, 1 + Math.random(), p.z, { vel: [(Math.random() - .5) * 6, (Math.random() - .5) * 6, (Math.random() - .5) * 6], cor: [1, .95, .6], vida: .4, t0: .5, t1: 0 }); aneis.add(p, new THREE.Color(1, .95, .6), .2, 1.8, .4); } }
 function recuar(h) { if (!h.vivo || h.canal || estado.fim) return; h.canal = { tipo: 'recuo', t: 0, dur: 4 }; if (h === jogador) aviso('Recuando para a base…'); }
@@ -1747,7 +1783,7 @@ function atualizarHeroi(h, dt) {
   if (h.id === 'balaao') for (const u of herois) if (u.vivo && u.time !== h.time && u.invis > 0 && u.obj.position.distanceTo(h.obj.position) < 9) { u.invis = 0; textoInfo(u, 'A jumenta viu!'); }
   if (h.conselhoT > 0) { h.conselhoT -= dt; h.consAtk -= dt; const al = h.encanto && h.encanto.por; if (!al || !al.vivo || h.conselhoT <= 0) { h.conselhoT = 0; if (h.encanto && h.encanto.por.time === h.time) h.encanto = null; } else if (h.consAtk <= 0 && al.obj.position.distanceTo(h.obj.position) < h.alcance + 1.5) { h.consAtk = .8; danificar(h, al, h.st.ad, { ataque: true }); } } // Balaão E
   if (h.estase > 0) { h.estase -= dt; h.travado = Math.max(h.travado, .2); h.ctrl.len = 0; }
-  for (const k in h.feit) if (h.feit[k] > 0) h.feit[k] = Math.max(0, h.feit[k] - dt); h.cdPassiva = Math.max(0, h.cdPassiva - dt); h.cdEscudoFe = Math.max(0, h.cdEscudoFe - dt);
+  for (const k in h.feit) if (h.feit[k] > 0) h.feit[k] = Math.max(0, h.feit[k] - dt); if (temFeit(h, 'golpear')) atualizarGolpear(h, dt); h.cdPassiva = Math.max(0, h.cdPassiva - dt); h.cdEscudoFe = Math.max(0, h.cdEscudoFe - dt);
   h.atkCd = Math.max(0, h.atkCd - dt); h.travado = Math.max(0, h.travado - dt);
   // regeneração
   const fora = h.combateT > 6;
@@ -2112,8 +2148,8 @@ function atualizarHUD(dt) {
   const setCd = (el, cd, max) => { const c = el.querySelector('.cd'); if (cd > 0) { c.classList.add('on'); c.style.setProperty('--p', (cd / max).toFixed(3)); c.textContent = cd > 1 ? Math.ceil(cd) : cd.toFixed(1).replace('.', ','); } else c.classList.remove('on'); };
   for (const [k, el] of Object.entries(cdEls)) { const H = h.hab[k], d = h.def.hab[k]; setCd(el, H.cd, H.nv ? d.cd[H.nv - 1] * 100 / (100 + h.st.ah) : 1); el.classList.toggle('bloq', H.nv === 0); el.classList.toggle('semMana', H.nv > 0 && h.mana < d.mana[H.nv - 1]); el.classList.toggle('podeSubir', podeSubir(h, k)); const nvEl = el.querySelector('.nvs'); if (nvEl) nvEl.innerHTML = Array.from({ length: k === 'r' ? 3 : 5 }, (_, i) => `<i class="${i < H.nv ? 'on' : ''}"></i>`).join(''); }
   if (SELVA_ON) { const ob = h.olhoBeemote > estado.tempo; const bb = $('bBeemote'); if (bb.hidden === ob) bb.hidden = !ob; }
-  if (h._feitUI !== h.feitSel.join()) { h._feitUI = h.feitSel.join(); [['bClarao', 0], ['bCurar', 1]].forEach(([id, i]) => { const el = $(id), k = h.feitSel[i], I = FEIT_INFO[k]; el.setAttribute('aria-label', I.nome); el.style.setProperty('color', I.cor, 'important'); el.style.setProperty('border-color', I.cor, 'important'); el.innerHTML = `<svg viewBox="0 0 32 32"><path d="${I.ico}" fill="currentColor"/></svg><span>${I.nome}</span><em class="cd"></em>`; }); }
-  setCd($('bClarao'), h.feit[h.feitSel[0]], FEIT[h.feitSel[0]]); setCd($('bCurar'), h.feit[h.feitSel[1]], FEIT[h.feitSel[1]]); setCd($('bSentinela'), Math.max(0, (h.sentCd || 0) - estado.tempo), SENT.cd);
+  if (h._feitUI !== h.feitSel.join() + (h.golpearNv || 1)) { h._feitUI = h.feitSel.join() + (h.golpearNv || 1); [['bClarao', 0], ['bCurar', 1]].forEach(([id, i]) => { const el = $(id), k = h.feitSel[i], I = FEIT_INFO[k]; el.setAttribute('aria-label', I.nome); el.style.setProperty('color', I.cor, 'important'); el.style.setProperty('border-color', I.cor, 'important'); el.innerHTML = `${iconeFeit(k, h)}<span>${I.nome}</span><em class="cd"></em>`; }); }
+  [['bClarao', 0], ['bCurar', 1]].forEach(([id, i]) => { const k = h.feitSel[i], el = $(id); if (k === 'golpear') { const [r, t] = cdGolpear(h); setCd(el, r, t); if (el.dataset.cargas !== String(h.golpearCargas)) el.dataset.cargas = h.golpearCargas; } else { setCd(el, h.feit[k], FEIT[k]); if (el.dataset.cargas) delete el.dataset.cargas; } }); setCd($('bSentinela'), Math.max(0, (h.sentCd || 0) - estado.tempo), SENT.cd);
   { const R = h.hab.r; const pronta = R.nv > 0 && R.cd <= 0 && h.mana >= h.def.hab.r.mana[R.nv - 1] && h.vivo; if (pronta !== h.ultPronta) { h.ultPronta = pronta; cdEls.r.classList.toggle('pronta', pronta); if (pronta && estado.tempo > 1) som('ultPronta', null, .8); } }
   atualizarAnuncio(dt);
   $('bRecuar').classList.toggle('ativo', !!h.canal);
@@ -2192,6 +2228,8 @@ function aquecerShaders() {
   // para a tela (sRGB + tone mapping): variantes erradas, e as certas só saíam para o que estava no quadro do aquecimento
   const rtAnt = renderer.getRenderTarget(); try { renderer.setRenderTarget(composer.readBuffer); renderer.compile(scene, camera); } catch (e) { console.warn('[aquecer rt]', e && e.message); } renderer.setRenderTarget(rtAnt);
   try { renderer.shadowMap.needsUpdate = true; composer.render(0); for (const pr of renderer.info.programs || []) { pr.getUniforms(); pr.getAttributes(); } } catch (e) { console.warn('[aquecer]', e && e.message); } // 1 quadro completo (inclui o passe de sombra)
+  // monstros da selva: surgem/morrem em fade (material transparente = outra variante de shader): compila a variante transparente agora
+  try { const mm = [...new Set(SELVA.monstros.flatMap(m => m.mats || []))]; if (mm.length) { const ant = mm.map(m => [m.transparent, m.opacity]); for (const m of mm) { m.transparent = true; m.opacity = .5; } renderer.setRenderTarget(composer.readBuffer); renderer.compile(scene, camera); renderer.setRenderTarget(rtAnt); mm.forEach((m, i) => { m.transparent = ant[i][0]; m.opacity = ant[i][1]; }); } } catch (e) { console.warn('[aquecer selva]', e && e.message); }
   for (const o of ocultos) o.visible = false; scene.remove(tmp); coroa.geometry.dispose();
   const n = liberarBasesForaDeUso(); if (n) console.log('[memoria] liberados da GPU:', n);
 }
@@ -2274,7 +2312,7 @@ function verHeroi(id) {
   $('selCards').querySelectorAll('.card').forEach(b => b.classList.toggle('sel', b.dataset.id === id));
   const hab = (k, x) => `<div class="hb"><span class="ic">${iconeHab(id, ({ 1: 'q', 2: 'w', 3: 'e', Ult: 'r' })[k] || String(k).toLowerCase(), x)}</span><div><b><em>${k}</em>${x.nome}</b><small>${x.desc}</small></div></div>`;
   $('selDet').innerHTML = `<h2>${d.nome}<small>${d.titulo} · ${d.papel}</small></h2>
-    <div class="hb pas"><span class="ic">${svg(d.icone)}</span><div><b><em>Passiva</em>${d.passiva.nome}</b><small>${d.passiva.desc}</small></div></div>
+    <div class="hb pas"><span class="ic">${iconeHab(id, 'passiva', d)}</span><div><b><em>Passiva</em>${d.passiva.nome}</b><small>${d.passiva.desc}</small></div></div>
     ${hab('1', d.hab.q)}${hab('2', d.hab.w)}${hab('3', d.hab.e)}${hab('Ult', d.hab.r)}${htmlVestes(id)}`;
   ligarVestes($('selDet'), id, () => verHeroi(id));
   // o card do herói mostra a veste equipada
@@ -2301,10 +2339,15 @@ const ICONES_TRIPO = ['espadaCurta', 'aljava', 'luvas', 'cota', 'manto', 'cinto'
 if (TRIPO) { document.documentElement.classList.add('icTripo'); document.documentElement.style.setProperty('--tItens', `url(${urlAbs('ui/itens_tripo.webp')})`); }
 // ícones de habilidade do Tripo (atlas 4×8 de 192 px, ui/habs_tripo.webp: linha = herói, coluna = Q/W/E/R); ?modelos=antigos volta aos SVG
 const HAB_TRIPO = ['davi', 'sansao', 'debora', 'gideao', 'golias', 'farao', 'jezabel', 'nabuco'];
-if (TRIPO) document.documentElement.style.setProperty('--tHabs', `url(${urlAbs('ui/habs_tripo.webp')})`);
-function iconeHab(hid, k, x) { const r = TRIPO ? HAB_TRIPO.indexOf(hid) : -1; const c = 'qwer'.indexOf(k);
-  if (r < 0 || c < 0) return svg(x.icone);
-  return `<i class="icHab" style="background-position:${(c * 100 / 3).toFixed(3)}% ${(r * 100 / 7).toFixed(3)}%"></i>`; }
+// ícones novos (estilo Wild Rift, Jarvys): um WebP 256x256 por habilidade/feitiço em public/icones/ (o navegador só baixa os que entram na tela:
+// HUD = herói do jogador; seleção = herói aberto). ?modelos=antigos volta aos SVG.
+const ICO_V = 1; // subir quando trocar as artes (cache)
+const icoUrl = (p) => urlAbs('icones/' + p + '.webp?v=' + ICO_V);
+const ICO_HEROIS = new Set(['davi', 'sansao', 'debora', 'gideao', 'josue', 'elias', 'ester', 'sarai', 'moises', 'daniel', 'noe', 'jonatas', 'golias', 'farao', 'jezabel', 'nabuco', 'acabe', 'dalila', 'herodes', 'hama', 'balaao', 'ninrode', 'golias2']);
+function iconeHab(hid, k, x) { if (!TRIPO || !ICO_HEROIS.has(hid) || !['passiva', 'q', 'w', 'e', 'r'].includes(k)) return svg(x.icone);
+  return `<i class="icHab icArq" style="background-image:url(${icoUrl('habilidades/' + hid + '_' + k)})"></i>`; }
+const icoFeit = (k, h) => k === 'golpear' && h && h.golpearNv > 1 ? 'golpear' + h.golpearNv : k;
+function iconeFeit(k, h) { const I = FEIT_INFO[k]; if (!TRIPO) return `<svg viewBox="0 0 32 32"><path d="${I.ico}" fill="currentColor"/></svg>`; return `<img class="icFeit" src="${icoUrl('feiticos/' + icoFeit(k, h))}" alt="" draggable="false">`; }
 // botão de ataque básico com arte do Tripo (atlas 4×2 de 192 px, ui/ataques_tripo.webp, na ordem HAB_TRIPO). Gere com tools/atlas_ataques.py e ligue aqui.
 const ATK_TRIPO = true;
 if (TRIPO && ATK_TRIPO) document.documentElement.style.setProperty('--tAtk', `url(${urlAbs('ui/ataques_tripo.webp')})`);
@@ -2802,7 +2845,8 @@ async function comecarPartida(id, vs, funcao) {
   if (E.aId) { // 2v2: você + aliado (PC) contra caçador + meio (PC)
     aliado = criarHeroi(E.aId, d.time, true); cacador = criarHeroi(E.cId, inimigo(d.time), true);
     funcao = E.funcao; jogador.funcao = funcao; aliado.funcao = E.funcaoAliado; bot.funcao = 'meio'; cacador.funcao = 'selva';
-    for (const [hid, time, fn] of E.extras) { const x = criarHeroi(hid, time, true); x.funcao = fn; extras5.push(x); }
+    for (const x of [aliado, cacador]) if (x.funcao === 'selva') x.feitSel = ['clarao', 'golpear']; // caçador bot leva Golpear (como no WR)
+    for (const [hid, time, fn] of E.extras) { const x = criarHeroi(hid, time, true); x.funcao = fn; if (fn === 'selva') x.feitSel = ['clarao', 'golpear']; extras5.push(x); }
     for (const x of extras5) { const R = rotaPara(x); if (!R) continue; const p = andarNaRota(R, NUCLEO[x.time], x.time, 4); x.obj.position.set(p.x, 0, p.z); }
   }
   if (SELVA_ON && !selvaIni) selvaIni = iniciarSelva(selvaDeps());

@@ -792,3 +792,11 @@ html.android #girarBtn{display:block}
 #rodaPing button{position:absolute;left:calc(50% + var(--x)*1% );top:calc(50% + var(--y)*1%);transform:translate(-50%,-50%);flex-direction:column;gap:.15em!important;padding:calc(.6*var(--u)) calc(.9*var(--u))!important;border-color:var(--c)!important;border-radius:calc(2*var(--u))!important;font-size:calc(1.5*var(--u))!important}
 #rodaPing button b{background:var(--c)!important;color:#111}
 #rodaPing button i{font-style:normal}
+
+/* ícones novos (arquivo por habilidade/feitiço) */
+.icHab.icArq{background-size:cover;background-position:center;background-repeat:no-repeat}
+.feitico .icFeit{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover;pointer-events:none;z-index:0}
+.feitico:has(.icFeit) span{z-index:1;text-shadow:0 0 3px #000,0 1px 2px #000,0 0 6px #000}
+.feitico:has(.icFeit) .cd{z-index:2}
+#feitTela .lista .icFeit{width:calc(5.6*var(--u));height:calc(5.6*var(--u));border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px var(--c)}
+.feitico[data-cargas]::before{content:attr(data-cargas);position:absolute;top:4%;right:8%;z-index:3;min-width:1.3em;line-height:1.3em;border-radius:50%;background:#1a1408;border:1px solid #ffcf6a;color:#ffe9b0;font-size:calc(1.2*var(--u));font-weight:900;text-align:center}
