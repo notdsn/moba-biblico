@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { clone as clonarEsq } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { SELVA_ON, CAMPOS } from './selva_mapa.js';
+import { reduzirTexturas } from './perf.js';
 export { SELVA_ON, CAMPOS };
 
 // ---- números (Wild Rift, comprimido para partidas de 8–12 min; ≈ 0,6× dos tempos do WR) ----
@@ -40,7 +41,7 @@ async function carregarMolde(n) {
   const tri = !D.Q.baixa && (TRIPO[n] || qs.get('tripo') === '1') ? await D.carregar('selva/tripo_anim/' + n + '_anim').catch(() => null) : null;
   const hi = tri || (D.Q.baixa ? null : await D.carregar('selva/' + (RIG[n] || n)).catch(() => null)); // modelo com esqueleto + clipes (Blender ou Tripo), senão o estático
   const base = (hi || lo).scene; const bb = new THREE.Box3().setFromObject(base); const sz = bb.getSize(new THREE.Vector3());
-  const prep = (g) => { if (!g) return null; const s = g.scene; s.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; if (o.geometry.attributes.color && !o.material.map) o.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .8, metalness: .05 }); } }); return s; };
+  const prep = (g) => { if (!g) return null; const s = g.scene; if (D.Q.mobile) reduzirTexturas(s, 512); /* celular: 512 como heróis e props (antes 1024 + normal = ~12 MB de GPU por monstro) */ s.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; if (o.geometry.attributes.color && !o.material.map) o.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .8, metalness: .05 }); } }); return s; };
   moldes[n] = { tripo: !!(tri && tri.animations && tri.animations.length), clipes: hi && hi.animations && hi.animations.length ? hi.animations : null, hi: prep(hi), lo: prep(lo), dim: Math.max(sz.x, sz.y, sz.z), alt: sz.y, cx: (bb.min.x + bb.max.x) / 2, cz: (bb.min.z + bb.max.z) / 2, y0: bb.min.y };
   return moldes[n];
 }

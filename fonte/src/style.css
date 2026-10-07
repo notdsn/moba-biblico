@@ -214,6 +214,7 @@ body[data-time=trevas] .hab.ult{background:radial-gradient(circle at 50% 30%,#8a
 #inimInfo canvas{width:calc(4.6*var(--u));height:calc(4.6*var(--u));border-radius:50%;border:2px solid #ff6a7a}
 #inimInfo b{display:block;font-family:'Cinzel';font-size:calc(1.7*var(--u));color:#ffd0d6}#inimInfo small{font-size:calc(1.4*var(--u));color:#e8d8d8;font-weight:800}
 #inimInfo.morto{filter:grayscale(1);opacity:.7}
+#inimInfo .vida{display:block;width:calc(9*var(--u));height:calc(.8*var(--u));margin-top:calc(.3*var(--u));background:rgba(0,0,0,.55);border-radius:calc(.4*var(--u));overflow:hidden}#inimInfo .vida i{display:block;height:100%;background:linear-gradient(#ff7a7a,#c4283c);transform-origin:left;transition:transform .15s}
 
 /* ===== seleção ===== */
 #selecao{position:fixed;inset:0;z-index:15;display:none;flex-direction:column;align-items:center;padding:calc(2*var(--u) + var(--st)) calc(3*var(--u) + var(--sr)) calc(2*var(--u) + var(--sb)) calc(3*var(--u) + var(--sl));

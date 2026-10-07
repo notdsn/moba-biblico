@@ -118,7 +118,7 @@ export function criarMotorVFX(scene, camera, { qualidade = 'pc' } = {}) {
     ativos.push(e); return e; }
   function atualizar(dt) { agora += dt; for (let i = ativos.length - 1; i >= 0; i--) { let ok = false; try { ok = ativos[i].upd(dt); } catch (e) { console.error('[erro] vfx projetil', e && e.message); } if (!ok) ativos.splice(i, 1); }
     for (const s of Object.values(flips)) s.update(dt); for (const r of rastros) r.update(agora, camera);
-    for (const x of decais) { if (x.livre) continue; x.t += dt; const k = x.t / x.vida; if (k >= 1) { x.livre = true; x.m.visible = false; continue; } const e = 1 - Math.pow(1 - Math.min(1, k * 3), 3); x.m.scale.setScalar((x.r0 + (x.r1 - x.r0) * e) * 2); x.m.material.opacity = x.op * Math.min(1, (1 - k) * 3); }
+    for (const x of decais) { if (x.livre) continue; x.t += dt; const k = x.t / x.vida; if (k >= 1) { x.livre = true; x.m.visible = false; continue; } const e = 1 - Math.pow(1 - Math.min(1, k * 3), 3); x.m.scale.setScalar((x.r0 + (x.r1 - x.r0) * e) * 2); x.m.material.opacity = x.op * Math.min(1, (x.vida - x.t) / Math.min(.8, x.vida / 3)); }
     if (luzI > 0) { luzT += dt; const k = luzT / luzD; luz.intensity = k >= 1 ? 0 : luzI * (1 - k) * (1 - k); if (k >= 1) luzI = 0; } }
   function stats() { return { particulas: Object.fromEntries(Object.entries(flips).map(([k, s]) => [k, s.n + '/' + s.max])), rastros: rastros.filter(r => r.ativo).length, decais: decais.filter(d => !d.livre).length, projeteis: ativos.length, qualidade }; }
   return { registrarFlip, temFlip: (n) => !!flips[n], emitir, rajada, registrarRastro, pegarRastro: () => pegarRastro(), agora: () => agora, decal, registrarMalha, pegarMalha, clarao, projetil, atualizar, stats, Q };

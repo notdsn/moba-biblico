@@ -176,42 +176,58 @@ const estado = { luz: 0, trevas: 0, tempo: 0, fim: null, iniciado: false };
 
 const suportaWebp = () => new Promise(r => { const i = new Image(); i.onload = () => r(i.width === 1); i.onerror = () => r(false); i.src = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA'; });
 const VAR_BASE = { josue: 'sansao', elias: 'davi', acabe: 'nabuco', dalila: 'jezabel', herodes: 'farao', hama: 'nabuco', balaao: 'farao', ester: 'debora', ninrode: 'nabuco', sarai: 'debora', moises: 'davi', daniel: 'davi', noe: 'sansao', jonatas: 'davi', golias2: 'golias' }; // heróis novos só têm o modelo do Tripo: o boneco antigo (referência de escala) vem de um parecido
+const TODOS = P.has('todos'); // ferramentas (retratos/alturas): carrega os 23 heróis no início, como antes
+let heroiG = null, G_REF = null, REF_ALT = null; const ALT_MEDIDAS = {}; window.__alturas = ALT_MEDIDAS;
+// bonecos antigos (Quaternius): só se faltar a tabela de alturas, nos modelos antigos ou se o Tripo falhar
+async function carregarRefsQuaternius() { if (G_REF) return G_REF; const [heroiF, soldadoG, ...cabs] = await Promise.all(['heroi_f', 'soldado', ...CABELOS.map(c => 'cabelo_' + c)].map(n => carregar(n)));
+  return (G_REF = { heroiF, soldadoG, cabelos: Object.fromEntries(CABELOS.map((c, i) => [c, cabs[i]])) }); }
+function refVariante(id) { return montarVariante(VISUAL[id].corpo === 'f' ? G_REF.heroiF : heroiG, VAR_BASE[id] || id, { cabelo: G_REF.cabelos.simpleparted, cabelos: G_REF.cabelos }); }
+const alturaDe = (o) => new THREE.Box3().setFromObject(o, true).getSize(new THREE.Vector3()).y;
+async function alturaRef(id) { if (REF_ALT && REF_ALT[id]) return REF_ALT[id]; const R = await carregarRefsQuaternius();
+  const ref = HEROIS[id] ? refVariante(id) : montarVariante(R.soldadoG, id); return (ALT_MEDIDAS[id] = alturaDe(ref)); }
+const carregandoB = {};
+function garantirBases(ids) { return Promise.all([...new Set(ids)].filter(id => HEROIS[id]).map(id => carregandoB[id] || (carregandoB[id] = montarBaseHeroi(id).catch(e => { console.warn('[heroi] falhou', id, e && e.message); delete carregandoB[id]; })))); }
+async function montarBaseHeroi(id) {
+  if (!TRIPO || (id === 'davi' && DAVI_GROK)) { await carregarRefsQuaternius(); BASES[id] = { cena: refVariante(id), clips };
+    if (id === 'davi' && DAVI_GROK) { const g = await carregar('davi_grok'); BASES.davi = { cena: montarGrok(g, BASES.davi.cena), clips: aliasGrok(g.animations, clips), grok: true };
+      const lod = await carregar('davi_grok_lod1').catch(() => null); if (lod) { reduzirTexturas(lod.scene, 512); juntarLOD(BASES.davi.cena, lod.scene, 28); } }
+    ativarCulling(BASES[id].cena); return; }
+  const [g, lod, alt] = await Promise.all([carregar('tripo/' + id + '_lite').catch(() => carregar('tripo/' + id)).catch(e => { console.warn('[tripo] falhou', id, e && e.message); return null; }), // _lite: ~11k tris, texturas 512/256, mesmos ossos e clipes
+    carregar('tripo/' + id + '_lod1').catch(() => null), alturaRef(id)]);
+  if (!g) { await carregarRefsQuaternius(); BASES[id] = { cena: refVariante(id), clips }; ativarCulling(BASES[id].cena); return; }
+  const r = montarTripo(g, alt, id); if (lod) juntarLOD(r.cena, lod.scene, Q.mobile ? 6 : 9); ativarCulling(r.cena);
+  BASES[id] = { cena: r.cena, clips: aliasTripo(g.animations, clips, HEROIS[id], r.escMundo, r.hips), tripo: true, brutos: g.animations };
+}
 async function iniciar() {
   KIT = criarKits(depsKits());
   if (TRIPO && !(await suportaWebp())) { const u = new URL(location.href); u.searchParams.set('modelos', 'antigos'); location.replace(u.toString()); return; }
-  const [heroiG, heroiF, soldadoG, ...cabs] = await Promise.all(['heroi', 'heroi_f', 'soldado', ...CABELOS.map(c => 'cabelo_' + c)].map(carregar));
-  const cabelos = Object.fromEntries(CABELOS.map((c, i) => [c, cabs[i]]));
+  heroiG = await carregar('heroi'); clips = heroiG.animations;
+  // alturas de referência (escala dos modelos do Tripo) já medidas: dispensa montar os 23 bonecos antigos (23 canvases de ~1024² e
+  // heroi_f/soldado/cabelos baixados só para isso). Sem a tabela (ou ?semAlturas), mede como antes.
+  if (TRIPO && !P.has('semAlturas')) REF_ALT = await fetch(urlAbs('models/tripo/alturas_ref.json')).then(r => r.ok ? r.json() : null).catch(() => null);
   progTxt.textContent = 'Montando heróis e vilões…'; await esperar(10);
-  clips = heroiG.animations;
-  for (const id of [...LUZ, ...TREVAS]) { BASES[id] = { cena: montarVariante(VISUAL[id].corpo === 'f' ? heroiF : heroiG, VAR_BASE[id] || id, { cabelo: cabelos.simpleparted, cabelos }), clips }; }
-  if (TRIPO) {
-    progTxt.textContent = 'Carregando os heróis (Tripo)…';
-    const ids = TRIPO_IDS.filter(id => !(id === 'davi' && DAVI_GROK));
-    const gs = await Promise.all(ids.map(id => carregar('tripo/' + id + '_lite').catch(() => carregar('tripo/' + id)).catch(e => { console.warn('[tripo] falhou', id, e && e.message); return null; }))); // _lite: ~11k tris, texturas 512/256, mesmos ossos e clipes
-    const lods = await Promise.all(ids.map(id => carregar('tripo/' + id + '_lod1').catch(() => null)));
-    ids.forEach((id, i) => { const g = gs[i]; if (!g) return; const r = montarTripo(g, BASES[id].cena, id); if (lods[i]) juntarLOD(r.cena, lods[i].scene, Q.mobile ? 6 : 9); BASES[id] = { cena: r.cena, clips: aliasTripo(g.animations, clips, HEROIS[id], r.escMundo, r.hips), tripo: true }; });
-  }
-  if (DAVI_GROK) { progTxt.textContent = 'Carregando o Davi (Grok Build)…'; const g = await carregar('davi_grok'); BASES.davi = { cena: montarGrok(g, BASES.davi.cena), clips: aliasGrok(g.animations, clips), grok: true };
-    // gancho de LOD: se existir models/davi_grok_lod1.glb (gerado por tools/comprimir_modelo.mjs --lod), usa de longe
-    const lod = await carregar('davi_grok_lod1').catch((e) => { console.log('[lod] sem LOD:', e && e.message); return null; }); if (lod) { reduzirTexturas(lod.scene, 512); console.log('[lod] davi_grok_lod1', juntarLOD(BASES.davi.cena, lod.scene, 28)); } }
-  BASES.guardiao = { cena: montarVariante(soldadoG, 'guardiao'), clips };
-  BASES.sombra = { cena: montarVariante(soldadoG, 'sombra'), clips };
-  BASES.sombra_guerreiro = { cena: montarVariante(soldadoG, 'bruto'), clips };
+  // heróis: só os da partida são baixados e montados (garantirBases, na hora de começar). ?todos (ferramentas) ou modelos antigos: todos agora.
+  if (TODOS || !TRIPO) { progTxt.textContent = 'Carregando os heróis…'; await garantirBases([...LUZ, ...TREVAS]); }
   if (TRIPO) {
     // tropas do Tripo: malha leve (~5-6k tri, textura 512), LOD1 com cor nos vértices (~2k tri) bem mais perto que nos heróis
     progTxt.textContent = 'Carregando as tropas (Tripo)…';
     const gs = await Promise.all(TRIPO_MINIONS.map(id => carregar('tripo/' + id).catch(e => { console.warn('[tripo] falhou', id, e && e.message); return null; })));
     const lods = await Promise.all(TRIPO_MINIONS.map(id => carregar('tripo/' + id + '_lod1').catch(() => null)));
+    const alts = await Promise.all(TRIPO_MINIONS.map(id => alturaRef(id)));
     TRIPO_MINIONS.forEach((id, i) => { const g = gs[i]; if (!g) return;
-      const r = montarTripo(g, BASES[id].cena, id, ESC_TROPA); if (lods[i]) juntarLOD(r.cena, lods[i].scene, Q.mobile ? 4 : 6);
+      const r = montarTripo(g, alts[i], id, ESC_TROPA); if (lods[i]) juntarLOD(r.cena, lods[i].scene, Q.mobile ? 4 : 6);
       const A = ANIM_TROPA[id]; BASES[id] = { cena: r.cena, clips: aliasTripo(g.animations, clips, { anim: A, base: { vel: A.vel } }, r.escMundo, r.hips), tripo: true };
       if (id === 'sombra') { // o "bruto" das Trevas usa o mesmo modelo, maior e mais avermelhado, com o golpe mais pesado
         const cb = skClone(r.cena); const lista = []; cb.traverse(o => { if (o.isSkinnedMesh) lista.push(o); });
         for (const o of lista) { o.material = o.material.clone(); o.material.color.setRGB(1.25, .62, .55); o.material.emissive = new THREE.Color(.05, 0, .008); }
         BASES.sombra_guerreiro = { cena: cb, clips: aliasTripo(g.animations, clips, { anim: ANIM_TROPA.bruto, base: { vel: 3.1 } }, r.escMundo * 1.14, r.hips), tripo: true };
       } }); }
+  if (!BASES.guardiao || !BASES.sombra || !BASES.sombra_guerreiro) { const R = await carregarRefsQuaternius(); // sem Tripo (ou falhou): soldados antigos
+    if (!BASES.guardiao) BASES.guardiao = { cena: montarVariante(R.soldadoG, 'guardiao'), clips };
+    if (!BASES.sombra) BASES.sombra = { cena: montarVariante(R.soldadoG, 'sombra'), clips };
+    if (!BASES.sombra_guerreiro) BASES.sombra_guerreiro = { cena: montarVariante(R.soldadoG, 'bruto'), clips }; }
   // desempenho: culling dos personagens (esfera folgada) e, no celular, tropas sem sombra real (usam sombra "blob")
-  for (const b of Object.values(BASES)) ativarCulling(b.cena);
+  for (const k of ['guardiao', 'sombra', 'sombra_guerreiro']) ativarCulling(BASES[k].cena); // heróis: ativarCulling em montarBaseHeroi
   for (const k of ['guardiao', 'sombra', 'sombra_guerreiro']) BASES[k].cena.traverse(o => { if (o.isMesh) o.castShadow = false; }); // tropas: sombra blob (PC e celular)
   progTxt.textContent = 'Montando o campo de batalha…'; await esperar(10);
   const props = await Promise.all(NOMES_PROPS.map(carregar));
@@ -242,7 +258,7 @@ async function iniciar() {
   }
   redimensionar();
   criarEstruturas();
-  gerarRetratosSelecao();
+  progTxt.textContent = 'Preparando a seleção…'; await gerarRetratosSelecao();
   $('carregando').classList.add('fora');
   const h0 = P.get('heroi');
   if (h0 && HEROIS[h0] && CENA !== 'sel' && CENA !== 'perfil' && CENA !== 'nome') comecarPartida(h0, P.get('vs'));
@@ -342,9 +358,9 @@ const naFonte = (h, r = 8.5) => h.obj.position.distanceTo(FONTE[h.time]) < r;
 // ================= Davi do Grok Build =================
 // ajusta altura ao Davi atual (mesma escala de jogo), mantém materiais/texturas próprios do modelo
 function montarGrok(g, ref) {
-  const root = g.scene; root.updateMatrixWorld(true); ref.updateMatrixWorld(true); reduzirTexturas(root, Q.mobile ? 512 : 1024, renderer); /* celular: 20 heróis em 1024 estouravam a memória de textura do iPhone e os props do mapa, os últimos a subir, ficavam pretos */
+  const root = g.scene; root.updateMatrixWorld(true); if (typeof ref !== 'number') ref.updateMatrixWorld(true); reduzirTexturas(root, Q.mobile ? 512 : 1024, renderer); /* celular: 20 heróis em 1024 estouravam a memória de textura do iPhone e os props do mapa, os últimos a subir, ficavam pretos */
   root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = !Q.baixa; o.frustumCulled = false; const m = o.material; if (m.map) { m.map.anisotropy = Q.baixa ? 1 : 4; } } });
-  const hRef = new THREE.Box3().setFromObject(ref, true).getSize(new THREE.Vector3()).y;
+  const hRef = typeof ref === 'number' ? ref : new THREE.Box3().setFromObject(ref, true).getSize(new THREE.Vector3()).y;
   const hG = new THREE.Box3().setFromObject(root, true).getSize(new THREE.Vector3()).y || 1.8;
   const k = hRef / hG; const wrap = new THREE.Group(); wrap.name = 'davi_grok'; root.scale.setScalar(k); wrap.add(root);
   console.log('[grok] altura ref', hRef.toFixed(3), 'grok', hG.toFixed(3), 'escala', k.toFixed(3));
@@ -352,16 +368,19 @@ function montarGrok(g, ref) {
 }
 // ================= heróis do Tripo =================
 // modelo ~1 m de altura (rig Mixamo "mixamorig"), olhando para +Z. Ajusta à altura do herói atual e prepara materiais.
+// modelos corrigidos pelo Jarvys (2026-10-06: armas rígidas na mão certa, faces invertidas): a altura de repouso mudou (arma saiu do
+// lugar), e o jogo dimensiona pela altura de repouso -> fator para manter o tamanho de antes (tripo_work/fix_herois/REPORT.md)
+const ESC_FIX = { debora: 1.153, balaao: 1.253, moises: .928, elias: .965, ninrode: .970, acabe: .978, noe: .980, sansao: .988, jonatas: .988 };
 function montarTripo(g, ref, id, escJogo = null) {
-  const root = g.scene; root.updateMatrixWorld(true); ref.updateMatrixWorld(true); reduzirTexturas(root, Q.mobile ? 512 : 1024, renderer); /* celular: 20 heróis em 1024 estouravam a memória de textura do iPhone e os props do mapa, os últimos a subir, ficavam pretos */
+  const root = g.scene; root.updateMatrixWorld(true); if (typeof ref !== 'number') ref.updateMatrixWorld(true); reduzirTexturas(root, Q.mobile ? 512 : 1024, renderer); /* celular: 20 heróis em 1024 estouravam a memória de textura do iPhone e os props do mapa, os últimos a subir, ficavam pretos */
   root.traverse(o => { if (!o.isMesh) return; o.castShadow = true; o.receiveShadow = !Q.baixa; const m = o.material;
     // estilo pintado à mão: o PBR do Tripo vem com metal 1 + mapa; suaviza reflexo para não ficar "plástico/cromado"
     m.side = THREE.FrontSide; m.metalness = Math.min(m.metalness, .85); m.envMapIntensity = .8;
     // tropas: o mapa de metal/rugosidade do Tripo deixava a armadura "cromada"; material fosco e uniforme, mais pintado
     if (escJogo) { m.metalnessMap = m.roughnessMap = null; m.metalness = .15; m.roughness = .62; m.envMapIntensity = .5; m.needsUpdate = true; } if (m.normalMap) m.normalScale.set(.8, .8); if (m.map) m.map.anisotropy = Q.baixa ? 1 : 4; });
-  const hRef = new THREE.Box3().setFromObject(ref, true).getSize(new THREE.Vector3()).y;
+  const hRef = typeof ref === 'number' ? ref : new THREE.Box3().setFromObject(ref, true).getSize(new THREE.Vector3()).y;
   const hT = new THREE.Box3().setFromObject(root, true).getSize(new THREE.Vector3()).y || 1;
-  const k = hRef / hT; const wrap = new THREE.Group(); wrap.name = 'tripo_' + id; root.scale.setScalar(k); wrap.add(root);
+  const k = hRef / hT * (ref && ref.name && ref.name.startsWith('tripo_') ? 1 : (ESC_FIX[id] || 1)); const wrap = new THREE.Group(); wrap.name = 'tripo_' + id; root.scale.setScalar(k); wrap.add(root);
   console.log('[tripo]', id, 'altura', hT.toFixed(3), '→', hRef.toFixed(3), 'escala', k.toFixed(3));
   let hips = null; root.traverse(o => { if (!hips && /Hips$/.test(o.name)) hips = o.position.clone(); });
   return { cena: wrap, escMundo: k * (escJogo || ESC_HEROI * HEROIS[id].esc), hips };
@@ -2100,8 +2119,8 @@ function atualizarHUD(dt) {
   const m = $('morte'); const morto = !h.vivo && !estado.fim; if (morto) { m.className = 'on'; const s = Math.ceil(h.morteT); if (m._s !== s) { m._s = s; m.innerHTML = `<i>Você foi derrotado</i>Renasce em <b>${s}</b><small>Compre na LOJA · mova o joystick para olhar o mapa</small>`; } } else { m.className = ''; m._s = -1; }
   if (morto !== telaCinza) { telaCinza = morto; renderer.domElement.style.filter = morto ? 'grayscale(.85) brightness(.75)' : ''; }
   $('pontosAviso').className = h.pontos > 0 && h.vivo ? 'on' : '';
-  const b = bot; if (b) { const ii = $('inimInfo'); if (!ii.firstChild) { ii.innerHTML = `<canvas width="64" height="64"></canvas><div><b>${b.def.nome}</b><small></small></div><span class="mira">Toque: travar mira</span>`; const cv = ii.querySelector('canvas'); if (retratos[b.id]) cv.getContext('2d').drawImage(retratos[b.id], 0, 0, 64, 64); }
-    const tx = `Nv ${b.nivel} · ${b.abates}/${b.mortes}`; const sm = ii.querySelector('small'); if (sm.textContent !== tx) sm.textContent = tx; ii.classList.toggle('morto', !b.vivo); ii.classList.toggle('dica', estado.tempo < 45); }
+  const b = bot; if (b) { const ii = $('inimInfo'); if (!ii.firstChild) { ii.innerHTML = `<canvas width="64" height="64"></canvas><div><b>${b.def.nome}</b><small></small><i class="vida"><i></i></i></div><span class="mira">Toque: travar mira</span>`; topoB = null; topoBW = 0; /* o retrato acabou de aparecer: recalcula a área livre das barras das torres (antes ficava a do HUD vazio e a barra da torre caía em cima do retrato, parecendo a vida do herói) */ const cv = ii.querySelector('canvas'); if (retratos[b.id]) cv.getContext('2d').drawImage(retratos[b.id], 0, 0, 64, 64); }
+    const tx = `Nv ${b.nivel} · ${b.abates}/${b.mortes}`; const sm = ii.querySelector('small'); if (sm.textContent !== tx) sm.textContent = tx; ii.classList.toggle('morto', !b.vivo); if (!(b.fogVis && b.fogVis[jogadorTime()] === false)) { const vb = ii.querySelector('.vida i'), sx = `scaleX(${Math.max(0, b.hp / b.maxHp).toFixed(3)})`; if (vb && vb.style.transform !== sx) vb.style.transform = sx; } ii.classList.toggle('dica', estado.tempo < 45); }
   desenharMinimapa();
 }
 let qualT = 0;
@@ -2135,6 +2154,7 @@ function liberarBasesForaDeUso() { const uso = basesEmUso(); const manter = new 
     b.cena.traverse(o => { if (!o.isMesh) return; if (o.geometry && !manter.has(o.geometry)) { o.geometry.dispose(); n++; } for (const m of [].concat(o.material)) if (m) for (const p in m) { const t = m[p]; if (t && t.isTexture && !manter.has(t)) { t.dispose(); n++; } } }); } // three.js reenvia sozinho se a base voltar a ser usada
   return n;
 }
+const AQ_MATS = []; // materiais só do aquecimento: ficam vivos (dispose liberaria o programa compilado)
 function aquecerShaders() {
   const uso = basesEmUso(); const tmp = new THREE.Group(); for (const [k, b] of Object.entries(BASES)) if (b && b.cena && (!ehBaseHeroi(k) || uso.has(k))) tmp.add(skClone(b.cena)); scene.add(tmp);
   const ocultos = []; scene.traverse(o => { if (!o.visible) { ocultos.push(o); o.visible = true; } });
@@ -2149,8 +2169,18 @@ function aquecerShaders() {
   colunaLuz(tmp, new THREE.Vector3(), tempoU);
   tmp.add(new THREE.Sprite(new THREE.SpriteMaterial({ map: texB, color: 0xb040ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))); // geometria compartilhada dos sprites (Decreto de Jezabel)
   if (VK) VK.preparar();
+  // sombra de malhas dupla face / verso (variantes do material de profundidade)
+  for (const side of [THREE.DoubleSide, THREE.BackSide]) { const m = new THREE.Mesh(gq, new THREE.MeshStandardMaterial({ side })); m.castShadow = true; tmp.add(m); AQ_MATS.push(m.material); }
+  // variantes transparentes (invisível/disfarce deixam o material do herói/tropa transparente = outro shader): compila agora
+  for (const [k, bs] of Object.entries(BASES)) { if (!bs || !bs.cena || (ehBaseHeroi(k) && !uso.has(k))) continue; const c = skClone(bs.cena);
+    c.traverse(o => { if (!o.isMesh) return; o.visible = true; o.material = [].concat(o.material).map(m => { const t = m.clone(); t.transparent = true; t.opacity = .5; AQ_MATS.push(t); return t; }); if (o.material.length === 1) o.material = o.material[0]; }); tmp.add(c); }
   tmp.position.copy(camAlvo || new THREE.Vector3());
-  try { renderer.compile(scene, camera); renderer.shadowMap.needsUpdate = true; composer.render(0); for (const pr of renderer.info.programs || []) { pr.getUniforms(); pr.getAttributes(); } } catch (e) { console.warn('[aquecer]', e && e.message); } // 1 quadro completo (inclui o passe de sombra)
+  // texturas: sobe todas agora (o renderer.compile só compila; a textura subia no 1º quadro em que o objeto aparecia = tranco)
+  { const vistas = new Set(); scene.traverse(o => { if (!o.material) return; for (const m of [].concat(o.material)) for (const k in m) { const t = m[k]; if (t && t.isTexture && !vistas.has(t)) { vistas.add(t); try { renderer.initTexture(t); } catch (e) { } } } }); }
+  // compila no MESMO alvo em que o jogo desenha (render target do composer: saída linear, sem tone mapping no material). Antes compilava
+  // para a tela (sRGB + tone mapping): variantes erradas, e as certas só saíam para o que estava no quadro do aquecimento
+  const rtAnt = renderer.getRenderTarget(); try { renderer.setRenderTarget(composer.readBuffer); renderer.compile(scene, camera); } catch (e) { console.warn('[aquecer rt]', e && e.message); } renderer.setRenderTarget(rtAnt);
+  try { renderer.shadowMap.needsUpdate = true; composer.render(0); for (const pr of renderer.info.programs || []) { pr.getUniforms(); pr.getAttributes(); } } catch (e) { console.warn('[aquecer]', e && e.message); } // 1 quadro completo (inclui o passe de sombra)
   for (const o of ocultos) o.visible = false; scene.remove(tmp); coroa.geometry.dispose();
   const n = liberarBasesForaDeUso(); if (n) console.log('[memoria] liberados da GPU:', n);
 }
@@ -2179,14 +2209,20 @@ function retratoRosto(id, tex) {
   const gr = g.createRadialGradient(80, 60, 10, 80, 80, 90); const luz = HEROIS[id].time === 'luz'; gr.addColorStop(0, luz ? '#6f9be0' : '#b04a6a'); gr.addColorStop(1, luz ? '#1a2a4d' : '#3a0f22'); g.fillStyle = gr; g.fillRect(0, 0, 160, 160); g.drawImage(b, 0, 0);
   return c;
 }
-function gerarRetratosSelecao() {
-  for (const id of [...LUZ, ...TREVAS]) { retratos[id] = retratoRosto(id); retratosCorpo[id] = renderRetrato(id, 300, 560, true); }
+// retratos da seleção: imagens prontas (ui/retratos/, renderizadas dos mesmos modelos 3D por tools/gerarRetratos.mjs) em vez de
+// baixar e montar os 23 heróis só para fotografá-los. Sem a imagem (ou ?todos), renderiza do modelo como antes.
+const imgCanvas = (url, w, h) => new Promise((res) => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0, w, h); res(c); }; im.onerror = () => res(null); im.src = url; });
+async function gerarRetratosSelecao() {
+  await Promise.all([...LUZ, ...TREVAS].map(async id => {
+    if (!TODOS) { const [r, c] = await Promise.all([imgCanvas(urlAbs('ui/retratos/' + id + '_rosto.webp?v=' + VER_RETRATOS), 160, 160), imgCanvas(urlAbs('ui/retratos/' + id + '_corpo.webp?v=' + VER_RETRATOS), 300, 560)]); if (r && c) { retratos[id] = r; retratosCorpo[id] = c; return; } }
+    await garantirBases([id]); retratos[id] = retratoRosto(id); retratosCorpo[id] = renderRetrato(id, 300, 560, true); }));
 }
+const VER_RETRATOS = '1';
 // retratos com a veste (cache): usados no HUD, minimapa, tela VS, fim de partida e tela de veste liberada
 const retratosVeste = {};
 async function retratosDaVeste(id, vid) {
   const k = id + ':' + vid; if (retratosVeste[k]) return retratosVeste[k];
-  const t = await carregarVeste(id, vid); if (!t) return null;
+  const t = await carregarVeste(id, vid); if (!t) return null; await garantirBases([id]);
   return (retratosVeste[k] = { rosto: retratoRosto(id, t), corpo: renderRetrato(id, 300, 560, true, t) });
 }
 
@@ -2714,11 +2750,29 @@ function pedirFuncao(id) {
 window.__pedirFuncao = pedirFuncao;
 // veste lendária: modelo GLB próprio (models/tripo/skins/<id>_lendaria.glb + _lod1), montado como os heróis do Tripo
 async function prepararLendaria(id) {
-  const k = id + '@lendaria'; if (BASES[k]) return k; if (!BASES[id]) return null;
+  const k = id + '@lendaria'; if (BASES[k]) return k; await garantirBases([id]); if (!BASES[id]) return null;
   const g = await carregar('tripo/skins/' + id + '_lendaria_lite', VER_LENDA).catch(() => carregar('tripo/skins/' + id + '_lendaria', VER_LENDA)).catch(e => { console.warn('[lendaria]', id, e && e.message); return null; }); if (!g) return null;
   const lod = await carregar('tripo/skins/' + id + '_lendaria_lod1', VER_LENDA).catch(() => null);
   const r = montarTripo(g, BASES[id].cena, id); if (lod) juntarLOD(r.cena, lod.scene, Q.mobile ? 6 : 9); ativarCulling(r.cena);
   BASES[k] = { cena: r.cena, clips: g.animations.length ? aliasTripo(g.animations, clips, HEROIS[id], r.escMundo, r.hips) : BASES[id].clips, tripo: true }; return k;
+}
+// escalação da partida (quem joga e em qual função), calculada ANTES de criar os heróis: assim só esses modelos são baixados
+function escalacao(id, vsId, d, lista, fnJog, funcao) {
+  const E = { aId: null, cId: null, extras: [], funcao: null, funcaoAliado: null };
+  if (!(SELVA_ON && P.get('modo') !== '1v1')) return E;
+  const meus = (d.time === 'luz' ? LUZ : TREVAS).filter(x => x !== id), deles = lista.filter(x => x !== vsId);
+  E.aId = HEROIS[P.get('aliado')] && meus.includes(P.get('aliado')) ? P.get('aliado') : porRota(meus, fnJog === 'selva' || (ROTAS3 && fnJog !== 'meio') ? 'meio' : 'selva');
+  E.cId = HEROIS[P.get('cacador')] && deles.includes(P.get('cacador')) ? P.get('cacador') : porRota(deles, 'selva');
+  E.funcao = funcao || P.get('funcao') || 'meio'; E.funcaoAliado = E.funcao === 'selva' ? 'meio' : 'selva';
+  if (ROTAS3 && E.funcao !== 'selva' && E.funcao !== 'meio') E.funcaoAliado = 'meio'; // escolheu uma lateral: o aliado do 2v2 fica no Meio e a Selva vai para os extras
+  if (ROTAS3) { // 5v5: completa Barão, Atirador e Suporte com quem sobrou (repete herói enquanto os 14 novos não chegam)
+    for (const [time, usados] of [[d.time, [id, E.aId]], [inimigo(d.time), [vsId, E.cId]]]) {
+      const pool = (time === 'luz' ? LUZ : TREVAS); let resto = pool.filter(x => !usados.includes(x));
+      const fnsT = ['barao', 'selva', 'meio', 'atirador', 'suporte'].filter(f => !(time === d.time ? [E.funcao, E.funcaoAliado] : ['meio', 'selva']).includes(f));
+      for (const fn of fnsT) { const pref = resto.filter(x => HEROIS[x].rota === fn); const hid = (pref[0] || resto[0] || pool[Math.floor(Math.random() * pool.length)]); resto = resto.filter(x => x !== hid); E.extras.push([hid, time, fn]); }
+    }
+  }
+  return E;
 }
 async function comecarPartida(id, vs, funcao) {
   const d = HEROIS[id]; _timeJogador = d.time; recolorirBarras();
@@ -2730,23 +2784,15 @@ async function comecarPartida(id, vs, funcao) {
   if (vid) { const r = await retratosDaVeste(id, vid); if (r) retratos[id] = r.rosto; }
   const mostrarVS = !CAPTURA || CENA === 'vs';
   const vsP = mostrarVS ? telaVS(id, vsId, vid) : null;
+  const E = escalacao(id, vsId, d, lista, fnJog, funcao);
+  await garantirBases([id, vsId, E.aId, E.cId, ...E.extras.map(x => x[0])].filter(Boolean)); // só os heróis da partida são baixados/montados
   const lend = vid === 'lendaria' ? await prepararLendaria(id) : null;
   jogador = criarHeroi(id, d.time, false, lend); bot = criarHeroi(vsId, inimigo(d.time), true);
-  if (SELVA_ON && P.get('modo') !== '1v1') { // 2v2: você + aliado (PC) contra caçador + meio (PC)
-    const meus = (d.time === 'luz' ? LUZ : TREVAS).filter(x => x !== id), deles = lista.filter(x => x !== vsId);
-    const aId = HEROIS[P.get('aliado')] && meus.includes(P.get('aliado')) ? P.get('aliado') : porRota(meus, fnJog === 'selva' || (ROTAS3 && fnJog !== 'meio') ? 'meio' : 'selva');
-    const cId = HEROIS[P.get('cacador')] && deles.includes(P.get('cacador')) ? P.get('cacador') : porRota(deles, 'selva');
-    aliado = criarHeroi(aId, d.time, true); cacador = criarHeroi(cId, inimigo(d.time), true);
-    funcao = funcao || P.get('funcao') || 'meio'; jogador.funcao = funcao; aliado.funcao = funcao === 'selva' ? 'meio' : 'selva'; bot.funcao = 'meio'; cacador.funcao = 'selva';
-    if (ROTAS3 && funcao !== 'selva' && funcao !== 'meio') { aliado.funcao = 'meio'; } // escolheu uma lateral: o aliado do 2v2 fica no Meio e a Selva vai para os extras
-    if (ROTAS3) { // 5v5: completa Barão, Atirador e Suporte com quem sobrou (repete herói enquanto os 14 novos não chegam)
-      for (const [time, usados] of [[d.time, [id, aliado.id]], [inimigo(d.time), [vsId, cacador.id]]]) {
-        const pool = (time === 'luz' ? LUZ : TREVAS); let resto = pool.filter(x => !usados.includes(x));
-        const fnsT = ['barao', 'selva', 'meio', 'atirador', 'suporte'].filter(f => !(time === d.time ? [jogador.funcao, aliado.funcao] : ['meio', 'selva']).includes(f));
-        for (const fn of fnsT) { const pref = resto.filter(x => HEROIS[x].rota === fn); const hid = (pref[0] || resto[0] || pool[Math.floor(Math.random() * pool.length)]); resto = resto.filter(x => x !== hid); const x = criarHeroi(hid, time, true); x.funcao = fn; extras5.push(x); }
-      }
-      for (const x of extras5) { const R = rotaPara(x); if (!R) continue; const p = andarNaRota(R, NUCLEO[x.time], x.time, 4); x.obj.position.set(p.x, 0, p.z); }
-    }
+  if (E.aId) { // 2v2: você + aliado (PC) contra caçador + meio (PC)
+    aliado = criarHeroi(E.aId, d.time, true); cacador = criarHeroi(E.cId, inimigo(d.time), true);
+    funcao = E.funcao; jogador.funcao = funcao; aliado.funcao = E.funcaoAliado; bot.funcao = 'meio'; cacador.funcao = 'selva';
+    for (const [hid, time, fn] of E.extras) { const x = criarHeroi(hid, time, true); x.funcao = fn; extras5.push(x); }
+    for (const x of extras5) { const R = rotaPara(x); if (!R) continue; const p = andarNaRota(R, NUCLEO[x.time], x.time, 4); x.obj.position.set(p.x, 0, p.z); }
   }
   if (SELVA_ON && !selvaIni) selvaIni = iniciarSelva(selvaDeps());
   if (SELVA_ON) { $('bPing').hidden = !aliado; }
@@ -2755,6 +2801,9 @@ async function comecarPartida(id, vs, funcao) {
   if (TREINO) { for (const x of [bot, cacador]) if (x) { x.treino = true; } aviso('Treino: siga as dicas no alto da tela'); }
   if (CENA === 'vs') { $('hud').classList.remove('on'); window.__pronto = true; return; }
   if (VK) await VK.carregarHerois(herois.map(h => h.id)).catch(e => console.warn('[vfx kits]', e && e.message)); if (selvaIni) await Promise.race([selvaIni, esperar(Q.mobile ? 2500 : 5000)]); aquecerShaders(); // no iPhone a partida não espera os monstros (eles terminam de carregar durante a luta) // monstros/aliados/cacador: compila na tela VS, não na luta
+  // último aquecimento já com a câmera e as unidades da largada (ainda atrás da tela VS): o que nasceu depois do aquecerShaders
+  // (anéis, marcadores, 1ª onda) compila agora, não no 1º segundo da partida
+  try { atualizarCamera(1); renderer.shadowMap.needsUpdate = true; composer.render(0); } catch (e) { console.warn('[aquecer largada]', e && e.message); }
   if (vsP) { await vsP; await esperar(250); $('vs').classList.add('sai'); setTimeout(() => $('vs').className = '', 450); }
   $('hud').classList.add('on'); estado.iniciado = true; armarVoltar();
   aviso(`${d.nome} x ${HEROIS[vsId].nome} — destrua o Núcleo inimigo!`);
@@ -2812,14 +2861,14 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, get KIT() { return KIT; }, get VK() { return VK; }, teste: { efeitos, morrer, comprar, danificar, usarFeit, ping, definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
+window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, get KIT() { return KIT; }, get VK() { return VK; }, teste: { garantirBases, efeitos, morrer, comprar, danificar, usarFeit, ping, definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);
 let quadroN = 0;
 const contador = new ContadorFPS(renderer);
 if (P.has('fps') || localStorage.getItem('mobaFps') === '1') contador.mostrar(true);
-function passo(dt) { const t0 = performance.now(); renderer.info.reset(); if (SOMBRA_ALTERNADA) renderer.shadowMap.needsUpdate = (quadroN++ & (tempoU.value < ultAtivaT ? 3 : 1)) === 0; let dtL = estado.pausado ? 0 : dt; if (paradaT > 0 && dtL) { paradaT -= dt; dtL = dt * .1; } protegido('atualizar', () => atualizar(dtL)); if (blobs) protegido('blobs', () => blobs.atualizar(unidades.filter(u => u.tipo === 'minion'))); protegido('camera', () => atualizarCamera(dt)); protegido('barras', () => { atualizarBarras(); atualizarAneisTorre(dt); textos.update(dt, W, H); }); protegido('hud', () => atualizarHUD(dt)); if (lojaAberta && jogador) { lojaT += dt; if (lojaT > .3) { lojaT = 0; const k = Math.floor(jogador.ouro) + '|' + podeComprar(jogador) + '|' + jogador.itens.join(); if (k !== lojaChave) desenharLoja(); } } if (avisoT > 0) { avisoT -= dt; if (avisoT <= 0) avisoEl.className = ''; } if (EX.pronto) aplicarFogVisual(); composer.render(dt); if (contador.on) contador.quadro(dt, performance.now() - t0, renderer.info.render, `res ${renderer.getPixelRatio().toFixed(2)}x · ${W}×${H}<br>tropas na tela ${perfStat.visU}/${unidades.length} · projéteis ${projCriados}`); }
+function passo(dt) { const t0 = performance.now(); renderer.info.reset(); if (SOMBRA_ALTERNADA) renderer.shadowMap.needsUpdate = (jogador && jogador.vivo && (jogador.andando || jogador.dash)) || (quadroN++ & (tempoU.value < ultAtivaT ? 3 : 1)) === 0; /* correndo: sombra todo quadro (a sombra de 1 quadro atrás no próprio corpo e no chão 'tremia' a corrida no celular) */ let dtL = estado.pausado ? 0 : dt; if (paradaT > 0 && dtL) { paradaT -= dt; dtL = dt * .1; } protegido('atualizar', () => atualizar(dtL)); if (blobs) protegido('blobs', () => blobs.atualizar(unidades.filter(u => u.tipo === 'minion'))); protegido('camera', () => atualizarCamera(dt)); protegido('barras', () => { atualizarBarras(); atualizarAneisTorre(dt); textos.update(dt, W, H); }); protegido('hud', () => atualizarHUD(dt)); if (lojaAberta && jogador) { lojaT += dt; if (lojaT > .3) { lojaT = 0; const k = Math.floor(jogador.ouro) + '|' + podeComprar(jogador) + '|' + jogador.itens.join(); if (k !== lojaChave) desenharLoja(); } } if (avisoT > 0) { avisoT -= dt; if (avisoT <= 0) avisoEl.className = ''; } if (EX.pronto) aplicarFogVisual(); composer.render(dt); if (contador.on) contador.quadro(dt, performance.now() - t0, renderer.info.render, `res ${renderer.getPixelRatio().toFixed(2)}x · ${W}×${H}<br>tropas na tela ${perfStat.visU}/${unidades.length} · projéteis ${projCriados}`); }
 window.__perf = () => ({ pr: renderer.getPixelRatio(), projCriados, visU: perfStat.visU, blobs: blobs ? blobs.m.count : 0, sombraAlternada: SOMBRA_ALTERNADA });
 // um erro num quadro nunca pode parar o jogo: registra (uma vez por mensagem) e segue no próximo quadro
 function relatarErro(onde, e) { const V = relatarErro.vistos || (relatarErro.vistos = new Map()); const m = onde + ': ' + (e && e.message || e); const n = (V.get(m) || 0) + 1; V.set(m, n); if (n === 1) console.error('[erro]', m, e && e.stack); }

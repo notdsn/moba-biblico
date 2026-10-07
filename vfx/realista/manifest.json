@@ -2234,6 +2234,81 @@
       "usado_por": [
         "Sansao (queixada de jumento: golpes e arremesso)"
       ]
+    },
+    {
+      "code": "M5",
+      "file": "models/vfx/cacos_cantaro.glb",
+      "bytes": 195424,
+      "source": "Tripo (generated for the project, optimized: 1.7k quads, 512 WebP, meshopt)",
+      "usado_por": [
+        "Gideao (cantaros quebrados revelando tochas)"
+      ]
+    },
+    {
+      "code": "M6",
+      "file": "models/vfx/serpente.glb",
+      "bytes": 324516,
+      "source": "Tripo (generated for the project, optimized: 2.3k quads, 512 WebP, meshopt)",
+      "usado_por": [
+        "Moises (serpente de bronze / vara que vira serpente)",
+        "Farao (serpentes dos magos)"
+      ]
+    },
+    {
+      "code": "M7",
+      "file": "models/vfx/leao.glb",
+      "bytes": 346616,
+      "source": "Tripo (generated for the project, optimized: 4.1k quads, 512 WebP, meshopt)",
+      "usado_por": [
+        "Daniel (leao)"
+      ]
+    },
+    {
+      "code": "M8",
+      "file": "models/vfx/carro_fogo.glb",
+      "bytes": 465792,
+      "source": "Tripo (generated for the project, optimized: 5.9k quads, 512 WebP, meshopt)",
+      "usado_por": [
+        "Elias (carro de fogo com cavalos; aplicar fogo/emissivo no material)"
+      ]
+    },
+    {
+      "code": "M9",
+      "file": "models/vfx/arca.glb",
+      "bytes": 308576,
+      "source": "Tripo (generated for the project, optimized: 3.2k quads, 512 WebP, meshopt)",
+      "usado_por": [
+        "Noe (arca/casco)"
+      ]
+    },
+    {
+      "code": "M10",
+      "file": "models/vfx/coluna_escombros.glb",
+      "bytes": 302656,
+      "source": "Tripo (generated for the project, optimized: 2.8k quads, 512 WebP, meshopt)",
+      "usado_por": [
+        "Sansao (colunas do templo)",
+        "Josue (muralhas/escombros)"
+      ]
+    },
+    {
+      "code": "M11",
+      "file": "models/vfx/pomba.glb",
+      "bytes": 246048,
+      "source": "Tripo (generated for the project, optimized: 1.8k quads, 512 WebP, meshopt)",
+      "usado_por": [
+        "Noe (pomba)",
+        "Jonatas"
+      ]
+    },
+    {
+      "code": "M12",
+      "file": "models/vfx/adaga_vidro.glb",
+      "bytes": 294776,
+      "source": "Tripo (generated for the project, optimized: 1.5k quads, 512 WebP, meshopt)",
+      "usado_por": [
+        "Dalila / Jezabel (adaga de vidro escuro)"
+      ]
     }
   ]
 }

@@ -140,7 +140,8 @@ export async function criarVfxKits(C) {
     nevoa(c, r = 2, n = 4, cor = [.5, .45, .35], alpha = .55, s = 2, vida = 1.4) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * r; E('densa', P(c.x + Math.cos(a) * d, .5 + Math.random() * .8, c.z + Math.sin(a) * d), { vida: vida * (.7 + Math.random() * .6), t0: s * .7, t1: s, q0: -1, cor, alpha, vel: [rnd(.4), .2, rnd(.4)], rot: Math.random() * TAU, giro: rnd(.5) }); } },
     // decais (atlas 4x4 do manifest: queimado, rachadura, rachadura_lava, chao_molhado, pegadas_leao_humano, garras, buraco_pedra, mancha_escura,
     // circulo_areia, marcas_rodas, laco_corda, runas_cuneiformes, mene_tequel, estrela_gravada, sulco_serpente, borda_aviso)
-    decal(c, cel, r = 2, vida = 3, cor = [1, 1, 1], op = .9, r0) { const t = DEC[cel]; if (!t) return; M.decal(c, { tex: t, r0: r0 ?? r * .85, r1: r, vida, cor, op }); if (DECE[cel] && (cel === 'rachadura_lava' || cel === 'mene_tequel')) M.decal(c, { tex: DECE[cel], r0: r0 ?? r * .85, r1: r, vida, cor: [1, .8, .5], aditivo: true, op: 1 }); },
+    // marcas no chão: somem com o fim do golpe (máx. 1,4 s, fade ~0,5 s) e menos opacas; só zonas reais (zona=true) duram a zona inteira
+    decal(c, cel, r = 2, vida = 3, cor = [1, 1, 1], op = .9, r0, zona = false) { const t = DEC[cel]; if (!t) return; if (!zona) vida = Math.min(vida, 1.4); op *= zona ? .8 : .62; M.decal(c, { tex: t, r0: r0 ?? r * .85, r1: r, vida, cor, op }); if (DECE[cel] && (cel === 'rachadura_lava' || cel === 'mene_tequel')) M.decal(c, { tex: DECE[cel], r0: r0 ?? r * .85, r1: r, vida, cor: [1, .8, .5], aditivo: true, op: 1 }); },
     queimado(c, r = 2, vida = 3) { V.decal(c, 'queimado', r, vida, [1, 1, 1], .9); },
     rachadura(c, r = 2, vida = 2.5) { V.decal(c, 'rachadura', r, vida, [1, 1, 1], .85); },
     // onda de choque deitada no chão (fx_onda_choque flipbook, tingida)
@@ -243,11 +244,11 @@ export async function criarVfxKits(C) {
   // slot: campo "slot" da entrada ou deduzido do nome do arquivo. L = comprimento em metros; ponta = lado fino em +Z.
   const SLOTS_MALHA = {
     flecha: { L: 1.15, extra: [['virote', .62]] }, pedra: { L: .5, ponta: false, extra: [['pedraG', 1.9]] }, pedra_funda: { slot: 'pedra', L: .5, ponta: false, extra: [['pedraG', 1.9]] },
-    queixada: { h: ['sansao', 'golias2'], L: .9, ponta: false }, cantaro: { h: ['gideao'], L: .9, ponta: false }, cacos: { h: ['gideao'], slot: 'lasca', L: .25, ponta: false }, cacos_cantaro: { h: ['gideao'], slot: 'lasca', L: .25, ponta: false },
-    serpente: { h: ['moises', 'farao'], L: 1.1 }, leao: { h: ['daniel'], L: 2.2, ponta: false }, carro: { h: ['elias', 'acabe'], L: 3, ponta: false }, carro_fogo: { h: ['elias'], slot: 'carro', L: 3, ponta: false }, arca: { h: ['josue'], L: 1.3, ponta: false },
-    coluna: { h: ['sansao', 'josue'], L: 4.6, ponta: false, eixo: 'y' }, pomba: { h: ['noe'], L: .7 }, adaga: { h: ['sarai'], L: .7 }, lanca: { L: 2.2 }, corvo: { h: ['noe'], L: .8 }, carta: { h: ['jezabel'], L: .5, ponta: false }, rede: { h: ['ninrode'], L: 2, ponta: false },
+    queixada: { h: ['sansao', 'golias2'], L: .9, ponta: false }, cantaro: { h: ['gideao'], L: .9, ponta: false }, cacos: { h: ['gideao'], slot: 'lasca', L: .25, ponta: false }, cacos_cantaro: { h: ['gideao'], slot: 'cacos', L: .3, ponta: false }, /* antes caía no slot 'lasca' (lascas de pedra de TODOS os heróis) */
+    serpente: { h: ['moises', 'farao'], L: 1.1, extra: [['serpente_bronze', 1, 'bronze']] }, leao: { h: ['daniel'], L: 2.2, ponta: false }, carro: { h: ['elias', 'acabe'], L: 3, ponta: false }, carro_fogo: { h: ['elias'], slot: 'carro', L: 3.2, ponta: false, fogo: true }, arca: { h: ['noe'], slot: 'arca_noe', L: 1, ponta: false }, arca_alianca: { h: ['josue'], slot: 'arca', L: 1.3, ponta: false }, coluna_escombros: { h: ['sansao', 'josue'], slot: 'coluna', L: 4.6, ponta: false, eixo: 'y' },
+    coluna: { h: ['sansao', 'josue'], L: 4.6, ponta: false, eixo: 'y' }, pomba: { h: ['noe', 'jonatas'], L: .7 }, adaga: { h: ['sarai'], L: .7 }, lanca: { L: 2.2 }, corvo: { h: ['noe'], L: .8 }, carta: { h: ['jezabel'], L: .5, ponta: false }, rede: { h: ['ninrode'], L: 2, ponta: false },
     ave: { h: ['noe'], slot: 'corvo', L: .8, extra: [['pomba', .9]] }, coluna_pedra: { h: ['sansao', 'josue'], slot: 'coluna', L: 4.6, ponta: false, eixo: 'y' }, bloco_muralha: { h: ['josue'], slot: 'muro', L: 2.2, ponta: false }, porta_madeira: { h: ['sansao', 'noe'], slot: 'porta', L: 2.2, ponta: false },
-    adaga_vidro: { h: ['sarai'], slot: 'adaga', L: .7 }, costelas_arca: { h: ['noe'], slot: 'costela', L: 2, ponta: false }, carta_selada: { h: ['jezabel'], slot: 'carta', L: .5, ponta: false }, anel_sinete: { h: ['ester'], slot: 'anel', L: .35, ponta: false }, dado: { h: ['hama'], L: .4, ponta: false },
+    adaga_vidro: { h: ['sarai', 'dalila', 'jezabel'], slot: 'adaga', L: .7 }, costelas_arca: { h: ['noe'], slot: 'costela', L: 2, ponta: false }, carta_selada: { h: ['jezabel'], slot: 'carta', L: .5, ponta: false }, anel_sinete: { h: ['ester'], slot: 'anel', L: .35, ponta: false }, dado: { h: ['hama'], L: .4, ponta: false },
     costela: { h: ['noe'], L: 2, ponta: false }, porta: { h: ['sansao', 'noe'], L: 2.2, ponta: false }, muro: { h: ['josue'], L: 2.2, ponta: false }, mao: { h: ['nabuco'], L: 1.4, ponta: false }, pergaminho: { h: ['daniel'], L: .5, ponta: false }, anel: { h: ['ester'], L: .35, ponta: false },
   };
   const malhasOk = [], malhasFeitas = new Set();
@@ -264,7 +265,12 @@ export async function criarVfxKits(C) {
       if (slot === 'flecha' && C.flecha) { feitos.push(slot); return; } // já carregada pelo main
       try {
         const g = await C.glb((C.base || '') + arq); const m = assar(g.scene, e.comprimento || cfg.L, { ponta: cfg.ponta !== false, eixo: cfg.eixo || 'auto' }); if (!m) return;
-        trocarMalha(slot, m, e.escala || 1); for (const [n, esc] of cfg.extra || []) trocarMalha(n, m.clone(), esc); feitos.push(slot);
+        const tingir = (o, tipo) => { o.traverse(x => { if (!x.isMesh) return; x.material = [].concat(x.material).map(mt => { const t = mt.clone();
+            if (tipo === 'bronze') { t.color = new THREE.Color(1.05, .72, .38); if ('metalness' in t) { t.metalness = .65; t.roughness = .38; } }
+            if (tipo === 'fogo' && t.emissive) { t.emissive = new THREE.Color(1, .42, .1); t.emissiveIntensity = .8; if (t.map) t.emissiveMap = t.map; }
+            return t; }); if (x.material.length === 1) x.material = x.material[0]; }); return o; };
+        if (cfg.fogo) tingir(m, 'fogo');
+        trocarMalha(slot, m, e.escala || 1); for (const [n, esc, tinta] of cfg.extra || []) trocarMalha(n, tinta ? tingir(m.clone(), tinta) : m.clone(), esc); feitos.push(slot);
       } catch (err) { console.warn('[vfx] malha do manifest falhou (fica o procedural):', arq, err && err.message); }
     }));
     return feitos;
