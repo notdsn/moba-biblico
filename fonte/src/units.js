@@ -79,7 +79,8 @@ export class Unidade {
   tocar(nome, fade = .18, vez = false, vel = 1) {
     const a = this.acoes[nome]; if (!a) return null;
     if (this.atual === a && !vez) { if (a.timeScale !== vel) a.timeScale += (vel - a.timeScale) * .25; return a; } // mesma ação: só acompanha a velocidade, sem reiniciar
-    a.reset(); a.timeScale = vel; a.enabled = true;
+    // voltar para um laço que ainda está ativo/saindo (ex.: corrida -> parado -> corrida em poucos quadros) mantém a fase do passo; só ações de uma vez reiniciam
+    const t0 = !vez && a.isRunning() ? a.time : 0; a.reset(); if (t0) a.time = t0; a.timeScale = vel; a.enabled = true;
     if (vez) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } else a.setLoop(THREE.LoopRepeat, Infinity);
     if (this.atual && this.atual !== a) a.crossFadeFrom(this.atual, fade, false); else a.fadeIn(fade);
     a.play(); this.atual = a; return a;

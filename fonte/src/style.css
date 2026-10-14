@@ -800,3 +800,20 @@ html.android #girarBtn{display:block}
 .feitico:has(.icFeit) .cd{z-index:2}
 #feitTela .lista .icFeit{width:calc(5.6*var(--u));height:calc(5.6*var(--u));border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px var(--c)}
 .feitico[data-cargas]::before{content:attr(data-cargas);position:absolute;top:4%;right:8%;z-index:3;min-width:1.3em;line-height:1.3em;border-radius:50%;background:#1a1408;border:1px solid #ffcf6a;color:#ffe9b0;font-size:calc(1.2*var(--u));font-weight:900;text-align:center}
+
+/* ===== R8: estados dos botões de habilidade e feitiço (estilo Wild Rift) ===== */
+.hab .icHab{filter:brightness(1.08) contrast(1.06)}
+.hab.pronta .icHab{filter:brightness(1.25) contrast(1.12) saturate(1.25)}
+.hab.h1.pronta,.hab.h2.pronta,.hab.h3.pronta,.feitico.pronta{border-color:#ffe6a0!important;box-shadow:0 0 0 calc(.35*var(--u)) rgba(255,226,140,.95),0 0 calc(2*var(--u)) rgba(255,205,90,.7)!important}
+.feitico.pronta svg{filter:brightness(1.3) drop-shadow(0 0 3px currentColor)}
+.feitico:not(.pronta) svg{filter:grayscale(.6) brightness(.6)}
+.hab.bloq .icHab{filter:grayscale(1) brightness(.34)!important}
+.hab.bloq{border-color:rgba(150,150,150,.45)!important;box-shadow:none!important}
+.hab.bloq:not(.podeSubir)::before{content:'';position:absolute;z-index:4;left:50%;top:50%;width:calc(3.2*var(--u));height:calc(3.2*var(--u));transform:translate(-50%,-38%);pointer-events:none;
+ background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V7a5 5 0 0 1 10 0v3' fill='none' stroke='%23e8e8e8' stroke-width='2.4'/%3E%3Crect x='4.5' y='10' width='15' height='11' rx='2' fill='%23e8e8e8'/%3E%3C/svg%3E");opacity:.85}
+.hab.semMana .icHab{filter:grayscale(.5) brightness(.6)!important}
+.hab.semMana:has(.icHab)::after{background:rgba(40,110,255,.42)!important}
+.hab:has(.cd.on) .icHab{filter:brightness(.8)}
+@keyframes flashPronta{0%{filter:brightness(2.1);transform:scale(1.12)}100%{filter:none;transform:scale(1)}}
+.hab.flashPronta,.feitico.flashPronta{animation:flashPronta .6s ease-out}
+#bClarao:not(.pronta),#bCurar:not(.pronta){border-color:rgba(150,140,115,.5)!important}

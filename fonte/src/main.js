@@ -1818,7 +1818,8 @@ function atualizarHeroi(h, dt) {
   if (h.provoc && h.bot) h.forcarAlvo = h.provoc.por;
   const c = h.ctrl;
   // histerese: começa a correr acima de 0,15 e só para abaixo de 0,08 (não fica piscando entre parado e correndo)
-  h.andando = c.len > (h.andando ? .08 : .15);
+  // e só volta a 'parado' depois de 0,15 s sem comando: a IA (e o tocar-para-andar) zera o comando por 1 quadro ao replanejar/retomar o alvo, o que reiniciava a corrida no meio do passo
+  if (c.len > (h.andando ? .08 : .15)) { h.andando = true; h.paradoT = 0; } else if (h.andando) { h.paradoT = (h.paradoT || 0) + dt; if (h.paradoT > .15 || h.travado > 0) h.andando = false; }
   if (h.andando && h.travado < .2 && !(h.raiz > 0)) {
     const v = velocidade(h) * Math.min(1, c.len * 1.3);
     h.obj.position.x += c.x * v * dt; h.obj.position.z += c.y * v * dt; limitar(h.obj.position);
@@ -2152,6 +2153,10 @@ function atualizarHUD(dt) {
   if (SELVA_ON) { const ob = h.olhoBeemote > estado.tempo; const bb = $('bBeemote'); if (bb.hidden === ob) bb.hidden = !ob; }
   if (h._feitUI !== h.feitSel.join() + (h.golpearNv || 1)) { h._feitUI = h.feitSel.join() + (h.golpearNv || 1); [['bClarao', 0], ['bCurar', 1]].forEach(([id, i]) => { const el = $(id), k = h.feitSel[i], I = FEIT_INFO[k]; el.setAttribute('aria-label', I.nome); el.style.setProperty('color', I.cor, 'important'); el.style.setProperty('border-color', I.cor, 'important'); el.innerHTML = `${iconeFeit(k, h)}<span>${I.nome}</span><em class="cd"></em>`; }); }
   [['bClarao', 0], ['bCurar', 1]].forEach(([id, i]) => { const k = h.feitSel[i], el = $(id); if (k === 'golpear') { const [r, t] = cdGolpear(h); setCd(el, r, t); if (el.dataset.cargas !== String(h.golpearCargas)) el.dataset.cargas = h.golpearCargas; } else { setCd(el, h.feit[k], FEIT[k]); if (el.dataset.cargas) delete el.dataset.cargas; } }); setCd($('bSentinela'), Math.max(0, (h.sentCd || 0) - estado.tempo), SENT.cd);
+  // estado visual dos botões (estilo WR): pronta = brilho cheio + aro dourado; flash curto quando acaba de ficar pronta
+  { const marcar = (el, pr) => { if (!el) return; if (el._pr !== pr) { const ant = el._pr; el._pr = pr; el.classList.toggle('pronta', pr); if (pr && ant === false && estado.tempo > 1) { el.classList.remove('flashPronta'); void el.offsetWidth; el.classList.add('flashPronta'); clearTimeout(el._fpT); el._fpT = setTimeout(() => el.classList.remove('flashPronta'), 650); } } };
+    for (const [k, el] of Object.entries(cdEls)) { const H = h.hab[k], d = h.def.hab[k]; marcar(el, !!(h.vivo && H.nv > 0 && H.cd <= 0 && h.mana >= d.mana[H.nv - 1])); }
+    [['bClarao', 0], ['bCurar', 1]].forEach(([id, i]) => { const k = h.feitSel[i]; const pr = h.vivo && (k === 'golpear' ? (h.golpearCargas || 0) > 0 && !(h.feit.golpear > 0) : !(h.feit[k] > 0)); marcar($(id), !!pr); }); }
   { const R = h.hab.r; const pronta = R.nv > 0 && R.cd <= 0 && h.mana >= h.def.hab.r.mana[R.nv - 1] && h.vivo; if (pronta !== h.ultPronta) { h.ultPronta = pronta; cdEls.r.classList.toggle('pronta', pronta); if (pronta && estado.tempo > 1) som('ultPronta', null, .8); } }
   atualizarAnuncio(dt);
   $('bRecuar').classList.toggle('ativo', !!h.canal);
