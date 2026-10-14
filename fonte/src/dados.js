@@ -464,7 +464,7 @@ export const HEROIS = {
   },
 };
 export const LUZ = ['davi', 'sansao', 'debora', 'gideao', 'josue', 'elias', 'ester', 'sarai', 'moises', 'daniel', 'noe', 'jonatas'];
-export const HEROI_DESATIVADO = { golias: true }; // Golias (não o golias2) desativado: não perdia vida (bug em aberto). Some da seleção e das escolhas dos bots; o código fica.
+export const HEROI_DESATIVADO = {}; // Golias (não o golias2) desativado: não perdia vida (bug em aberto). Some da seleção e das escolhas dos bots; o código fica.
 export const TREVAS = ['golias', 'farao', 'jezabel', 'nabuco', 'acabe', 'dalila', 'herodes', 'hama', 'balaao', 'ninrode', 'golias2'].filter(id => !HEROI_DESATIVADO[id]);
 
 // ---------- itens ----------
