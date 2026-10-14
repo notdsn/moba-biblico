@@ -91,8 +91,21 @@ export function bordaCova(x, z) {
 }
 // colisão com a muralha das covas (heróis) e desvio pelas entradas (IA)
 export function empurrarCova(p) {
-  for (const cv of COVAS) { const dx = p.x - cv.x, dz = p.z - cv.z, d = Math.hypot(dx, dz); if (d > cv.rOut + 1 || d < 1e-3) continue; if (!naMuralha(cv, Math.atan2(dz, dx))) continue;
-    const w0 = cv.rIn, w1 = cv.rOut; if (d > w0 && d < w1) { const nd = d - w0 < w1 - d ? w0 : w1; p.x = cv.x + dx / d * nd; p.z = cv.z + dz / d * nd; } }
+  for (const cv of COVAS) { const dx = p.x - cv.x, dz = p.z - cv.z, d = Math.hypot(dx, dz); if (d > cv.rOut + 1 || d < 1e-3) continue; const a = Math.atan2(dz, dx); if (!naMuralha(cv, a)) continue;
+    const w0 = cv.rIn, w1 = cv.rOut; if (!(d > w0 && d < w1)) continue;
+    if (cv.poco) { // perto da quina da boca: escorrega para dentro da boca (não trava nem é jogado para fora no corredor estreito)
+      let e0 = cv.ent[0]; for (const e of cv.ent) if (angD(a, e) < angD(a, e0)) e0 = e; const da = Math.atan2(Math.sin(a - e0), Math.cos(a - e0)), ex = Math.abs(da) - cv.meia;
+      if (ex * d < Math.min(d - w0, w1 - d)) { const a2 = e0 + Math.sign(da) * (cv.meia - .02); p.x = cv.x + Math.cos(a2) * d; p.z = cv.z + Math.sin(a2) * d; continue; } }
+    const nd = d - w0 < w1 - d ? w0 : w1; p.x = cv.x + dx / d * nd; p.z = cv.z + dz / d * nd; }
+}
+// linha de visão através da borda dos poços: de fora (atrás da muralha) não se alcança o que está dentro, e vice-versa. Vale dentro, na boca ou do mesmo lado.
+export function mesmoLadoCova(p, q) {
+  for (const cv of COVAS) { if (!cv.poco) continue; const dp = Math.hypot(p.x - cv.x, p.z - cv.z), dq = Math.hypot(q.x - cv.x, q.z - cv.z);
+    const inP = dp < cv.rIn + .2, inQ = dq < cv.rIn + .2; if (inP === inQ) continue;
+    const [fd, fx, fz] = inP ? [dq, q.x, q.z] : [dp, p.x, p.z];
+    if (fd < cv.rOut + 1.5 && !naMuralha(cv, Math.atan2(fz - cv.z, fx - cv.x))) continue; // na boca
+    return false; }
+  return true;
 }
 export function desvioCova(p, alvo) {
   for (const cv of COVAS) {

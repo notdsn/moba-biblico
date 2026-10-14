@@ -2,7 +2,7 @@
 // Modelos Tripo sem esqueleto: animação por código (respiração, virar, investida, morte com encolher/sumir).
 import * as THREE from 'three';
 import { clone as clonarEsq } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { SELVA_ON, CAMPOS } from './selva_mapa.js';
+import { SELVA_ON, CAMPOS, mesmoLadoCova } from './selva_mapa.js';
 import { reduzirTexturas } from './perf.js';
 export { SELVA_ON, CAMPOS };
 
@@ -422,7 +422,7 @@ function iaTime() { // bots se agrupam para objetivos por conta própria (o time
 function alvoVivo(sub) { return monstros.find(m => m.sub === sub && m.vivo && m.estadoM !== 'morrendo'); }
 function lutarMonstro(h, m, dt) {
   h.forcarAlvo = m; const d = m.obj.position.distanceTo(h.obj.position) - m.raio;
-  if (d > h.alcance) D.mover2(h, m.obj.position); else { D.atacar(h); for (const k of ['q', 'w', 'e']) { const H = h.hab[k], dd = h.def.hab[k]; if (H.nv && H.cd <= 0 && h.mana > h.manaMax * .45 && ['proj', 'linha', 'area', 'zona'].includes(dd.tipo) && Math.random() < dt * 1.5) { D.usarHab(h, k); break; } } }
+  if (d > h.alcance || !mesmoLadoCova(h.obj.position, m.obj.position)) D.mover2(h, m.obj.position); else { D.atacar(h); for (const k of ['q', 'w', 'e']) { const H = h.hab[k], dd = h.def.hab[k]; if (H.nv && H.cd <= 0 && h.mana > h.manaMax * .45 && ['proj', 'linha', 'area', 'zona'].includes(dd.tipo) && Math.random() < dt * 1.5) { D.usarHab(h, k); break; } } }
   h.ultimoAlvoMonstroT = D.estado.tempo;
 }
 // time ajuda no objetivo épico (Dragão/Leviatã) quando o caçador está nele ou o monstro já luta com o time

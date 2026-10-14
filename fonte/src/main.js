@@ -26,7 +26,7 @@ function andarNaRota(R, p, time, k) { // projeta p no trecho mais próximo e and
 }
 function progressoRota(R, p, time) { let mi = 0, md = 1e9; for (let i = 0; i < R.length; i++) { const d = R[i].distanceToSquared(p); if (d < md) { md = d; mi = i; } } return time === 'luz' ? mi : R.length - 1 - mi; }
 import { covasWR } from './covas_wr.js';
-import { SELVA_ON, SELVA_LARG, SELVA_SUL, empurrarCova, desvioCova, MAPA_WR, MAPA_C, MAPA_FOLGA, ROTA_TOPO, ROTA_BAIXO, TORRES_LATERAIS, POCO_XZ, DRAG_XZ } from './selva_mapa.js';
+import { SELVA_ON, SELVA_LARG, SELVA_SUL, empurrarCova, desvioCova, mesmoLadoCova, MAPA_WR, MAPA_C, MAPA_FOLGA, ROTA_TOPO, ROTA_BAIXO, TORRES_LATERAIS, POCO_XZ, DRAG_XZ } from './selva_mapa.js';
 import { iniciarSelva, atualizarSelva, monstroMorreu, multDano, aoAtacar, aoCriarMinion, botSelva, botUsarOlho, ajudarEpico, desenharSelvaMM, invocarBeemote, ping, PINGS, selva as SELVA, nascerTudo } from './selva.js';
 import { Unidade, anelHeroi, auraSombra } from './units.js';
 import { montarVariante } from './equip.js';
@@ -1356,10 +1356,10 @@ function acumuloGolpear(h, m) { if (!h || !temFeit(h, 'golpear')) return; iniGol
 function alvoGolpear(h, soMonstro) { const p = h.obj.position; let best = null, bp = -1, bd = 1e9;
   for (const u of unidades) { if (!u.vivo || u.spawnT > 0 || u.time === h.time) continue; let pr = 0;
     if (u.tipo === 'monstro') { if (u.T.peq || u.modo === 'arauto' || u.estadoM === 'morrendo') continue; pr = u.T.obj ? 3 : 2; } else if (u.tipo === 'minion' && !soMonstro) { if (!visivelPara(u, h.time)) continue; pr = 1; } else continue;
-    const d = u.obj.position.distanceTo(p) - (u.raio || .5); if (d > GOLP.alc) continue; if (pr > bp || (pr === bp && d < bd)) { best = u; bp = pr; bd = d; } }
+    const d = u.obj.position.distanceTo(p) - (u.raio || .5); if (d > GOLP.alc) continue; if (SELVA_ON && !mesmoLadoCova(p, u.obj.position)) continue; if (pr > bp || (pr === bp && d < bd)) { best = u; bp = pr; bd = d; } }
   return best; }
 function golpear(h, alvo) { iniGolpear(h); if (h.golpearCargas < 1) return avisoFeit(h, 'Golpear sem cargas');
-  let u = alvo || alvoGolpear(h); let heroi = false;
+  let u = alvo || alvoGolpear(h); let heroi = false; if (u && alvo && SELVA_ON && !mesmoLadoCova(h.obj.position, u.obj.position)) u = null; // a borda do poço bloqueia
   if (!u && h.golpearNv > 1) { const a = heroiInimigoPerto(h, GOLP.alc); if (a) { u = a; heroi = true; } }
   if (!u) return avisoFeit(h, h.golpearNv > 1 ? 'Nada para golpear por perto (5 m)' : 'Nenhum monstro grande ou tropa perto (5 m)');
   const q = u.obj.position; h.golpearCargas--; h.feit.golpear = FEIT.golpear; if (h.golpearCargas < GOLP.cargasMax && h.golpearRec >= GOLP.recarga) h.golpearRec = GOLP.recarga;
@@ -2919,7 +2919,7 @@ function cenario() {
   }
   if (CENA === 'galeria') telaGaleria();
 }
-window.__jogo = { usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, get KIT() { return KIT; }, get VK() { return VK; }, teste: { garantirBases, efeitos, morrer, comprar, danificar, usarFeit, ping, definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
+window.__jogo = { golpear, usarHab, vistoNoMM, destruirEstrutura, get aliado() { return aliado; }, get cacador() { return cacador; }, nivelar, limparTropas, camExtra: (v) => { camExtra = v; }, camAlvo, perfStat, medirDano, recalcular, autoPontos, get ITENS() { return ITENS; }, estadoSom, menuSair, get RT_FLOAT() { return RT_FLOAT; }, avaliarLuta, danoCombo, get DIF() { return DIF; }, anunciar, ganharOuro, feedAbate, telaVesteNova, telaGaleria, travarInimigo, paradaImpacto, MIRA, desenharMira, esconderMira, get textos() { return textos; }, retratosDaVeste, retratosCorpo, get retratos() { return retratos; }, get fx() { return fx; }, get fxD() { return fxD; }, scene, camera, renderer, estado, get jogador() { return jogador; }, get bot() { return bot; }, unidades, estruturas, herois, entrada, set input(v) { cenaInput = v; if (v) joyVisual(v.x, v.y); else joyVisual(0, 0); }, set cam(v) { camExtra = v; }, onda, novoMinion, laneZ, THREE, usarHab, atacar, abrirLoja, fecharLoja, comprar, nivelar, POS, subirHab, curar, clarao, recuar, get ondaT() { return ondaT; }, set ondaT(v) { ondaT = v; }, danificar, darXp, telaPerfil, get KIT() { return KIT; }, get VK() { return VK; }, teste: { garantirBases, efeitos, morrer, comprar, danificar, usarFeit, ping, definirLendarias, prepararLendaria, criarHeroi, verHeroi, BASES, get LAY() { return LAY; }, ROTAS_L, MUROS_T, sentN: () => EX.sentinelas.filter(w => w.vivo).length } };
 
 // ================= laço =================
 const relogio = new THREE.Clock(false);
